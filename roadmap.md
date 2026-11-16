@@ -1,0 +1,80 @@
+- [x] Bài 12 LT1: new stage-floor question text.
+- [x] Bài 12 HĐ2/HĐ3: still drawings look identical in presentation and normal mode.
+- [x] Bài 12 HĐ3 recap + LT2 answer a: intersection point without braces.
+- [x] Bài 12 HĐ3 Câu 6: box shows A'C'; next Enter adds AC.
+- [x] Bài 12 HĐ1 and LT2: SHOW ANSWER turns on automatically once every team has submitted (HĐ1 verified live; LT2 shares the same rule).
+- [x] Bài 12 HĐ2 model 3: points A and B on d in the 3D model and the still drawing.
+- [x] Save the teacher's Gemini key in this browser with a button inside the key box.
+- [x] Add isolated Bài 11.1 cube practice, individual name entry (45 students maximum), immutable short-answer submissions and teacher answers with submission clock; phone/desktop student flow verified, 149 tests pass.
+- [x] Bài 11.1: larger, recolored cube with clearer default view; SHOW ANSWER as "name - time: answer" earliest first; answer 1 lists line names; new question 2.
+- [x] Bài 11.1: scheduled hand-out time, student waiting screen with no content, 5-second countdown (verified teacher + phone student).
+- [x] Bài 11.1: cube looks like a true cube (25° field of view, square faces).
+- [ ] Click through Bài 11.1 SHOW ANSWER with real student submissions (teacher account now exists; not yet run).
+- [x] Bài 11.1: waiting screen shows the opening countdown on the same line as "Đợi giáo viên giao bài"; student join verified live (clock ticked 02:19 → 02:15, work opened on time), test classes deleted.
+- [x] Add parentheses to Activity 2 plane labels, shorten Bài 11 questions 1/2/3/5/6, and hide the lesson catalogue on the signed-out homepage; browser verified and 26 related tests passed.
+- [x] Place visible textbook plane labels inside the corner in Bài 11 and Bài 12 Activity 2, and set the skew model's default view from the reference; browser verified and 26 related tests passed.
+- [x] Enlarge Bài 11 models by 30%, improve line contrast and textbook math labels, put student answers under their questions, and default new classroom names to the lesson plus Vietnam date/time; 13 tests and signed-in teacher / phone student flow verified.
+- [x] Enlarge Bài 11 SHOW ANSWER team labels and student answers to match lesson reading size (21px normally, 29px in full-screen presentation).
+# Classroom build
+- [x] Add editable lesson catalogue, preserve existing content as Bài 12, and add Bài 11 with three coplanar models and a skew-lines model; browser Enter/Backspace and mobile layout verified, 133 tests pass.
+- [x] Verify Bài 11 teacher release and student submission/rejoin end-to-end: all six answers submitted from phone, completion restored after code-only rejoin, and teacher SHOW ANSWER readback verified.
+- [x] Update Luyện tập 2 question c and show correct answers in concise mathematical notation matching the Hoạt động 3 recap.
+- [x] Keep each Luyện tập 2 answer isolated to its selected question; never reveal other questions' answers alongside it.
+- [x] Full screen presentation: hide top area, fixed lesson title, mounted fade-in lines so Enter/Backspace never scroll or shift; parts still switch; verified signed-in through all five parts and Esc exit.
+- [x] Compact Activity 1 mobile question selectors (one row of six, phone verified); keep presentation scale when the AI panel opens (rule tested).
+- [ ] Click through "Gửi AI" in a signed-in presentation class: waiting for a teacher account in the remixed project, which has none yet.
+- [x] Repair adjacent-part keyboard navigation, remove LT1 assignment start, add lecture/presentation modes, closed-gated code-only sharing and HĐ2/HĐ3 student slide synchronization; verified signed-in teacher, phone conclusion, code-only answers, closure, desktop fitting and 101 tests.
+- [x] Move teacher AI key to the top-right header, compact AI prompt with 21px lesson-sized text, enlarge LT2 introduction; Enter advances to adjacent parts and Backspace returns to the previous final step; signed-in keyboard flow and mobile width verified.
+- [x] Remove Activity 2 model headings, enlarge its 3D views by 20%, improve textbook labels; place Activity 3 questions after recap and rename the second general introduction to Chứng minh; verified signed-in keyboard flow, screenshots, mobile width and 25 tests.
+- [x] Add Câu 6 AI solver with editable preset prompt, teacher-entered Gemini key, loading/result/error states and authenticated server relay; signed-in UI verified and 11 tests pass.
+- [ ] Verify a real Gemini 3.5 Flash-Lite solution: waiting for a valid teacher API key entered on the website; model access cannot be checked without it.
+- [x] Present each Luyện tập 2 recap answer as one comma-separated flowing line, wrapping only when needed.
+- [x] Enlarge Activity 1 question labels and prompts; show Activity 2's three models without legends, progressively replace each with a textbook figure and reveal its concept; enable Enter/Backspace in teacher previews; signed-in keyboard flow and mobile overflow verified.
+- [x] Inspect copied Drizzle migration history: live inspection is consistent, journal entries are empty and no copied SQL migrations remain; no schema or data changes required.
+- [x] Enlarge HĐ3 questions 1–3 and recap answers consistently; replace final P/Q summary with framed conclusion, box drawing and A'C' application question; verified signed-in Enter/Backspace flow, desktop/phone layout and 11 tests.
+- [x] HĐ3: equal question/answer sizes, white drawing background, braced relation with inclusion first, cumulative conclusions/questions and final P/Q summary; verified signed-in Enter flow at laptop, desktop and phone sizes, 11 tests passed.
+- [x] HĐ3 presentation: white text/proof area occupying two thirds on the left, drawing on the right; enlarge LT2 and HĐ3 box drawings by approximately 30%; verified laptop and phone layouts.
+- [x] Adjust Hoạt động 3: single-line relation with exclusion condition, complete general rule and conclusion, revised CD question, final condition-removal question and Enter answer; verified signed-in teacher walkthrough.
+- [x] Luyện tập 1 after Activity 2: pyramid S.ABC figure, three 45s short-answer questions, per-part release/SHOW ANSWER and review layout; verified teacher + phone student end-to-end
+- [x] Fit goal camera to device screen and update Activity 1 answer choices/instructions
+- [x] Add server-authoritative 30-second Activity 1 questions, automatic advance/submission and immutable submitted answers
+- [x] Double Enter on review question 6 switches to and releases Activity 2; verified with signed-in teacher and phone student
+- [x] Show saved Activity 1 answers for all four teams using Activity 2's layout; verified saved answers, team ordering, six questions and teacher show/hide end-to-end
+- [x] Automatic world-space line motion, playback controls and invariant verification
+- [x] Exact interactive geometry and Vietnamese classroom UI
+- [x] Teacher sessions and team storage
+- [x] Secure student saves and submission
+- [x] 30s per-question server-timed clocks, hidden-line dashes, per-question cameras, Câu 1/2/3 naming, 3-column results with times
+- [x] Verify signed-in teacher creation and code-only student entry
+- [x] Geometry and routing tests pass; app compilation passes
+- [x] Student end-to-end check (timer, timeout lock, reload, results)
+- [x] Reset copied migration history to an empty post-remix baseline
+- [x] Homepage with teacher sign-in and student classroom-code entry, no manual team access code
+- [x] Teacher-controlled common assignment start and automatic submission updates
+- [x] Verify real teacher release and student Activity 1 answers end-to-end with a signed-in test teacher
+- [x] Verify empty post-remix migration baseline before classroom schema changes
+- [x] Add Activity 1: fixed, regulation-proportioned 3D football goal with orbit camera and an Activity 2 link
+- [x] Enlarge Activity 1 goal by 30%, lengthen its roof bars, and add six guided questions with per-question glowing members
+- [x] Make Activity 1 questions 1 and 5 two-choice “Nằm ngoài – Nằm trên” questions
+- [x] Place Activity 1 before Activity 2 inside the shared classroom lesson, gated by teacher assignment release
+- [x] Persist each team's Activity 1 answers and current question so code-only rejoin resumes progress
+- [x] Verify teacher release, activity switching, student answers, and rejoin end-to-end
+
+- [x] Activity 1 laptop camera: goal seen slightly upward, horizon at 1/3 of goal height
+- [x] Remix check: empty migration set matches the new database
+- [x] Practice review: figure on top, questions + team answers below; remove green helper lines
+- [x] Rename box practice to Luyện tập 2; swap questions a ↔ b
+- [x] New Luyện tập 1: uploaded stage photo, "Hãy chỉ ra một đường thẳng song song với mặt phẳng trong bức ảnh trên."
+- [x] Hoạt động 3 after Luyện tập 2: box figure, parallel-to-AB question, untimed
+- [x] LT1 photo as large as HĐ1 model, only its question; no time text from LT1 on; compact part bar; HĐ3 = LT2 symbol answers beside box + one question; laptop question size 21px
+- [x] HĐ3 review: Enter-stepped follow-up questions, symbol answers, general rule, two-column statement/proof with P/Q picture; "//" for parallel
+- [x] Backspace goes back in teacher reviews and HĐ3; HĐ3 proof in a white panel without top heading, multi-line proof with italic variables, redrawn P/Q figure; ⊄ conditions added; author footer
+- [x] HĐ3: KaTeX math typesetting, brace-system rule/answer without ⊄, three follow-up box questions after the proof, faithful P/Q redraw, left-aligned author lines
+- [x] Unify text size HĐ1–LT2; restore LT1 photo; HĐ3 Câu labels inline, no hint, Câu 1 answer one line, black caption
+- [x] HĐ1 review ends with summary question + answer, Enter → HĐ2
+- [x] HĐ2 view-only (no timer/answer/knowledge corner); end: 3 models then 3 concepts with static figure + model toggle
+- [x] Rename intersection point A → M in 3D model
+- [x] Presentation full screen: ~1.4× lesson text; F1 hands out, F2 SHOW ANSWER (HĐ1, LT2)
+- [x] Presentation: sticky HĐ3 box beside long AI text, HĐ1 team answers in 2×2, phone goal camera looks up (horizon at 1/3), larger title with section line (HĐ2–LT2 → section 1, HĐ3 → section 2)
+- [x] Full screen presentation covers: welcome → lesson title before Hoạt động 1, thank-you after the AI solution in Hoạt động 3 (Enter), cleared on part change/Esc; verified signed-in with a sample AI answer.
+- [x] Replace the three temporary text covers with the teacher's pictures.

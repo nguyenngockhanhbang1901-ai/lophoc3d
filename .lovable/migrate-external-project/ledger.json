@@ -1,0 +1,79 @@
+[
+ {
+  "capability": "code",
+  "source": "TanStack Start app (zip)",
+  "outcome": "migrate",
+  "status": "verified",
+  "next_action": ""
+ },
+ {
+  "capability": "schema",
+  "source": "Lovable Cloud tables classrooms, classroom_teams, lesson111_students, lessons + 3 RPCs (no migrations in archive; rebuilt from types and code)",
+  "outcome": "migrate",
+  "status": "verified",
+  "next_action": ""
+ },
+ {
+  "capability": "records",
+  "source": "Old Cloud database",
+  "outcome": "migrate",
+  "status": "pending",
+  "next_action": "Request CSV exports after preview"
+ },
+ {
+  "capability": "auth_identities",
+  "source": "Email/password + Google teacher accounts",
+  "outcome": "migrate",
+  "status": "pending",
+  "next_action": "Request user export; teachers re-register/reset password"
+ },
+ {
+  "capability": "authorization",
+  "source": "Owner RLS for teachers, server-validated capabilities for students",
+  "outcome": "migrate",
+  "status": "verified",
+  "next_action": "Owner-only access in place; teacher sign-in not exercised"
+ },
+ {
+  "capability": "realtime",
+  "source": "postgres_changes on classrooms, classroom_teams",
+  "outcome": "migrate",
+  "status": "implemented",
+  "next_action": "Teacher live refresh not exercised (also polls every 2s)"
+ },
+ {
+  "capability": "ai_solver",
+  "source": "Gemini via teacher-supplied key relayed by server function",
+  "outcome": "preserve",
+  "status": "verified",
+  "next_action": "Teacher supplies own Gemini key in the app; no secret needed"
+ },
+ {
+  "capability": "uploaded_files",
+  "source": "Image assets via Lovable asset pointers (CDN)",
+  "outcome": "preserve",
+  "status": "verified",
+  "next_action": "Re-uploaded 5 images into this project; stage photo seen, covers load"
+ },
+ {
+  "capability": "schedules_webhooks",
+  "source": "cron-auth helper only, no cron routes",
+  "outcome": "none",
+  "status": "verified",
+  "next_action": ""
+ },
+ {
+  "capability": "secrets",
+  "source": "none user-owned",
+  "outcome": "none",
+  "status": "verified",
+  "next_action": ""
+ },
+ {
+  "capability": "verification",
+  "source": "tests + browser",
+  "outcome": "migrate",
+  "status": "verified",
+  "next_action": "169 tests pass; all lessons/parts viewed desktop+phone; team join and Bài 11.1 name join verified; teacher flow unverified"
+ }
+]

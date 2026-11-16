@@ -1,0 +1,21 @@
+import { describe,it,expect } from 'vitest';
+import { CUBE_ANSWERS, CUBE_LINES, CUBE_QUESTIONS, MAX_CUBE_STUDENTS, cubeResultOrder, releaseState, releaseCountdownClock, scheduledReleaseError, cubeSubmission, submissionClock, cubeLineHidden } from './cube-practice';
+describe('isolated lesson 11.1',()=>{
+ it('allows at most 45 individual slots',()=>expect(MAX_CUBE_STUDENTS).toBe(45));
+ it('draws the diagonals defining NQQ′N′',()=>{ expect(CUBE_LINES).toContainEqual(['N','Q']); expect(CUBE_LINES).toContainEqual(["N'","Q'"]); });
+ it('saves exactly six answers with the submission time',()=>expect(cubeSubmission(['1','2','3','4','5','6'],null,0)).toEqual({answers:['1','2','3','4','5','6'],submitted_at:'1970-01-01T00:00:00.000Z'}));
+ it('rejects changes after submission',()=>expect(()=>cubeSubmission(['1','2','3','4','5','6'],'2026-11-16T00:00:00Z',0)).toThrow('Không thể sửa'));
+ it('requires all six short answers',()=>expect(()=>cubeSubmission(['1'],null,0)).toThrow('6 câu'));
+ it('shows submission hours minutes seconds in Vietnam',()=>expect(submissionClock('2026-11-16T07:42:09Z')).toBe('14:42:09'));
+ it('changes solid and hidden edges with the camera',()=>{expect(cubeLineHidden([-1,-1,-1],[1,-1,-1],[5,4,6])).toBe(true);expect(cubeLineHidden([-1,-1,-1],[1,-1,-1],[5,-4,-6])).toBe(false);});
+it('asks question 2 about lines of (M′N′P′Q′) parallel to PQ',()=>expect(CUBE_QUESTIONS[1]).toBe("Những đường thẳng nào trong mặt phẳng $(M'N'P'Q')$ song song với đường thẳng $PQ$?"));
+ it('lists only line names in answer 1',()=>expect(CUBE_ANSWERS[0]).toBe(String.raw`$PQ,\ M'N',\ P'Q'$`));
+ it('orders results by earliest submission, unsubmitted last',()=>expect(cubeResultOrder([{slot:1,submitted_at:null},{slot:2,submitted_at:'2026-11-16T08:05:00Z'},{slot:3,submitted_at:'2026-11-16T08:01:00Z'}]).map(r=>r.slot)).toEqual([3,2,1]));
+  it('keeps the work closed and silent until five seconds before 17:00',()=>expect(releaseState('2026-11-16T10:00:00Z',Date.parse('2026-11-16T09:59:50Z'))).toEqual({released:false,countdown:null,remaining:'00:10'}));
+  it('counts down 5 seconds before the scheduled release',()=>{expect(releaseState('2026-11-16T10:00:00Z',Date.parse('2026-11-16T09:59:55Z'))).toEqual({released:false,countdown:5,remaining:'00:05'});expect(releaseState('2026-11-16T10:00:00Z',Date.parse('2026-11-16T09:59:59.2Z'))).toEqual({released:false,countdown:1,remaining:'00:01'});});
+  it('opens the work exactly at the scheduled time',()=>expect(releaseState('2026-11-16T10:00:00Z',Date.parse('2026-11-16T10:00:00Z'))).toEqual({released:true,countdown:null,remaining:null}));
+  it('stays closed without a release time',()=>expect(releaseState(null,0).released).toBe(false));
+  it('shows the minutes and seconds left before the opening',()=>expect(releaseState('2026-11-16T10:00:00Z',Date.parse('2026-11-16T09:50:00Z'))).toEqual({released:false,countdown:null,remaining:'10:00'}));
+  it('shows hours when the opening is more than an hour away',()=>expect(releaseCountdownClock(Date.parse('2026-11-16T11:30:00Z')-Date.parse('2026-11-16T10:00:00Z'))).toBe('1:30:00'));
+ it('rejects a release time already past',()=>{expect(scheduledReleaseError('2026-11-16T10:00:00Z',Date.parse('2026-11-16T10:00:01Z'))).toBeTruthy();expect(scheduledReleaseError('2026-11-16T10:00:00Z',Date.parse('2026-11-16T09:00:00Z'))).toBeNull();});
+});
