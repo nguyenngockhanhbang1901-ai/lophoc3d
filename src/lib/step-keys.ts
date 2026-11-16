@@ -1,8 +1,8 @@
-/** Presentation step keys: → behaves exactly like Enter, ← exactly like Backspace. */
+/** Presentation step keys: → and PageDown behave exactly like Enter, ← and PageUp exactly like Backspace. */
 export type StepAction = 'next' | 'back';
 export function stepKeyAction(key: string): StepAction | null {
-  if (key === 'Enter' || key === 'ArrowRight') return 'next';
-  if (key === 'Backspace' || key === 'ArrowLeft') return 'back';
+  if (key === 'Enter' || key === 'ArrowRight' || key === 'PageDown') return 'next';
+  if (key === 'Backspace' || key === 'ArrowLeft' || key === 'PageUp') return 'back';
   return null;
 }
 /** Arrow keys keep their native meaning inside widgets that use them (radio groups, sliders, tabs, menus). */
