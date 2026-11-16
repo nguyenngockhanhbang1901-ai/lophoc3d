@@ -30,9 +30,11 @@ export type MotionSpeed = keyof typeof MOTION_SPEEDS;
 export function advanceMotion(time: number, delta: number, playing: boolean, speed: MotionSpeed) {
   return time + (playing ? Math.min(Math.max(delta, 0), 0.05) * MOTION_SPEEDS[speed] : 0);
 }
+/** Fixed distance of the parallel line d from (α): d only slides horizontally and turns about a vertical axis. */
+export const PARALLEL_HEIGHT = 1.15;
 export function animatedLine(index: CaseIndex, time: number): { origin: Vec3; direction: Vec3 } {
   const angle = time * 0.55;
-  const origin: Vec3 = [0.65 * Math.sin(time * 0.7), index === 1 ? 1.15 + 0.35 * Math.sin(time * 0.6) : 0, 0.45 * Math.sin(time * 0.9)];
+  const origin: Vec3 = [0.65 * Math.sin(time * 0.7), index === 1 ? PARALLEL_HEIGHT : 0, 0.45 * Math.sin(time * 0.9)];
   const direction: Vec3 = index === 0
     ? [0.7 * Math.cos(angle), 0.85 + 0.2 * Math.sin(time * 0.8), 0.7 * Math.sin(angle)]
     : [Math.cos(angle), 0, Math.sin(angle)];
@@ -40,7 +42,7 @@ export function animatedLine(index: CaseIndex, time: number): { origin: Vec3; di
 }
 export function motionIsValid(index: CaseIndex, origin: Vec3, direction: Vec3) {
   if (index === 0) return origin[1] === 0 && Math.abs(direction[1]) >= 0.65;
-  return direction[1] === 0 && (index === 1 ? origin[1] >= 0.8 : origin[1] === 0);
+  return direction[1] === 0 && (index === 1 ? origin[1] === PARALLEL_HEIGHT : origin[1] === 0);
 }
 export const PLANE_HALF = { x: 3.05, z: 2.25 } as const;
 export const LINE_MARGIN = 0.12;

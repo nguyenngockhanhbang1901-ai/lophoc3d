@@ -1,13 +1,14 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { nextReviewStep, previousReviewStep } from '@/lib/review-navigation';
 import { PresentationNavigation } from '@/lib/presentation-navigation';
+import { arrowKeyOwnedByWidget, stepKeyAction } from '@/lib/step-keys';
 
 function typingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"]'));
 }
 
-/** Teacher answer review: Enter moves to the next question, Backspace to the previous one; with `onFinish`, two Enters on the last question finish the review. */
+/** Teacher answer review: Enter or → moves to the next question, Backspace or ← to the previous one; with `onFinish`, two Enters on the last question finish the review. */
 export function useEnterReview(total: number, onFinish?: () => void, confirmFinish = true) {
   const navigation = useContext(PresentationNavigation);
   const finish = onFinish ?? navigation.onFinish;
@@ -23,10 +24,12 @@ export function useEnterReview(total: number, onFinish?: () => void, confirmFini
     // Capture phase so Enter never also "clicks" a focused button such as SHOW ANSWER.
     const onKey = (event: KeyboardEvent) => {
       if (navigationRef.current.readOnly) return;
-      if ((event.key !== 'Enter' && event.key !== 'Backspace') || event.repeat || event.isComposing || typingTarget(event.target) || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      // → shares the Enter path and ← the Backspace path below, so both always behave identically.
+      const action = stepKeyAction(event.key);
+      if (!action || event.repeat || event.isComposing || typingTarget(event.target) || arrowKeyOwnedByWidget(event.key, event.target) || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       event.preventDefault(); event.stopPropagation();
       const current = state.current;
-      if (event.key === 'Backspace') {
+      if (action === 'back') {
         if (current.selected === 0 && current.onBack) { current.onBack(); return; }
         const back = previousReviewStep(current.selected);
         setSelected(back.selected); setArmed(back.armed); navigationRef.current.onStep?.(back.selected);

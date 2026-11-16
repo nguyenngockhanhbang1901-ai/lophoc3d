@@ -84,7 +84,6 @@ describe('Hoạt động 3 teacher walkthrough', () => {
     expect(container.querySelector('.activity3-rule')).toBeNull();
     expect(shown(container, Q.cdParallel)).toBe(false);
     expect(shown(container, Q.condition)).toBe(false);
-    expect(screen.getByRole('button', { name: 'Bước tiếp theo' })).toBeDisabled();
     fireEvent.keyDown(window, { key: 'Backspace' });
     expect(container.querySelector('[data-edge="AC"]')).toBeNull();
     fireEvent.keyDown(window, { key: 'Backspace' });

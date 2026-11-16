@@ -1,5 +1,6 @@
 import { lazy, Suspense, useContext, useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
+import { SlideArrows } from './SlideArrows';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { useEnterReview } from '@/hooks/use-enter-review';
@@ -16,7 +17,7 @@ export function LinePairActivity(props: Props) {
   return <PresentationNavigation.Provider value={props.teacher || props.lecture ? navigation : { ...navigation, readOnly: true }}><Content {...props} /></PresentationNavigation.Provider>;
 }
 function Content(p: Props) {
-  const { selected, select } = useEnterReview(p.review || p.lecture ? 12 : 7);
+  const { selected } = useEnterReview(p.review || p.lecture ? 12 : 7);
   const question = p.teacher || p.lecture ? p.review || p.lecture ? Math.floor(selected / 2) : selected - 1 : p.step;
   const showAnswer = Boolean(p.lecture || p.review && selected % 2 === 1);
   const skew = question >= 4;
@@ -34,7 +35,7 @@ function Content(p: Props) {
   </div> : null;
   const prompt = (i: number) => <><h3 className="practice-question-prompt"><strong>Câu {i + 1}. </strong><MathText text={PAIR_QUESTIONS[i] ?? ''} /></h3>{studentAnswer(i)}</>;
   return <div className="line-pair-activity">
-    {(p.teacher || p.lecture) && <div className="model-heading slide-arrows"><span className="ml-auto" /><Button size="sm" variant="ghost" aria-label="Bước trước" onClick={() => select(selected - 1)} disabled={selected === 0}><ArrowLeft /></Button><Button size="sm" variant="ghost" aria-label="Bước tiếp theo" onClick={() => select(selected + 1)} disabled={selected === (p.review || p.lecture ? 11 : 6)}><ArrowRight /></Button></div>}
+    {(p.teacher || p.lecture) && <SlideArrows />}
     <div className={`models-row ${skew ? 'line-pair-single' : ''}`}>{kinds.map((kind, i) => <section key={kind}><Suspense fallback={<div className="geometry-view compact" />}><LinePairView kind={kind} /></Suspense>{!skew && <div {...reveal(question >= i && (p.teacher || p.lecture || p.released))}>{prompt(i)}{showAnswer && question === i && <p className="correct-answer"><MathText text={PAIR_ANSWERS[i] ?? ''} /></p>}</div>}</section>)}</div>
     {question >= 3 && (p.teacher || p.lecture || p.released) && <section className="practice-workspace">{prompt(question)}{showAnswer && <p className="correct-answer"><MathText text={PAIR_ANSWERS[question] ?? ''} /></p>}</section>}
     {p.teacher && p.review && question >= 0 && <div className="team-answers-grid">{p.teams.map(t => <div className="team-answer" key={t.number}><strong>Tổ {t.number}</strong><p>{Array.isArray(t.goal_answers) ? t.goal_answers[question] || 'Chưa trả lời' : 'Chưa trả lời'}</p></div>)}</div>}

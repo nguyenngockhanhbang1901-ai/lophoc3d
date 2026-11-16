@@ -61,3 +61,8 @@ use the editor.
 - Lesson formulas are TeX between `$...$` in the pure lesson data, typeset only by MathText (KaTeX, `\ss` macro = "//"), so every symbol uses one math font and textbook spacing.
 - Full screen presentation enlarges lesson text only through html.presenting CSS (toggled from fullscreenchange) and turns off shrink-to-fit there, so fitting never cancels the enlargement; teacher keys F1/F2/F12 map through pure presentationShortcut to the existing button actions.
 - Presentation cover pictures follow pure transitions in presentation-covers.ts and pause the shared Enter hook through PresentationNavigation.readOnly, so covers never alter part steps or student sync.
+
+<!-- AGENT-MEMORY:BEGIN -->
+- Step keys map through pure stepKeyAction (→ = Enter, ← = Backspace) and on-screen arrows (SlideArrows) dispatch the same key event, so buttons and keys share one handler and never drift apart.
+- The parallel case keeps d at a fixed PARALLEL_HEIGHT with a horizontal direction (slide + turn about a vertical axis only), so the distance from d to the plane never changes.
+<!-- AGENT-MEMORY:END -->

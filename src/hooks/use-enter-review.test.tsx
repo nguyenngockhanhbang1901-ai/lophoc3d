@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { PresentationNavigation, adjacentLessonPart } from '@/lib/presentation-navigation';
 import { useEnterReview } from './use-enter-review';
+import { SlideArrows } from '@/components/SlideArrows';
 
 function Slides() {
   const { selected } = useEnterReview(3);
@@ -40,5 +41,37 @@ describe('Adjacent lesson presentation navigation', () => {
     expect(onStep).not.toHaveBeenCalled();
     rerender(<PresentationNavigation.Provider value={{ controlledStep: 2, readOnly: true }}><Slides /></PresentationNavigation.Provider>);
     expect(screen.getByLabelText('step')).toHaveTextContent('2');
+  });
+});
+describe('Arrow keys and on-screen arrows', () => {
+  it('→ advances exactly like Enter and ← goes back exactly like Backspace', () => {
+    render(<Slides />);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByLabelText('step')).toHaveTextContent('1');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(screen.getByLabelText('step')).toHaveTextContent('2');
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(screen.getByLabelText('step')).toHaveTextContent('1');
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(screen.getByLabelText('step')).toHaveTextContent('0');
+  });
+  it('→ at the final step finishes the part, like Enter', () => {
+    const onFinish = vi.fn();
+    render(<PresentationNavigation.Provider value={{ onFinish, initialLast: true }}><Slides /></PresentationNavigation.Provider>);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+  it('← at the first step returns to the previous part, like Backspace', () => {
+    const onBack = vi.fn();
+    render(<PresentationNavigation.Provider value={{ onBack }}><Slides /></PresentationNavigation.Provider>);
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+  it('the on-screen arrow buttons step forward and back', () => {
+    render(<><SlideArrows /><Slides /></>);
+    fireEvent.click(screen.getByLabelText('Bước tiếp theo'));
+    expect(screen.getByLabelText('step')).toHaveTextContent('1');
+    fireEvent.click(screen.getByLabelText('Bước trước'));
+    expect(screen.getByLabelText('step')).toHaveTextContent('0');
   });
 });
