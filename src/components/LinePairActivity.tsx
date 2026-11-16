@@ -1,5 +1,6 @@
 import { lazy, Suspense, useContext, useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
+import { SlideArrows } from './SlideArrows';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { useEnterReview } from '@/hooks/use-enter-review';

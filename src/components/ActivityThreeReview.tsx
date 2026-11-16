@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { SlideArrows } from './SlideArrows';
 import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
 import { ACTIVITY3_FOLLOW_UPS, ACTIVITY3_SYMBOL_ANSWERS, ACTIVITY3_STAGES, GENERAL_CONCLUSION, GENERAL_INTRO, GENERAL_RULE, isContinuedLine, PROOF_LINES } from '@/lib/activity3-walkthrough';
