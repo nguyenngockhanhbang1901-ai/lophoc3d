@@ -9,7 +9,7 @@ export function SlideArrows({ className = '' }: { className?: string }) {
     pressStepKey(action);
   };
   return <div className={`model-heading slide-arrows ${className}`.trim()}><span className="ml-auto" />
-    <Button type="button" size="sm" variant="ghost" aria-label="Bước trước" title="Lùi lại (← / Backspace)" onClick={press('back')}><ArrowLeft /></Button>
-    <Button type="button" size="sm" variant="ghost" aria-label="Bước tiếp theo" title="Tiến tới (→ / Enter)" onClick={press('next')}><ArrowRight /></Button>
+    <Button type="button" size="sm" variant="ghost" aria-label="Bước trước" title="Lùi lại (← / Backspace / Page Up)" onClick={press('back')}><ArrowLeft /></Button>
+    <Button type="button" size="sm" variant="ghost" aria-label="Bước tiếp theo" title="Tiến tới (→ / Enter / Page Down)" onClick={press('next')}><ArrowRight /></Button>
   </div>;
 }
