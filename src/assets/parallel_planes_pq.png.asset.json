@@ -1,11 +1,11 @@
 {
-  "asset_id": "a1628399-f0ed-41ab-bcdd-3ba44b14114c",
-  "content_type": "image/png",
-  "created_at": "2026-11-14T03:47:05Z",
+  "version": 1,
+  "asset_id": "d40a0266-8794-440e-aa33-834e6cc248c1",
+  "project_id": "1b67b4a3-802d-44c7-85c8-1f9cc8e2711b",
+  "url": "/__l5e/assets-v1/d40a0266-8794-440e-aa33-834e6cc248c1/parallel_planes_pq.png",
+  "r2_key": "a/v1/1b67b4a3-802d-44c7-85c8-1f9cc8e2711b/d40a0266-8794-440e-aa33-834e6cc248c1/parallel_planes_pq.png",
   "original_filename": "parallel_planes_pq.png",
-  "project_id": "1de36efb-4cec-4705-aa2e-622e0568dd5b",
-  "r2_key": "a/v1/1de36efb-4cec-4705-aa2e-622e0568dd5b/a1628399-f0ed-41ab-bcdd-3ba44b14114c/parallel_planes_pq.png",
   "size": 24196,
-  "url": "/__l5e/assets-v1/a1628399-f0ed-41ab-bcdd-3ba44b14114c/parallel_planes_pq.png",
-  "version": 1
+  "content_type": "image/png",
+  "created_at": "2026-11-16T17:08:32Z"
 }
