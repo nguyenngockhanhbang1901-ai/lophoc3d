@@ -1,0 +1,13 @@
+[
+  {"capability":"code","source":"TanStack Start app (zip)","outcome":"migrate","status":"in_progress","next_action":"Copy source, merge dependencies"},
+  {"capability":"schema","source":"Lovable Cloud tables classrooms, classroom_teams, lesson111_students, lessons + 3 RPCs (no migrations in archive; rebuilt from types and code)","outcome":"migrate","status":"pending","next_action":"Create migration"},
+  {"capability":"records","source":"Old Cloud database","outcome":"migrate","status":"pending","next_action":"Request CSV exports after preview"},
+  {"capability":"auth_identities","source":"Email/password + Google teacher accounts","outcome":"migrate","status":"pending","next_action":"Request user export; teachers re-register/reset password"},
+  {"capability":"authorization","source":"Owner RLS for teachers, server-validated capabilities for students","outcome":"migrate","status":"pending","next_action":"RLS in migration"},
+  {"capability":"realtime","source":"postgres_changes on classrooms, classroom_teams","outcome":"migrate","status":"pending","next_action":"Add tables to realtime publication"},
+  {"capability":"ai_solver","source":"Gemini via teacher-supplied key relayed by server function","outcome":"preserve","status":"pending","next_action":"No secret needed"},
+  {"capability":"uploaded_files","source":"Image assets via Lovable asset pointers (CDN)","outcome":"preserve","status":"pending","next_action":"Verify images load"},
+  {"capability":"schedules_webhooks","source":"cron-auth helper only, no cron routes","outcome":"none","status":"verified","next_action":""},
+  {"capability":"secrets","source":"none user-owned","outcome":"none","status":"verified","next_action":""},
+  {"capability":"verification","source":"tests + browser","outcome":"migrate","status":"pending","next_action":"Run tests, open preview"}
+]
