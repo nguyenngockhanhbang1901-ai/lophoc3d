@@ -14,13 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      classroom_teams: {
+        Row: {
+          access_hash: string
+          activity3_answers: Json
+          activity3_completed_at: string | null
+          activity3_step: number
+          answers: Json
+          classroom_id: string
+          goal_answers: Json
+          goal_completed_at: string | null
+          goal_revision: number
+          goal_step: number
+          goal_timings: Json
+          id: string
+          number: number
+          photo_answers: Json
+          photo_completed_at: string | null
+          photo_step: number
+          practice_answers: Json
+          practice_completed_at: string | null
+          practice_revision: number
+          practice_step: number
+          practice_timings: Json
+          step: number
+          submitted_at: string | null
+          timings: Json
+        }
+        Insert: {
+          access_hash: string
+          activity3_answers?: Json
+          activity3_completed_at?: string | null
+          activity3_step?: number
+          answers?: Json
+          classroom_id: string
+          goal_answers?: Json
+          goal_completed_at?: string | null
+          goal_revision?: number
+          goal_step?: number
+          goal_timings?: Json
+          id?: string
+          number: number
+          photo_answers?: Json
+          photo_completed_at?: string | null
+          photo_step?: number
+          practice_answers?: Json
+          practice_completed_at?: string | null
+          practice_revision?: number
+          practice_step?: number
+          practice_timings?: Json
+          step?: number
+          submitted_at?: string | null
+          timings?: Json
+        }
+        Update: {
+          access_hash?: string
+          activity3_answers?: Json
+          activity3_completed_at?: string | null
+          activity3_step?: number
+          answers?: Json
+          classroom_id?: string
+          goal_answers?: Json
+          goal_completed_at?: string | null
+          goal_revision?: number
+          goal_step?: number
+          goal_timings?: Json
+          id?: string
+          number?: number
+          photo_answers?: Json
+          photo_completed_at?: string | null
+          photo_step?: number
+          practice_answers?: Json
+          practice_completed_at?: string | null
+          practice_revision?: number
+          practice_step?: number
+          practice_timings?: Json
+          step?: number
+          submitted_at?: string | null
+          timings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_teams_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classrooms: {
+        Row: {
+          activity1_answers_visible: boolean
+          activity2_started_at: string | null
+          activity3_answers_visible: boolean
+          activity3_started_at: string | null
+          answers_visible: boolean
+          closed: boolean
+          code: string
+          correct_visible: boolean
+          created_at: string
+          current_activity: number
+          current_step: number
+          id: string
+          lesson_content: Json
+          lesson_key: string
+          lesson_mode: string
+          lesson_title: string
+          owner_id: string
+          photo_answers_visible: boolean
+          photo_started_at: string | null
+          practice1_answers_visible: boolean
+          practice1_started_at: string | null
+          presentation_review: boolean
+          presentation_step: number
+          started_at: string | null
+          team_count: number
+          title: string
+        }
+        Insert: {
+          activity1_answers_visible?: boolean
+          activity2_started_at?: string | null
+          activity3_answers_visible?: boolean
+          activity3_started_at?: string | null
+          answers_visible?: boolean
+          closed?: boolean
+          code: string
+          correct_visible?: boolean
+          created_at?: string
+          current_activity?: number
+          current_step?: number
+          id?: string
+          lesson_content?: Json
+          lesson_key?: string
+          lesson_mode?: string
+          lesson_title?: string
+          owner_id: string
+          photo_answers_visible?: boolean
+          photo_started_at?: string | null
+          practice1_answers_visible?: boolean
+          practice1_started_at?: string | null
+          presentation_review?: boolean
+          presentation_step?: number
+          started_at?: string | null
+          team_count: number
+          title: string
+        }
+        Update: {
+          activity1_answers_visible?: boolean
+          activity2_started_at?: string | null
+          activity3_answers_visible?: boolean
+          activity3_started_at?: string | null
+          answers_visible?: boolean
+          closed?: boolean
+          code?: string
+          correct_visible?: boolean
+          created_at?: string
+          current_activity?: number
+          current_step?: number
+          id?: string
+          lesson_content?: Json
+          lesson_key?: string
+          lesson_mode?: string
+          lesson_title?: string
+          owner_id?: string
+          photo_answers_visible?: boolean
+          photo_started_at?: string | null
+          practice1_answers_visible?: boolean
+          practice1_started_at?: string | null
+          presentation_review?: boolean
+          presentation_step?: number
+          started_at?: string | null
+          team_count?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      lesson111_students: {
+        Row: {
+          access_hash: string
+          answers: Json
+          classroom_id: string
+          id: string
+          name: string | null
+          slot: number
+          submitted_at: string | null
+        }
+        Insert: {
+          access_hash: string
+          answers?: Json
+          classroom_id: string
+          id?: string
+          name?: string | null
+          slot: number
+          submitted_at?: string | null
+        }
+        Update: {
+          access_hash?: string
+          answers?: Json
+          classroom_id?: string
+          id?: string
+          name?: string | null
+          slot?: number
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson111_students_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          lesson_key: string
+          owner_id: string
+          title: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          lesson_key: string
+          owner_id: string
+          title: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          lesson_key?: string
+          owner_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      begin_classroom_activity: {
+        Args: { activity: number; room_id: string }
+        Returns: string
+      }
+      begin_classroom_assignment: { Args: { room_id: string }; Returns: string }
+      set_classroom_activity: {
+        Args: { activity: number; room_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
