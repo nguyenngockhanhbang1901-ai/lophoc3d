@@ -1,11 +1,12 @@
 import { lazy, Suspense, useState } from 'react';
-import { ArrowLeft, ArrowRight, Box, Image } from 'lucide-react';
+import { Box, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
 import { type CaseIndex } from '@/lib/geometry';
 import { ACTIVITY2_ORDER, ACTIVITY2_TOTAL, activity2ConceptVisible } from '@/lib/activity2-walkthrough';
 import { MathText } from './MathText';
 import { reveal } from '@/lib/reveal';
+import { SlideArrows } from './SlideArrows';
 const GeometryView = lazy(() => import('./GeometryView'));
 
 /** Textbook order of the three positions: parallel, intersecting, contained (indices into `cases`). */
@@ -42,9 +43,9 @@ function Concept({ index, revealed }: { index: CaseIndex; revealed: boolean }) {
 /** Three models first; Enter progressively replaces them with textbook figures and concepts. */
 export function ActivityTwo() {
   const total = ACTIVITY2_TOTAL;
-  const { selected, select } = useEnterReview(total);
+  const { selected } = useEnterReview(total);
   return <div>
-    <div className="model-heading slide-arrows"><span className="ml-auto" /><Button size="sm" variant="ghost" aria-label="Bước trước" disabled={selected === 0} onClick={() => select(selected - 1)}><ArrowLeft /></Button><Button size="sm" variant="ghost" aria-label="Bước tiếp theo" disabled={selected >= total - 1} onClick={() => select(selected + 1)}><ArrowRight /></Button></div>
+    <SlideArrows />
     <div className="models-row activity2-presentation">{ACTIVITY2_ORDER.map((index, column) => <section key={index}><Concept key={`${index}-${activity2ConceptVisible(selected, column)}`} index={index} revealed={activity2ConceptVisible(selected, column)} /></section>)}</div>
   </div>;
 }

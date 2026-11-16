@@ -82,11 +82,7 @@ export function ActivityThreeReview() {
   }
   return <div className="lesson-layout goal-results-layout practice-review practice-review-single activity3-review">
     <section aria-label="Kết quả Hoạt động 3">
-      <div className="model-heading activity3-nav slide-arrows">
-        <span className="ml-auto" />
-        <Button size="sm" variant="ghost" aria-label="Bước trước" disabled={selected === 0} onClick={() => select(selected - 1)}><ArrowLeft /></Button>
-        <Button size="sm" variant="ghost" aria-label="Bước tiếp theo" disabled={last} onClick={() => select(selected + 1)}><ArrowRight /></Button>
-      </div>
+      <SlideArrows className="activity3-nav" />
       {body}
     </section>
   </div>;

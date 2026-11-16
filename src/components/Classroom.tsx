@@ -6,6 +6,7 @@ import { defaultClassroomTitle } from '@/lib/classroom-title';
 import { LinePairActivity } from './LinePairActivity';
 import { CustomLesson } from './CustomLesson';
 import { SlideArrows } from './SlideArrows';
+import { stepKeyAction } from '@/lib/step-keys';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { useQueryClient } from '@tanstack/react-query';
@@ -135,9 +136,10 @@ function ClassroomContent() {
   useEffect(() => {
     if (!cover) return;
     const onKey = (event: KeyboardEvent) => {
-      if ((event.key !== 'Enter' && event.key !== 'Backspace') || event.repeat || event.isComposing) return;
+      const action = stepKeyAction(event.key);
+      if (!action || event.repeat || event.isComposing) return;
       event.preventDefault(); event.stopPropagation();
-      setCover(current => event.key === 'Enter' ? coverAfterEnter(current) : coverAfterBack(current));
+      setCover(current => action === 'next' ? coverAfterEnter(current) : coverAfterBack(current));
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
