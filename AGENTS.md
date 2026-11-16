@@ -57,7 +57,7 @@ use the editor.
 - Keep Activity 1's fixed football-goal dimensions and steel-member coordinates in a pure geometry module, separate from its R3F scene, so camera movement cannot alter the model.
 
 ## Database migrations
-- The migration journal is intentionally empty and the existing schema predates Drizzle; never add CREATE TABLE for tables already in the database, because applying it would fail and mask the real change.
+- The schema was rebuilt in one baseline migration (0000_create_classroom_schema) when the project moved from an archive; later schema changes are new ALTER migrations, never edits to that baseline, so history replays cleanly.
 - Lesson formulas are TeX between `$...$` in the pure lesson data, typeset only by MathText (KaTeX, `\ss` macro = "//"), so every symbol uses one math font and textbook spacing.
 - Full screen presentation enlarges lesson text only through html.presenting CSS (toggled from fullscreenchange) and turns off shrink-to-fit there, so fitting never cancels the enlargement; teacher keys F1/F2/F12 map through pure presentationShortcut to the existing button actions.
 - Presentation cover pictures follow pure transitions in presentation-covers.ts and pause the shared Enter hook through PresentationNavigation.readOnly, so covers never alter part steps or student sync.
