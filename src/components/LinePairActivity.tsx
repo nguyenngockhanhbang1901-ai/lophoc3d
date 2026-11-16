@@ -17,7 +17,7 @@ export function LinePairActivity(props: Props) {
   return <PresentationNavigation.Provider value={props.teacher || props.lecture ? navigation : { ...navigation, readOnly: true }}><Content {...props} /></PresentationNavigation.Provider>;
 }
 function Content(p: Props) {
-  const { selected, select } = useEnterReview(p.review || p.lecture ? 12 : 7);
+  const { selected } = useEnterReview(p.review || p.lecture ? 12 : 7);
   const question = p.teacher || p.lecture ? p.review || p.lecture ? Math.floor(selected / 2) : selected - 1 : p.step;
   const showAnswer = Boolean(p.lecture || p.review && selected % 2 === 1);
   const skew = question >= 4;

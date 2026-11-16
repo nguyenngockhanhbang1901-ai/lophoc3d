@@ -1,5 +1,4 @@
 import { SlideArrows } from './SlideArrows';
-import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
 import { ACTIVITY3_FOLLOW_UPS, ACTIVITY3_SYMBOL_ANSWERS, ACTIVITY3_STAGES, GENERAL_CONCLUSION, GENERAL_INTRO, GENERAL_RULE, isContinuedLine, PROOF_LINES } from '@/lib/activity3-walkthrough';
 import { PRACTICE_SETS } from '@/lib/practice-questions';
@@ -32,10 +31,9 @@ const A1B1 = { kind: 'edge', from: "A'", to: "B'" } as const;
 
 /** Hoạt động 3 slideshow for the teacher: no assignment or SHOW ANSWER; Enter reveals the next question, answer, rule and proof step, Backspace goes back. */
 export function ActivityThreeReview() {
-  const { selected, select } = useEnterReview(ACTIVITY3_STAGES.length);
+  const { selected } = useEnterReview(ACTIVITY3_STAGES.length);
   const stage = ACTIVITY3_STAGES[selected];
   if (!stage) return null;
-  const last = selected >= ACTIVITY3_STAGES.length - 1;
   // Steps that only add lines to the same slide keep every line mounted, so nothing moves on Enter.
   const relationGroup = stage.kind === 'general' || (stage.kind === 'question' && stage.title === 'Câu 3' && Boolean(stage.answer));
   const followUpGroup = stage.kind === 'conclusion' || (stage.kind === 'question' && (stage.title === 'Câu 4' || stage.title === 'Câu 5'));
