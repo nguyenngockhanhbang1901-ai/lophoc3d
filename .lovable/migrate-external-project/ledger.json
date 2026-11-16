@@ -53,7 +53,7 @@
   "source": "Image assets via Lovable asset pointers (CDN)",
   "outcome": "preserve",
   "status": "verified",
-  "next_action": ""
+  "next_action": "Re-uploaded 5 images into this project; stage photo seen, covers load"
  },
  {
   "capability": "schedules_webhooks",
@@ -74,6 +74,6 @@
   "source": "tests + browser",
   "outcome": "migrate",
   "status": "verified",
-  "next_action": "169 tests pass; student join verified in browser"
+  "next_action": "169 tests pass; all lessons/parts viewed desktop+phone; team join and Bài 11.1 name join verified; teacher flow unverified"
  }
 ]
