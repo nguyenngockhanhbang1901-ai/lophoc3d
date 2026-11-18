@@ -37,6 +37,11 @@ export type Database = {
           practice_revision: number
           practice_step: number
           practice_timings: Json
+          quiz_answers: Json
+          quiz_completed_at: string | null
+          quiz_revision: number
+          quiz_step: number
+          quiz_timings: Json
           step: number
           submitted_at: string | null
           timings: Json
@@ -63,6 +68,11 @@ export type Database = {
           practice_revision?: number
           practice_step?: number
           practice_timings?: Json
+          quiz_answers?: Json
+          quiz_completed_at?: string | null
+          quiz_revision?: number
+          quiz_step?: number
+          quiz_timings?: Json
           step?: number
           submitted_at?: string | null
           timings?: Json
@@ -89,6 +99,11 @@ export type Database = {
           practice_revision?: number
           practice_step?: number
           practice_timings?: Json
+          quiz_answers?: Json
+          quiz_completed_at?: string | null
+          quiz_revision?: number
+          quiz_step?: number
+          quiz_timings?: Json
           step?: number
           submitted_at?: string | null
           timings?: Json
@@ -128,6 +143,8 @@ export type Database = {
           practice1_started_at: string | null
           presentation_review: boolean
           presentation_step: number
+          quiz_answers_visible: boolean
+          quiz_started_at: string | null
           started_at: string | null
           team_count: number
           title: string
@@ -156,6 +173,8 @@ export type Database = {
           practice1_started_at?: string | null
           presentation_review?: boolean
           presentation_step?: number
+          quiz_answers_visible?: boolean
+          quiz_started_at?: string | null
           started_at?: string | null
           team_count: number
           title: string
@@ -184,6 +203,8 @@ export type Database = {
           practice1_started_at?: string | null
           presentation_review?: boolean
           presentation_step?: number
+          quiz_answers_visible?: boolean
+          quiz_started_at?: string | null
           started_at?: string | null
           team_count?: number
           title?: string

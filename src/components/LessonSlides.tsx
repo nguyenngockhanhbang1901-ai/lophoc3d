@@ -8,6 +8,7 @@ import { PracticeFigure } from './PracticeFigure';
 import { GoalAnswerResults } from './GoalAnswerResults';
 import { MathText } from './MathText';
 import { reveal } from '@/lib/reveal';
+import { QuizLecture } from './QuizRace';
 const ActivityOne = lazy(() => import('./ActivityOne'));
 const PracticeOne = lazy(() => import('./PracticeOne'));
 
@@ -28,6 +29,7 @@ function PracticeLecture({ part }: { part: 3 | 4 }) {
 
 /** Read-only teaching content contains model answers, never team responses. */
 export function LessonSlides({ part, review, lecture, autoQuestion }: { part: ActivityNumber; review: boolean; lecture: boolean; autoQuestion?: number | null | undefined }) {
+  if (part === 6) return <QuizLecture />;
   if (part === 2) return <ActivityTwo />;
   if (part === 5) return <ActivityThreeReview />;
   if (part === 1) return lecture || review ? <GoalAnswerResults teams={[]} lessonAnswers={lecture} /> : <Suspense fallback={<div className="goal-viewer" />}><ActivityOne embedded teacherPreview /></Suspense>;

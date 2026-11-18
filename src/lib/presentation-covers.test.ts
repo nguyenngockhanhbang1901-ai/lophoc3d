@@ -21,5 +21,7 @@ describe('presentation cover pictures', () => {
     expect(thanksAvailable(5, true, false)).toBe(false);
     expect(thanksAvailable(5, false, true)).toBe(false);
     expect(thanksAvailable(1, true, true)).toBe(false);
+    expect(thanksAvailable(6, true, false)).toBe(true);
+    expect(thanksAvailable(6, false, false)).toBe(false);
   });
 });

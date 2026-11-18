@@ -43,9 +43,16 @@ describe('Luyện tập 1 assign and SHOW ANSWER', () => {
   });
 });
 describe('Luyện tập 1 (photo), Luyện tập 2 (box) and Hoạt động 3', () => {
-  it('names and orders the five parts', async () => {
+  it('names and orders the six parts', async () => {
     const { activityName, LESSON_ORDER } = await import('./assignment');
-    expect(LESSON_ORDER.map(activityName)).toEqual(['Hoạt động 1', 'Hoạt động 2', 'Luyện tập 1', 'Luyện tập 2', 'Hoạt động 3']);
+    expect(LESSON_ORDER.map(activityName)).toEqual(['Hoạt động 1', 'Hoạt động 2', 'Luyện tập 1', 'Luyện tập 2', 'Hoạt động 3', 'Luyện tập 3']);
+  });
+  it('Luyện tập 3 has its own release and SHOW ANSWER and auto-publishes once every team finishes', async () => {
+    const { allTeamsSubmitted } = await import('./assignment');
+    expect(activityReleaseAt({ started_at: null, activity2_started_at: null, practice1_started_at: null, quiz_started_at: '2026-11-18T01:00:00.000Z' }, 6)).toBe('2026-11-18T01:00:00.000Z');
+    expect(activityAnswersVisible({ answers_visible: true, activity1_answers_visible: true, practice1_answers_visible: true, quiz_answers_visible: false }, 6)).toBe(false);
+    expect(allTeamsSubmitted([{ quiz_completed_at: 'x' }, { quiz_completed_at: null }], 6)).toBe(false);
+    expect(allTeamsSubmitted([{ quiz_completed_at: 'x' }, { quiz_completed_at: 'y' }], 6)).toBe(true);
   });
   it('each new part has its own release and SHOW ANSWER', () => {
     const room = { started_at: null, activity2_started_at: null, practice1_started_at: '2026-11-14T01:00:00.000Z', photo_started_at: null, activity3_started_at: '2026-11-14T01:10:00.000Z', answers_visible: false, activity1_answers_visible: false, practice1_answers_visible: true, photo_answers_visible: false, activity3_answers_visible: false };

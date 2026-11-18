@@ -9,6 +9,7 @@ import { PAIR_STEPS } from './line-pairs';
 import { CUBE_LESSON_KEY, CUBE_LESSON_TITLE, MAX_CUBE_STUDENTS } from './cube-practice';
 import { GOAL_QUESTIONS } from './goal-questions';
 import { GOAL_STEPS, reconcileSteps, submitStep, type StepConfig, type StepProgress } from './goal-progress';
+import { QUIZ_STEPS, isQuizLetter } from './quiz-race';
 import { ACTIVITY3_QUESTIONS, PHOTO_QUESTIONS, PRACTICE_STEPS, submitUntimed } from './practice-questions';
 import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 import { canReadLecture, lessonModeSchema, presentationStateSchema } from './classroom-modes';
@@ -64,13 +65,13 @@ export const createClassroom = createServerFn({ method: 'POST' }).middleware([re
     return { classroom, invitations: invitations.map(({ number, key }) => ({ number, key })) };
   });
 export const beginAssignment = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(5) })).handler(async ({ data, context }) => {
+  .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(6) })).handler(async ({ data, context }) => {
     const { data: startedAt, error } = await context.supabase.rpc('begin_classroom_activity', { room_id: data.roomId, activity: data.activity });
     if (error || !startedAt) throw new Error('Không bắt đầu được bài làm');
     return { startedAt };
   });
 export const setClassroomActivity = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(5) }))
+  .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(6) }))
   .handler(async ({ data, context }) => {
     const { data: activity, error } = await context.supabase.rpc('set_classroom_activity', { room_id: data.roomId, activity: data.activity });
     if (error || !activity) throw new Error('Không chuyển được hoạt động');
@@ -85,14 +86,15 @@ export const studentRoom = createServerFn({ method: 'POST' }).inputValidator(acc
   if (!team || (team.access_hash !== await hash(data.key) && data.key !== await codeJoinKey(room.id, team.access_hash))) throw new Error('Thông tin tham gia không hợp lệ');
   if (room.current_activity === 1 && room.started_at && !room.closed) team = await persistSteps(supabaseAdmin, team, room.started_at, room.lesson_key === '11' ? PAIR_TRACK : GOAL_TRACK);
   if (room.current_activity === 3 && room.practice1_started_at && !room.closed) team = await persistSteps(supabaseAdmin, team, room.practice1_started_at, PRACTICE_TRACK);
+  if (room.current_activity === 6 && room.quiz_started_at && room.lesson_key === '12' && !room.closed) team = await persistSteps(supabaseAdmin, team, room.quiz_started_at, QUIZ_TRACK);
   let released: { number: number; answers: string[]; submitted_at: string | null; timings: Timing[] }[] = [];
   if (mayReadOtherAnswers(room.answers_visible)) {
     const { data: rows } = await supabaseAdmin.from('classroom_teams').select('number,answers,submitted_at,timings').eq('classroom_id', room.id).order('number');
     released = (rows ?? []).map(r => ({ ...r, answers: r.answers as string[], timings: normalizeTimings(r.timings) }));
   }
-  return { room: { id: room.id, code: room.code, title: room.title, lesson_key: room.lesson_key, lesson_title: room.lesson_title, lesson_content: room.lesson_content, lesson_mode: room.lesson_mode, presentation_step: room.presentation_step, presentation_review: room.presentation_review, started_at: room.started_at, activity2_started_at: room.activity2_started_at, practice1_started_at: room.practice1_started_at, photo_started_at: room.photo_started_at, activity3_started_at: room.activity3_started_at, current_step: room.current_step, current_activity: room.current_activity, closed: room.closed, answers_visible: room.answers_visible, correct_visible: room.correct_visible }, team: { number: team.number, answers: team.answers as string[], step: team.step, submitted_at: team.submitted_at, timings: normalizeTimings(team.timings), goal_answers: team.goal_answers as string[], goal_step: team.goal_step, goal_timings: (room.lesson_key === '11' ? PAIR_TRACK : GOAL_TRACK).read(team).timings, goal_completed_at: team.goal_completed_at, practice_answers: team.practice_answers as string[], practice_step: team.practice_step, practice_timings: PRACTICE_TRACK.read(team).timings, practice_completed_at: team.practice_completed_at, photo_answers: team.photo_answers as string[], photo_step: team.photo_step, photo_completed_at: team.photo_completed_at, activity3_answers: team.activity3_answers as string[], activity3_step: team.activity3_step, activity3_completed_at: team.activity3_completed_at }, released, serverNow: Date.now() };
+  return { room: { id: room.id, code: room.code, title: room.title, lesson_key: room.lesson_key, lesson_title: room.lesson_title, lesson_content: room.lesson_content, lesson_mode: room.lesson_mode, presentation_step: room.presentation_step, presentation_review: room.presentation_review, started_at: room.started_at, activity2_started_at: room.activity2_started_at, practice1_started_at: room.practice1_started_at, photo_started_at: room.photo_started_at, activity3_started_at: room.activity3_started_at, quiz_started_at: room.quiz_started_at, current_step: room.current_step, current_activity: room.current_activity, closed: room.closed, answers_visible: room.answers_visible, correct_visible: room.correct_visible }, team: { number: team.number, answers: team.answers as string[], step: team.step, submitted_at: team.submitted_at, timings: normalizeTimings(team.timings), goal_answers: team.goal_answers as string[], goal_step: team.goal_step, goal_timings: (room.lesson_key === '11' ? PAIR_TRACK : GOAL_TRACK).read(team).timings, goal_completed_at: team.goal_completed_at, practice_answers: team.practice_answers as string[], practice_step: team.practice_step, practice_timings: PRACTICE_TRACK.read(team).timings, practice_completed_at: team.practice_completed_at, photo_answers: team.photo_answers as string[], photo_step: team.photo_step, photo_completed_at: team.photo_completed_at, activity3_answers: team.activity3_answers as string[], activity3_step: team.activity3_step, activity3_completed_at: team.activity3_completed_at, quiz_answers: team.quiz_answers as string[], quiz_step: team.quiz_step, quiz_timings: QUIZ_TRACK.read(team).timings, quiz_completed_at: team.quiz_completed_at }, released, serverNow: Date.now() };
 });
-type Track = { config: StepConfig; read: (team: Tables<'classroom_teams'>) => StepProgress; revision: (team: Tables<'classroom_teams'>) => number; write: (p: StepProgress, revision: number) => TablesUpdate<'classroom_teams'>; revisionColumn: 'goal_revision' | 'practice_revision' };
+type Track = { config: StepConfig; read: (team: Tables<'classroom_teams'>) => StepProgress; revision: (team: Tables<'classroom_teams'>) => number; write: (p: StepProgress, revision: number) => TablesUpdate<'classroom_teams'>; revisionColumn: 'goal_revision' | 'practice_revision' | 'quiz_revision' };
 function readTimings(raw: unknown, count: number): Timing[] {
   const list = Array.isArray(raw) ? raw : [];
   return Array.from({ length: count }, (_, i) => { const t = list[i] as Partial<Timing> | undefined; return { started_at: t?.started_at ?? null, ended_at: t?.ended_at ?? null }; });
@@ -108,6 +110,12 @@ const PRACTICE_TRACK: Track = {
   config: PRACTICE_STEPS, revisionColumn: 'practice_revision', revision: team => team.practice_revision,
   read: team => ({ answers: team.practice_answers as string[], step: team.practice_step, completedAt: team.practice_completed_at, timings: readTimings(team.practice_timings, PRACTICE_STEPS.count) }),
   write: (p, revision) => ({ practice_answers: p.answers, practice_step: p.step, practice_completed_at: p.completedAt, practice_timings: p.timings, practice_revision: revision }),
+};
+/** Luyện tập 3 · AI NHANH HƠN: seven 30s four-choice questions; one click sends the letter. */
+const QUIZ_TRACK: Track = {
+  config: QUIZ_STEPS, revisionColumn: 'quiz_revision', revision: team => team.quiz_revision,
+  read: team => ({ answers: team.quiz_answers as string[], step: team.quiz_step, completedAt: team.quiz_completed_at, timings: readTimings(team.quiz_timings, QUIZ_STEPS.count) }),
+  write: (p, revision) => ({ quiz_answers: p.answers, quiz_step: p.step, quiz_completed_at: p.completedAt, quiz_timings: p.timings, quiz_revision: revision }),
 };
 async function persistSteps(client: Awaited<ReturnType<typeof verifiedTeam>>['supabaseAdmin'], original: Tables<'classroom_teams'>, release: string, track: Track, submission?: { step: number; answer: string; draft?: boolean }) {
   let team = original;
@@ -136,7 +144,7 @@ async function persistSteps(client: Awaited<ReturnType<typeof verifiedTeam>>['su
 }
 async function verifiedTeam(data: z.infer<typeof accessSchema>) {
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-  const { data: room } = await supabaseAdmin.from('classrooms').select('id,closed,lesson_key,started_at,current_activity,activity2_started_at,practice1_started_at,photo_started_at,activity3_started_at').eq('code', data.code.toUpperCase()).maybeSingle();
+  const { data: room } = await supabaseAdmin.from('classrooms').select('id,closed,lesson_key,started_at,current_activity,activity2_started_at,practice1_started_at,photo_started_at,activity3_started_at,quiz_started_at').eq('code', data.code.toUpperCase()).maybeSingle();
   if (!room || room.closed) throw new Error('Lớp học đã đóng');
   if (room.current_activity !== 4 && !assignmentStarted(activityReleaseAt(room, toActivity(room.current_activity)), Date.now())) throw new Error('Chờ giáo viên bắt đầu giao bài');
   const { data: team } = await supabaseAdmin.from('classroom_teams').select().eq('classroom_id', room.id).eq('number', data.number).maybeSingle();
@@ -211,6 +219,14 @@ export const savePracticeAnswer = createServerFn({ method: 'POST' }).inputValida
   if (team.practice_completed_at) throw new Error('Bài đã nộp · Không thể sửa');
   const updated = await persistSteps(supabaseAdmin, team, room.practice1_started_at, PRACTICE_TRACK, { step: data.step, answer: data.answer });
   return { step: updated.practice_step, completedAt: updated.practice_completed_at };
+});
+/** Sends a team's chosen letter for the current Luyện tập 3 question; the server clock decides whether it still counts. */
+export const saveQuizAnswer = createServerFn({ method: 'POST' }).inputValidator(accessSchema.extend({ step: z.number().int().min(0).max(QUIZ_STEPS.count - 1), answer: z.string().refine(isQuizLetter) })).handler(async ({ data }) => {
+  const { supabaseAdmin, team, room } = await verifiedTeam(data);
+  if (room.lesson_key !== '12' || room.current_activity !== 6 || !room.quiz_started_at) throw new Error('Giáo viên đã chuyển hoạt động');
+  if (team.quiz_completed_at) throw new Error('Bài đã nộp · Không thể sửa');
+  const updated = await persistSteps(supabaseAdmin, team, room.quiz_started_at, QUIZ_TRACK, { step: data.step, answer: data.answer });
+  return { step: updated.quiz_step, completedAt: updated.quiz_completed_at };
 });
 /** Luyện tập 1 (photo) and Hoạt động 3 are untimed: answers are sent once in order; the last one submits and locks the team's work. */
 export const saveUntimedAnswer = createServerFn({ method: 'POST' }).inputValidator(accessSchema.extend({ activity: z.union([z.literal(4), z.literal(5)]), step: z.number().int().min(0).max(2), answer: z.string().max(2000) })).handler(async ({ data }) => {

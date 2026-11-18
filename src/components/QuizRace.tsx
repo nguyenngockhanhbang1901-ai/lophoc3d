@@ -1,0 +1,134 @@
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
+import { Check, Clock, Flag, Trophy, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useEnterReview } from '@/hooks/use-enter-review';
+import { finalStandings, QUIZ_GAME_NAME, QUIZ_LETTERS, QUIZ_QUESTIONS, QUIZ_SECONDS, QUIZ_STEPS, QUIZ_TITLE, raceStandings, type QuizLetter, type RaceLane } from '@/lib/quiz-race';
+import type { StepProgress } from '@/lib/goal-progress';
+import { clockLabel, remainingMs, timerTone, type Timing } from '@/lib/timer';
+import { reveal } from '@/lib/reveal';
+import { MathText } from './MathText';
+
+const QuizModelView = lazy(() => import('./QuizModelView'));
+const COUNT = QUIZ_QUESTIONS.length;
+
+/** `**text**` marks a stressed word (e.g. "sai"); everything else goes through MathText. */
+function Prompt({ text }: { text: string }) {
+  return <>{text.split('**').map((part, i) => i % 2 ? <strong key={i} className="quiz-stress"><MathText text={part} /></strong> : <Fragment key={i}><MathText text={part} /></Fragment>)}</>;
+}
+
+export type QuizPicks = Partial<Record<QuizLetter, number[]>>;
+/** One question: prompt on the left, 3D model (questions 6–7) on the right, the four answers below. Phones stack model → prompt → answers. */
+export function QuizQuestion({ index, chosen, onChoose, disabled, showCorrect = false, picks, timer, hideOptions = false }: { index: number; chosen?: string | null; onChoose?: (letter: QuizLetter) => void; disabled?: boolean; showCorrect?: boolean; picks?: QuizPicks; timer?: React.ReactNode; hideOptions?: boolean }) {
+  const question = QUIZ_QUESTIONS[index]!;
+  return <div className={`quiz-layout ${question.model ? 'quiz-with-model' : ''}`}>
+    <section className="quiz-question" aria-labelledby={`quiz-q-${index}`}>
+      <div className="quiz-question-head"><span className="quiz-number">Câu {index + 1}<small>/{COUNT}</small></span>{timer}</div>
+      <h3 id={`quiz-q-${index}`} className="quiz-prompt"><Prompt text={question.prompt} /></h3>
+    </section>
+    {question.model && <div className="quiz-model"><Suspense fallback={<div className="quiz-model-view" />}><QuizModelView key={question.model} model={question.model} /></Suspense></div>}
+    <div className="quiz-options" role="group" aria-label={`Đáp án câu ${index + 1}`} {...reveal(!hideOptions)}>
+      {question.options.map((option, i) => {
+        const letter = QUIZ_LETTERS[i]!;
+        const correct = showCorrect && letter === question.correct;
+        const state = correct ? 'correct' : showCorrect ? 'dim' : chosen === letter ? 'chosen' : '';
+        return <button key={letter} type="button" className={`quiz-option quiz-option-${letter.toLowerCase()} ${state}`} aria-pressed={chosen === letter || undefined} disabled={disabled || !onChoose} onClick={() => onChoose?.(letter)}>
+          <span className="quiz-letter">{correct ? <Check size={18} /> : letter}</span>
+          <span className="quiz-option-text"><MathText text={option} /></span>
+          {picks && (picks[letter]?.length ?? 0) > 0 && <span className="quiz-picks">{picks[letter]!.map(n => <span key={n}>Tổ {n}</span>)}</span>}
+        </button>;
+      })}
+    </div>
+  </div>;
+}
+
+function GameIntro() {
+  return <div className="quiz-intro"><span className="quiz-intro-icon"><Zap size={30} /></span><div><p className="eyebrow">{QUIZ_TITLE} · Trò chơi củng cố kiến thức</p><h2>{QUIZ_GAME_NAME}</h2><p>{COUNT} câu trắc nghiệm · mỗi câu {QUIZ_SECONDS} giây · bấm chọn A, B, C hoặc D. Tổ trả lời nhanh hơn sẽ dẫn đầu đường đua.</p></div></div>;
+}
+
+/** Simple race track: one lane per team, the leading team on top; the car moves one notch per finished question. */
+export function RaceTrack({ lanes, showCorrect = false, released = true }: { lanes: readonly RaceLane[]; showCorrect?: boolean; released?: boolean }) {
+  return <section className="quiz-race" aria-label="Đường đua các tổ">
+    <div className="quiz-race-head"><h3><Flag size={16} />Đường đua · {QUIZ_GAME_NAME}</h3><span>{released ? showCorrect ? 'Xếp hạng theo số câu đúng' : 'Cập nhật theo thời gian thực' : 'Chờ giao bài'}</span></div>
+    <ol className="quiz-lanes">
+      {lanes.map((lane, rank) => <li key={lane.number} className={`quiz-lane ${rank === 0 && lane.done > 0 ? 'leader' : ''} ${lane.finished ? 'finished' : ''}`}>
+        <span className="quiz-rank">{rank + 1}</span>
+        <strong className="quiz-team">Tổ {lane.number}</strong>
+        <div className="quiz-track" role="progressbar" aria-label={`Tổ ${lane.number}`} aria-valuemin={0} aria-valuemax={COUNT} aria-valuenow={lane.done}>
+          {Array.from({ length: COUNT - 1 }, (_, i) => <span key={i} className="quiz-notch" style={{ left: `${((i + 1) / COUNT) * 100}%` }} />)}
+          <span className="quiz-fill" style={{ width: `${(lane.done / COUNT) * 100}%` }} />
+          <span className="quiz-car" style={{ left: `${(lane.done / COUNT) * 100}%` }}>{lane.finished ? <Trophy size={16} /> : <Zap size={16} />}</span>
+        </div>
+        <span className="quiz-score">{showCorrect ? `${lane.correct}/${COUNT} đúng` : `${lane.done}/${COUNT} câu`}</span>
+      </li>)}
+    </ol>
+  </section>;
+}
+
+export type QuizTeam = { number: number; progress: StepProgress };
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { if (!active) return; const t = window.setInterval(() => setNow(Date.now()), 500); return () => window.clearInterval(t); }, [active]);
+  return now;
+}
+
+/** Teacher's screen: Enter steps through the game; once handed out it follows the question every team has reached. The race track sits below. */
+export function QuizTeacher({ teams, releasedAt, autoQuestion }: { teams: readonly QuizTeam[]; releasedAt: string | null; autoQuestion: number | null }) {
+  const review = useEnterReview(COUNT + 1);
+  useEffect(() => { if (autoQuestion != null) review.select(autoQuestion + 1); }, [autoQuestion]);
+  const now = useNow(Boolean(releasedAt));
+  const lanes = raceStandings(teams, releasedAt, now);
+  const index = review.selected - 1;
+  return <div className="quiz-content quiz-teacher">
+    {index < 0 ? <GameIntro /> : <QuizQuestion index={index} />}
+    {releasedAt && <RaceTrack lanes={lanes} />}
+  </div>;
+}
+
+/** After SHOW ANSWER: each question with its correct answer and which teams chose what, then the final ranking. */
+export function QuizResults({ teams, releasedAt }: { teams: readonly QuizTeam[]; releasedAt: string | null }) {
+  const review = useEnterReview(COUNT + 1);
+  // Published results always open on Câu 1, whatever question the live game ended on.
+  useEffect(() => { review.select(0); }, []);
+  const lanes = finalStandings(raceStandings(teams, releasedAt, Date.now()));
+  const index = review.selected;
+  const picks: QuizPicks = {};
+  if (index < COUNT) for (const t of teams) { const a = t.progress.answers[index]; if (a && QUIZ_LETTERS.includes(a as QuizLetter)) (picks[a as QuizLetter] ??= []).push(t.number); }
+  return <div className="quiz-content quiz-results">
+    <nav className="practice-steps" aria-label="Danh sách câu hỏi">{Array.from({ length: COUNT + 1 }, (_, i) => <Button key={i} type="button" size="sm" variant="ghost" className={`practice-step ${i === index ? 'selected' : ''}`} aria-current={i === index ? 'step' : undefined} onClick={() => review.select(i)}>{i < COUNT ? i + 1 : <Trophy size={14} />}</Button>)}</nav>
+    {index < COUNT ? <QuizQuestion index={index} showCorrect picks={picks} /> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{lanes[0] && lanes[0].done > 0 ? `Tổ ${lanes[0].number} dẫn đầu với ${lanes[0].correct}/${COUNT} câu đúng.` : 'Chưa có tổ nào trả lời.'}</p></div>}
+    <RaceTrack lanes={lanes} showCorrect />
+  </div>;
+}
+
+/** Lecture / review slides: each question first, then its correct answer on the next Enter. */
+export function QuizLecture() {
+  const { selected } = useEnterReview(COUNT * 2 + 1);
+  if (selected === 0) return <div className="quiz-content"><GameIntro /></div>;
+  const index = Math.floor((selected - 1) / 2);
+  return <div className="quiz-content"><QuizQuestion index={index} showCorrect={selected % 2 === 0} /></div>;
+}
+
+/** A team's game screen: tap a letter to send it; the next question appears when the server moves the team on. */
+export function QuizStudent({ released, step, answers, timings, completed, closed, serverNow, onAnswer }: { released: boolean; step: number; answers: readonly string[]; timings: readonly Timing[]; completed: boolean; closed: boolean; serverNow: number; onAnswer?: ((step: number, letter: QuizLetter) => Promise<void>) | undefined }) {
+  const [sending, setSending] = useState<{ step: number; letter: QuizLetter } | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => { setSending(s => s && s.step === step ? s : null); }, [step]);
+  if (!released) return <div className="quiz-content"><GameIntro /><section className="goal-waiting" role="status"><Clock size={24} /><div><h2>Chờ giáo viên bắt đầu giao bài</h2><p>Khi giáo viên giao bài, câu hỏi đầu tiên sẽ hiện ra. Mỗi câu có {QUIZ_SECONDS} giây.</p></div></section></div>;
+  if (completed) {
+    const done = answers.filter(Boolean).length;
+    return <div className="quiz-content"><div className="goal-completion" role="status"><span className="goal-completion-icon"><Flag size={26} /></span><div><p className="eyebrow">VỀ ĐÍCH</p><h3>Tổ em đã hoàn thành {QUIZ_GAME_NAME}.</h3><p>Đã chọn đáp án cho {done}/{COUNT} câu · Không thể sửa. Theo dõi kết quả trên màn hình của giáo viên.</p></div></div></div>;
+  }
+  const index = Math.min(step, COUNT - 1);
+  const ms = remainingMs(timings[index]?.started_at ?? null, serverNow, QUIZ_STEPS.limitMs);
+  const pending = sending?.step === index ? sending.letter : null;
+  const choose = async (letter: QuizLetter) => {
+    if (!onAnswer || pending || closed || ms <= 0) return;
+    setSending({ step: index, letter }); setError('');
+    try { await onAnswer(index, letter); } catch (e) { setSending(null); setError(e instanceof Error ? e.message : 'Không gửi được đáp án'); }
+  };
+  return <div className="quiz-content quiz-student">
+    <QuizQuestion index={index} chosen={pending} onChoose={letter => { void choose(letter); }} disabled={Boolean(pending) || closed || ms <= 0 || !onAnswer} timer={<span role="timer" aria-label="Thời gian còn lại" className={`question-timer ${ms <= 0 ? 'ended' : timerTone(ms)}`}>{ms <= 0 ? 'Hết giờ' : clockLabel(ms)}</span>} />
+    {error && <p className="error-note" role="alert">{error}</p>}
+    <p className="status quiz-status"><span className="goal-status-dot" />{pending ? `Đã chọn ${pending} · đang chuyển câu…` : 'Bấm vào một đáp án để gửi ngay · Đã gửi thì không thể sửa'}</p>
+  </div>;
+}

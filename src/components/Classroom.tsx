@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import { cases, type CaseIndex } from '@/lib/geometry';
-import { createClassroom, findClassroom, joinClassroom, studentRoom, saveStudent, startQuestion, beginAssignment, saveGoalAnswer, saveGoalDraft, savePracticeDraft, savePracticeAnswer, saveUntimedAnswer, readLecture, savePresentationState } from '@/lib/classroom.functions';
+import { createClassroom, findClassroom, joinClassroom, studentRoom, saveStudent, startQuestion, beginAssignment, saveGoalAnswer, saveGoalDraft, savePracticeDraft, savePracticeAnswer, saveUntimedAnswer, saveQuizAnswer, readLecture, savePresentationState } from '@/lib/classroom.functions';
 import { canStart, normalizeTimings, remainingMs, timerTone, timingAt } from '@/lib/timer';
 import { allTeamsSubmitted, activityAnswersVisible, activityName, activityReleaseAt, answersVisibilityPatch, assignmentStarted, isPresentationPart, LESSON_ORDER, lessonSection, releasePatch, toActivity, type ActivityNumber } from '@/lib/assignment';
 import { isPracticeActivity, PRACTICE_SETS } from '@/lib/practice-questions';
@@ -28,6 +28,8 @@ import { useClassroomAuth } from '@/hooks/use-classroom-auth';
 import { AnswerResults, QUESTION_TEXT } from './AnswerResults';
 import { GoalAnswerResults } from './GoalAnswerResults';
 import { PracticeAnswerResults } from './PracticeAnswerResults';
+import { QuizResults, QuizStudent, QuizTeacher } from './QuizRace';
+import { QUIZ_QUESTIONS, QUIZ_STEPS } from '@/lib/quiz-race';
 import { ActivityThreeReview } from './ActivityThreeReview';
 import { ActivityTwo } from './ActivityTwo';
 import { PracticeFigure } from './PracticeFigure';
@@ -47,12 +49,14 @@ import { enterPresentationFullscreen, exitPresentationFullscreen, isDocumentFull
 const GeometryView = lazy(() => import('./GeometryView'));
 const ActivityOne = lazy(() => import('./ActivityOne'));
 const PracticeOne = lazy(() => import('./PracticeOne'));
+const QUIZ_PROGRESS = (t: Tables<'classroom_teams'>): StepProgress => ({ answers: (t.quiz_answers as string[]) ?? [], step: t.quiz_step, completedAt: t.quiz_completed_at, timings: Array.isArray(t.quiz_timings) ? t.quiz_timings as unknown as Timing[] : [] });
 const PART_INFO: Record<ActivityNumber, { badge: string; detail: string }> = {
   1: { badge: '1', detail: 'Khung thành bóng đá 3D' },
   2: { badge: '2', detail: 'Đường thẳng và mặt phẳng' },
   4: { badge: 'LT1', detail: 'Ảnh sân khấu trường' },
   3: { badge: 'LT2', detail: "Hình hộp chữ nhật ABCD.A'B'C'D'" },
   5: { badge: '3', detail: 'Đường thẳng song song với AB' },
+  6: { badge: 'LT3', detail: 'Trò chơi · AI NHANH HƠN' },
 };
 const LESSON_PARTS = LESSON_ORDER.map(item => ({ item, title: activityName(item), ...PART_INFO[item] }));
 type Access = { code: string; number: number; key: string };
@@ -91,7 +95,7 @@ function ClassroomContent() {
   const begin = useServerFn(beginAssignment);
   const scheduleCube = useServerFn(scheduleCubeRelease);
   const draftGoal = useServerFn(saveGoalDraft);
-  const saveGoal = useServerFn(saveGoalAnswer); const draftPractice = useServerFn(savePracticeDraft); const sendPractice = useServerFn(savePracticeAnswer); const sendUntimed = useServerFn(saveUntimedAnswer);
+  const saveGoal = useServerFn(saveGoalAnswer); const draftPractice = useServerFn(savePracticeDraft); const sendPractice = useServerFn(savePracticeAnswer); const sendUntimed = useServerFn(saveUntimedAnswer); const sendQuiz = useServerFn(saveQuizAnswer);
   const fetchLecture = useServerFn(readLecture); const saveSlide = useServerFn(savePresentationState);
   const joinCube = useServerFn(joinCubeClassroom);
   const find = useServerFn(findClassroom); const joinByCode = useServerFn(joinClassroom);
@@ -216,7 +220,7 @@ function ClassroomContent() {
       await stepWrites.current;
       const review = activityAnswersVisible(room, nextActivity);
       const lectureMode = room.lesson_mode === 'lecture';
-      const total = nextActivity === 2 ? 4 : nextActivity === 5 ? ACTIVITY3_STAGES.length : nextActivity === 1 ? lectureMode ? GOAL_QUESTIONS.length * 2 + 2 : review ? GOAL_QUESTIONS.length + 2 : GOAL_QUESTIONS.length + 1 : lectureMode || room.lesson_mode === 'presentation' && review ? PRACTICE_SETS[nextActivity].questions.length * 2 + 1 : review ? PRACTICE_SETS[nextActivity].questions.length : PRACTICE_SETS[nextActivity].questions.length + 1;
+      const total = nextActivity === 6 ? lectureMode ? QUIZ_QUESTIONS.length * 2 + 1 : QUIZ_QUESTIONS.length + 1 : nextActivity === 2 ? 4 : nextActivity === 5 ? ACTIVITY3_STAGES.length : nextActivity === 1 ? lectureMode ? GOAL_QUESTIONS.length * 2 + 2 : review ? GOAL_QUESTIONS.length + 2 : GOAL_QUESTIONS.length + 1 : lectureMode || room.lesson_mode === 'presentation' && review ? PRACTICE_SETS[nextActivity].questions.length * 2 + 1 : review ? PRACTICE_SETS[nextActivity].questions.length : PRACTICE_SETS[nextActivity].questions.length + 1;
       const step = fromPrevious ? total - 1 : 0;
       await saveSlide({ data: { roomId: room.id, activity: nextActivity, step, review } });
       setSlideStep(step); setInitialLast(false); setRoom({ ...room, current_activity: nextActivity, presentation_step: step, presentation_review: review }); setActivity(nextActivity);
@@ -263,17 +267,17 @@ function ClassroomContent() {
   const teacherReleased = Boolean(room && (cubeLesson ? assignmentStarted(room.started_at, Date.now()) : activityReleaseAt(room, activity)));
   const resultsRef = useRef<HTMLDivElement>(null);
   // Hoạt động 1 / Luyện tập 2: once handed out, the teacher's screen shows Câu 1 and moves on after every team has finished each question.
-  const autoRelease = role === 'teacher' && room && legacyLesson && room.lesson_mode !== 'lecture' && (activity === 1 || activity === 3) && !results ? activityReleaseAt(room, activity) : null;
+  const autoRelease = role === 'teacher' && room && legacyLesson && room.lesson_mode !== 'lecture' && (activity === 1 || activity === 3 || activity === 6) && !results ? activityReleaseAt(room, activity) : null;
   useEffect(() => { if (!autoRelease) return; setNow(Date.now()); const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [autoRelease]);
-  const teamSteps = (t: Team): StepProgress => activity === 1
+  const teamSteps = (t: Team): StepProgress => activity === 6 ? QUIZ_PROGRESS(t) : activity === 1
     ? { answers: (t.goal_answers as string[]) ?? [], step: t.goal_step, completedAt: t.goal_completed_at, timings: Array.isArray(t.goal_timings) ? t.goal_timings as unknown as Timing[] : [] }
     : { answers: (t.practice_answers as string[]) ?? [], step: t.practice_step, completedAt: t.practice_completed_at, timings: Array.isArray(t.practice_timings) ? t.practice_timings as unknown as Timing[] : [] };
-  const autoQuestion = autoRelease && room ? sharedQuestion(teams.filter(t => t.classroom_id === room.id).map(teamSteps), autoRelease, now, activity === 1 ? GOAL_STEPS : PRACTICE_STEPS) : null;
+  const autoQuestion = autoRelease && room ? sharedQuestion(teams.filter(t => t.classroom_id === room.id).map(teamSteps), autoRelease, now, activity === 1 ? GOAL_STEPS : activity === 6 ? QUIZ_STEPS : PRACTICE_STEPS) : null;
   function toggleAnswers() { setSlideStep(0); setInitialLast(false); void updateRoom({ ...answersVisibilityPatch(activity, !results), presentation_step: 0, presentation_review: !results }); }
   // Hoạt động 1 / Luyện tập 2: the moment the last team submits, SHOW ANSWER turns on by itself (once per class and part).
   const submittedBefore = useRef(new Map<string, boolean>());
   useEffect(() => {
-    if (role !== 'teacher' || !room || !legacyLesson || room.lesson_mode === 'lecture' || (activity !== 1 && activity !== 3)) return;
+    if (role !== 'teacher' || !room || !legacyLesson || room.lesson_mode === 'lecture' || (activity !== 1 && activity !== 3 && activity !== 6)) return;
     if (teams.length === 0 || teams.some(t => t.classroom_id !== room.id)) return;
     const k = `${room.id}-${activity}`;
     const all = allTeamsSubmitted(teams, activity);
@@ -290,6 +294,16 @@ function ClassroomContent() {
   // Bring the published answers into view as soon as SHOW ANSWER takes effect, so nobody has to scroll to find them.
   useEffect(() => { if (results && !presenting) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [results, currentActivity]);
   const locked = Boolean(student?.team.submitted_at || student?.room.closed);
+  function renderQuiz() {
+    if (role === 'teacher') {
+      const release = room?.quiz_started_at ?? null;
+      const quizTeams = teams.filter(t => room && t.classroom_id === room.id).map(t => ({ number: t.number, progress: QUIZ_PROGRESS(t) }));
+      if (results) return <div ref={resultsRef} className="results-anchor"><div className="model-heading"><h2>Kết quả các tổ · Luyện tập 3 · AI NHANH HƠN</h2><span className="badge">Đã công bố</span></div><QuizResults teams={quizTeams} releasedAt={release} /></div>;
+      return <QuizTeacher teams={quizTeams} releasedAt={release && assignmentStarted(release, Date.now()) ? release : null} autoQuestion={autoQuestion} />;
+    }
+    const t = student?.team;
+    return <QuizStudent key={access ? `${access.code}-${access.number}` : 'preview'} released={assignmentStarted(student?.room.quiz_started_at, serverNow)} step={t?.quiz_step ?? 0} answers={t?.quiz_answers ?? []} timings={t?.quiz_timings ?? []} completed={Boolean(t?.quiz_completed_at)} closed={Boolean(student?.room.closed)} serverNow={serverNow} onAnswer={access ? async (step, answer) => { await sendQuiz({ data: { ...access, step, answer } }); await refresh(access); } : undefined} />;
+  }
   function renderPractice(part: 3 | 4 | 5) {
     const set = PRACTICE_SETS[part];
     if (followingSlides || lecture || room?.lesson_mode === 'lecture' || role === 'teacher' && room?.lesson_mode === 'presentation' && !(part === 3 && results)) return <LessonSlides part={part} review={slideReview} lecture={Boolean(lecture || room?.lesson_mode === 'lecture')} autoQuestion={part === 3 ? autoQuestion : null} />;
@@ -343,8 +357,8 @@ function ClassroomContent() {
       {!(cubeLesson && role === 'student') && <nav className="activity-switch" aria-label="Các hoạt động trong bài học">{(legacyLesson ? LESSON_PARTS : [{ item: 1 as const, badge: '1', title: cubeLesson ? 'Luyện tập 1' : 'Hoạt động 1', detail: cubeLesson ? 'Hình lập phương · 6 câu hỏi' : 'Hai đường thẳng trong không gian' }]).map(({ item, badge, title: partTitle, detail }) => <Button key={item} variant="ghost" title={detail} className={currentActivity === item ? 'active' : ''} aria-current={currentActivity === item ? 'step' : undefined} disabled={role === 'student' && Boolean(access) && currentActivity !== item} onClick={() => { void selectActivity(item); }}><span>{badge}</span><div><strong>{partTitle}</strong><small>{detail}</small></div>{role === 'student' && access && currentActivity !== item && <LockKeyhole size={14} />}</Button>)}</nav>}
       <PresentationFrame enabled={presenting} shrink={!presentingFullscreen} reserved={presentingFullscreen ? (section ? 132 : 92) : 28} slideKey={`${currentActivity}-${slideStep}-${results}`}>
       {legacyLesson && (role === 'teacher' || lecture) && [1, 3, 4].includes(currentActivity) && <SlideArrows />}
-      <PresentationNavigation.Provider key={`${lecture?.id ?? room?.id ?? 'preview'}-${currentActivity}-${results}-${room?.lesson_mode ?? ''}-${coverRound}`} value={role === 'teacher' || lecture ? { onFinish: legacyLesson && adjacentLessonPart(currentActivity, 1) ? () => movePart(1) : thanksAvailable(currentActivity, presentingFullscreen, aiAnswered) ? () => setCover('thanks') : undefined, onBack: legacyLesson && adjacentLessonPart(currentActivity, -1) ? () => movePart(-1) : legacyLesson && presentingFullscreen && currentActivity === 1 ? () => setCover('title') : undefined, readOnly: cover !== null, onAiAnswer: setAiAnswered, initialLast, initialStep: lecture ? 0 : room?.presentation_step ?? 0, onStep: presentStep } : followingSlides ? { controlledStep: student?.room.presentation_step ?? 0, readOnly: true } : {}}>
-      {cubeLesson ? <CubePractice teacher={role === 'teacher'} roomId={room?.id} review={results} access={cubeAccess} /> : activeLessonKey === '11' ? <LinePairActivity teacher={role === 'teacher'} lecture={lectureContent} released={activityOneReleased} review={results} step={student?.team.goal_step ?? 0} answers={student?.team.goal_answers ?? []} timings={student?.team.goal_timings ?? []} completed={Boolean(student?.team.goal_completed_at)} closed={Boolean(student?.room.closed)} now={serverNow} teams={teams} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer) => { await saveGoal({ data: { ...access, step, answer, completed: step === 5 } }); await refresh(access); } : undefined} /> : !legacyLesson ? <CustomLesson content={activeLessonContent} /> : lectureContent || followingSlides ? <LessonSlides part={currentActivity} review={slideReview} lecture={lectureContent} /> : isPracticeActivity(currentActivity) ? renderPractice(currentActivity) : currentActivity === 1 && role === 'teacher' && results ? <div ref={resultsRef} className="results-anchor"><div className="model-heading"><h2>Câu trả lời của các tổ · Hoạt động 1</h2><span className="badge">Đã công bố</span></div><GoalAnswerResults teams={teams} /></div> : currentActivity === 1 ? <Suspense fallback={<div className="goal-viewer" />}><ActivityOne key={access ? `${access.code}-${access.number}` : role} embedded teacherPreview={role === 'teacher'} autoQuestion={autoQuestion} questionsVisible={role === 'teacher' || activityOneReleased} initialAnswers={student?.team.goal_answers} initialStep={student?.team.goal_step} initialCompleted={Boolean(student?.team.goal_completed_at)} timings={student?.team.goal_timings} serverNow={serverNow} closed={Boolean(student?.room.closed)} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer, completed) => { await saveGoal({ data: { ...access, step, answer, completed } }); await refresh(access); } : undefined} /></Suspense> : <ActivityTwo />}
+      <PresentationNavigation.Provider key={`${lecture?.id ?? room?.id ?? 'preview'}-${currentActivity}-${results}-${room?.lesson_mode ?? ''}-${coverRound}`} value={role === 'teacher' || lecture ? { onFinish: legacyLesson && thanksAvailable(currentActivity, presentingFullscreen, aiAnswered) ? () => setCover('thanks') : legacyLesson && adjacentLessonPart(currentActivity, 1) ? () => movePart(1) : undefined, onBack: legacyLesson && adjacentLessonPart(currentActivity, -1) ? () => movePart(-1) : legacyLesson && presentingFullscreen && currentActivity === 1 ? () => setCover('title') : undefined, readOnly: cover !== null, onAiAnswer: setAiAnswered, initialLast, initialStep: lecture ? 0 : room?.presentation_step ?? 0, onStep: presentStep } : followingSlides ? { controlledStep: student?.room.presentation_step ?? 0, readOnly: true } : {}}>
+      {cubeLesson ? <CubePractice teacher={role === 'teacher'} roomId={room?.id} review={results} access={cubeAccess} /> : activeLessonKey === '11' ? <LinePairActivity teacher={role === 'teacher'} lecture={lectureContent} released={activityOneReleased} review={results} step={student?.team.goal_step ?? 0} answers={student?.team.goal_answers ?? []} timings={student?.team.goal_timings ?? []} completed={Boolean(student?.team.goal_completed_at)} closed={Boolean(student?.room.closed)} now={serverNow} teams={teams} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer) => { await saveGoal({ data: { ...access, step, answer, completed: step === 5 } }); await refresh(access); } : undefined} /> : !legacyLesson ? <CustomLesson content={activeLessonContent} /> : lectureContent || followingSlides ? <LessonSlides part={currentActivity} review={slideReview} lecture={lectureContent} /> : currentActivity === 6 ? renderQuiz() : isPracticeActivity(currentActivity) ? renderPractice(currentActivity) : currentActivity === 1 && role === 'teacher' && results ? <div ref={resultsRef} className="results-anchor"><div className="model-heading"><h2>Câu trả lời của các tổ · Hoạt động 1</h2><span className="badge">Đã công bố</span></div><GoalAnswerResults teams={teams} /></div> : currentActivity === 1 ? <Suspense fallback={<div className="goal-viewer" />}><ActivityOne key={access ? `${access.code}-${access.number}` : role} embedded teacherPreview={role === 'teacher'} autoQuestion={autoQuestion} questionsVisible={role === 'teacher' || activityOneReleased} initialAnswers={student?.team.goal_answers} initialStep={student?.team.goal_step} initialCompleted={Boolean(student?.team.goal_completed_at)} timings={student?.team.goal_timings} serverNow={serverNow} closed={Boolean(student?.room.closed)} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer, completed) => { await saveGoal({ data: { ...access, step, answer, completed } }); await refresh(access); } : undefined} /></Suspense> : <ActivityTwo />}
       </PresentationNavigation.Provider>
       </PresentationFrame>
       <footer className="app-footer"><span>HÌNH HỌC 3D <span>·</span> Lớp học tương tác</span><span className="app-footer-author"><span>Tác giả: Đặng Vũ Cát Tường</span><span>Trường THPT Trần Văn Bảy - Cà Mau</span></span></footer>

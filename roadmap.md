@@ -78,3 +78,4 @@
 - [x] Presentation: sticky HĐ3 box beside long AI text, HĐ1 team answers in 2×2, phone goal camera looks up (horizon at 1/3), larger title with section line (HĐ2–LT2 → section 1, HĐ3 → section 2)
 - [x] Full screen presentation covers: welcome → lesson title before Hoạt động 1, thank-you after the AI solution in Hoạt động 3 (Enter), cleared on part change/Esc; verified signed-in with a sample AI answer.
 - [x] Replace the three temporary text covers with the teacher's pictures.
+- [x] Bài 12 Luyện tập 3 "AI NHANH HƠN": 7 four-choice questions (PDF), 3D models for Q6/Q7, teacher auto-advance, live team race track

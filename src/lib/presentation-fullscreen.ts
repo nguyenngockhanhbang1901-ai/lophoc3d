@@ -39,8 +39,8 @@ export type PresentationShortcut = 'fullscreen' | 'assign' | 'answers';
 export function presentationShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey'>, presenting: boolean, activity: number): PresentationShortcut | null {
   if (!presenting || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return null;
   if (event.key === 'F12') return 'fullscreen';
-  if (event.key === 'F1' && (activity === 1 || activity === 3)) return 'assign';
-  if (event.key === 'F2' && (activity === 1 || activity === 3)) return 'answers';
+  if (event.key === 'F1' && (activity === 1 || activity === 3 || activity === 6)) return 'assign';
+  if (event.key === 'F2' && (activity === 1 || activity === 3 || activity === 6)) return 'answers';
   return null;
 }
 /** Adds the `presenting` class to <html> while the page is in full screen, and removes it on exit. */

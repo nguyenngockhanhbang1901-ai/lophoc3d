@@ -9,9 +9,9 @@ function Slides() {
   return <output aria-label="step">{selected}</output>;
 }
 describe('Adjacent lesson presentation navigation', () => {
-  it('uses Activity 1 → Activity 2 → Practice 1 → Practice 2 → Activity 3 order', () => {
-    expect([1, 2, 4, 3, 5].map(part => adjacentLessonPart(part as 1 | 2 | 4 | 3 | 5, 1))).toEqual([2, 4, 3, 5, undefined]);
-    expect([1, 2, 4, 3, 5].map(part => adjacentLessonPart(part as 1 | 2 | 4 | 3 | 5, -1))).toEqual([undefined, 1, 2, 4, 3]);
+  it('uses Activity 1 → Activity 2 → Practice 1 → Practice 2 → Activity 3 → Practice 3 order', () => {
+    expect([1, 2, 4, 3, 5, 6].map(part => adjacentLessonPart(part as 1 | 2 | 4 | 3 | 5 | 6, 1))).toEqual([2, 4, 3, 5, 6, undefined]);
+    expect([1, 2, 4, 3, 5, 6].map(part => adjacentLessonPart(part as 1 | 2 | 4 | 3 | 5 | 6, -1))).toEqual([undefined, 1, 2, 4, 3, 5]);
   });
   it('one Enter at the final step advances to the adjacent part', () => {
     const onFinish = vi.fn();

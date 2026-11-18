@@ -19,7 +19,7 @@ export function coverAfterBack(cover: PresentationCover | null): PresentationCov
 export function coverOnArrival(part: ActivityNumber, presentingFullscreen: boolean, backward: boolean): PresentationCover | null {
   return presentingFullscreen && part === 1 && !backward ? 'welcome' : null;
 }
-/** The thank-you picture follows Enter on Hoạt động 3's last step, only after the AI solution has arrived. */
+/** The thank-you picture follows Enter on Hoạt động 3's last step once the AI solution has arrived, and on Luyện tập 3's last step (end of the lesson). */
 export function thanksAvailable(part: ActivityNumber, presentingFullscreen: boolean, aiAnswered: boolean) {
-  return presentingFullscreen && part === 5 && aiAnswered;
+  return presentingFullscreen && (part === 5 && aiAnswered || part === 6);
 }
