@@ -33,24 +33,30 @@ export function quizCorrectCount(answers: readonly unknown[]): number {
   return QUIZ_QUESTIONS.reduce((n, q, i) => n + (answers[i] === q.correct ? 1 : 0), 0);
 }
 
-export type RaceLane = { number: number; done: number; correct: number; finished: boolean; lastAt: number | null };
+export type RaceLane = { number: number; done: number; correct: number; finished: boolean; lastAt: number | null; reachedAt: number | null };
 /**
- * Race track order: the team that has finished more questions is ahead; with the same count,
- * the team that reached it earlier (earlier end of its last finished question) is ahead.
+ * One ranking rule for the live race and the final results: more correct answers first; with the same
+ * number correct, the team that reached that score sooner (end of its latest correct question) is ahead;
+ * then the team further along, then the earlier end of its last finished question.
  * A question counts as finished once the team answered it or its time ran out.
  */
+export function compareLanes(a: RaceLane, b: RaceLane): number {
+  return b.correct - a.correct || (a.reachedAt ?? Infinity) - (b.reachedAt ?? Infinity) || b.done - a.done || (a.lastAt ?? Infinity) - (b.lastAt ?? Infinity) || a.number - b.number;
+}
 export function raceStandings(teams: readonly { number: number; progress: StepProgress }[], releasedAt: string | null, now: number): RaceLane[] {
   const lanes = teams.map(({ number, progress }) => {
     const r = releasedAt ? reconcileSteps(progress, releasedAt, now, QUIZ_STEPS) : progress;
     const done = r.completedAt ? QUIZ_STEPS.count : Math.min(r.step, QUIZ_STEPS.count);
-    const ends = r.timings.slice(0, done).map(t => t?.ended_at ? Date.parse(t.ended_at) : NaN).filter(Number.isFinite);
-    return { number, done, correct: quizCorrectCount(r.answers), finished: Boolean(r.completedAt), lastAt: ends.length ? Math.max(...ends) : null };
+    const endOf = (i: number) => { const t = r.timings[i]?.ended_at; return t ? Date.parse(t) : NaN; };
+    const ends = Array.from({ length: done }, (_, i) => endOf(i)).filter(Number.isFinite);
+    const correctEnds = Array.from({ length: done }, (_, i) => r.answers[i] === QUIZ_QUESTIONS[i]!.correct ? endOf(i) : NaN).filter(Number.isFinite);
+    return { number, done, correct: quizCorrectCount(r.answers), finished: Boolean(r.completedAt), lastAt: ends.length ? Math.max(...ends) : null, reachedAt: correctEnds.length ? Math.max(...correctEnds) : null };
   });
-  return lanes.sort((a, b) => b.done - a.done || (a.lastAt ?? Infinity) - (b.lastAt ?? Infinity) || a.number - b.number);
+  return lanes.sort(compareLanes);
 }
-/** After SHOW ANSWER the final ranking is by correct answers, then by finishing time. */
+/** After SHOW ANSWER the results keep the same ranking rule as the live race. */
 export function finalStandings(lanes: readonly RaceLane[]): RaceLane[] {
-  return [...lanes].sort((a, b) => b.correct - a.correct || (a.lastAt ?? Infinity) - (b.lastAt ?? Infinity) || a.number - b.number);
+  return [...lanes].sort(compareLanes);
 }
 
 /**

@@ -57,13 +57,10 @@ use the editor.
 - Keep Activity 1's fixed football-goal dimensions and steel-member coordinates in a pure geometry module, separate from its R3F scene, so camera movement cannot alter the model.
 
 ## Database migrations
-- The schema was rebuilt in one baseline migration (0000_create_classroom_schema) when the project moved from an archive; later schema changes are new ALTER migrations, never edits to that baseline, so history replays cleanly.
+- Schema changes are new ALTER migrations after the 0000_create_classroom_schema baseline, never edits to it, so history replays cleanly.
 - Lesson formulas are TeX between `$...$` in the pure lesson data, typeset only by MathText (KaTeX, `\ss` macro = "//"), so every symbol uses one math font and textbook spacing.
 - Full screen presentation enlarges lesson text only through html.presenting CSS (toggled from fullscreenchange) and turns off shrink-to-fit there, so fitting never cancels the enlargement; teacher keys F1/F2/F12 map through pure presentationShortcut to the existing button actions.
 - Presentation cover pictures follow pure transitions in presentation-covers.ts and pause the shared Enter hook through PresentationNavigation.readOnly, so covers never alter part steps or student sync.
 
 <!-- AGENT-MEMORY:BEGIN -->
-- Step keys map through pure stepKeyAction (→ = Enter, ← = Backspace) and on-screen arrows (SlideArrows) dispatch the same key event, so buttons and keys share one handler and never drift apart.
-- The parallel case keeps d at a fixed PARALLEL_HEIGHT with a horizontal direction (slide + turn about a vertical axis only), so the distance from d to the plane never changes.
-- Luyện tập 3 (part 6, AI NHANH HƠN) reuses the timed-step Track on its own quiz_* columns; question data, race ranking/bar shares (raceStandings, raceBar) and the static textbook figures (quiz-figures.ts, parallel-projection points with derived midpoints/centroids drawn as SVG) stay in pure modules; lane reordering animates by FLIP on offsetTop so it never changes ranking.
 <!-- AGENT-MEMORY:END -->

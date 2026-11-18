@@ -1,4 +1,4 @@
-export const GOAL_POSITION_OPTIONS = ['Nằm ngoài', 'Nằm trong'] as const;
+export const GOAL_POSITION_OPTIONS = ['Nằm trong', 'Không nằm trong'] as const;
 
 export type GoalQuestion = {
   prompt: string;

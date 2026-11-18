@@ -21,7 +21,7 @@ describe('Activity 1 deadlines', () => {
     expect(() => submitGoalStep(result, 5, 'Vô số', now + 180001)).toThrow('Không thể sửa');
   });
   it('early NEXT starts the next 30-second clock and locks the previous question', () => {
-    const result = submitGoalStep(reconcileGoal(empty(), released, now), 0, 'Nằm ngoài', now + 1000);
+    const result = submitGoalStep(reconcileGoal(empty(), released, now), 0, 'Không nằm trong', now + 1000);
     expect(result.timings[1]?.started_at).toBe(new Date(now + 1000).toISOString());
     expect(() => submitGoalStep(result, 0, 'Nằm trong', now + 2000)).toThrow();
   });

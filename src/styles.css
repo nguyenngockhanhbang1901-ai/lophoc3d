@@ -241,6 +241,7 @@
 .model-label.point { color: var(--foreground); }
 .motion-row { display: flex; align-items: center; gap: 16px; margin-top: 14px; font-size: 11px; color: var(--muted-foreground); }
 .motion-row input { accent-color: var(--primary); width: 170px; }
+.scene-tools.scene-tools-inline { position: static; margin-left: auto; }
 .question-section { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 23px; }
 .question-section h3 { font-size: 14px; font-weight: 600; margin: 8px 0 14px; line-height: 1.8; }
 .answer-field { background: var(--card); resize: vertical; min-height: 96px; font-size: 12px; line-height: 1.9; box-shadow: none; }
@@ -545,6 +546,8 @@
 .activity2-presentation .concept-figure > svg { display: block; height: 260px; max-height: none; background: var(--card); }
 .activity2-presentation .concept-figure > button { display: flex; margin: 10px auto 0; }
 .activity2-presentation .concept-text { padding: 16px; font-size: 14px; }
+.concept-definition p { margin: 0; }
+.concept-definition .concept-symbol { margin-top: 12px; text-align: center; }
 .activity2-presentation .concept-line, .activity2-presentation .concept-arc, .activity2-presentation .concept-edge { stroke: var(--foreground); }
 .activity2-presentation .concept-dot, .activity2-presentation .concept-label { fill: var(--foreground); }
 @media (min-width: 701px) {
@@ -656,9 +659,13 @@ html.presenting .line-pair-activity .models-row h3 { font-size: 29px; }
 /* Luyện tập 3 · AI NHANH HƠN */
 .quiz-content { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
 .quiz-layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "question" "options"; gap: 16px; }
-.quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "question figure" "options figure"; grid-template-rows: auto 1fr; align-items: start; }
-.quiz-with-figure .quiz-options { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.quiz-with-figure .quiz-option { min-height: 58px; padding-block: 8px; }
+.quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "question figure" "options figure"; grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 10px; }
+.quiz-with-figure .quiz-options { grid-template-columns: minmax(0, 1fr); gap: 8px; max-width: 460px; }
+.quiz-with-figure .quiz-option { min-height: 44px; padding-block: 5px; gap: 12px; }
+.quiz-with-figure .quiz-letter { width: 32px; height: 32px; font-size: 15px; }
+.quiz-with-figure .quiz-question { padding: 14px 18px; }
+/* Figures in Câu 6–9 are 35% smaller than the earlier 520px box (520 × 0.65 = 338), keeping the 400:330 drawing ratio. */
+.quiz-with-figure .quiz-figure { height: 338px; width: 410px; padding: 12px; }
 .quiz-question { grid-area: question; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .quiz-question-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .quiz-number { font-weight: 800; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); }
@@ -712,12 +719,28 @@ html.presenting .line-pair-activity .models-row h3 { font-size: 29px; }
 .quiz-car { position: absolute; top: 50%; display: grid; place-items: center; width: 28px; height: 28px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 2px 6px color-mix(in oklab, var(--foreground) 25%, transparent); transition: left .6s ease; z-index: 1; }
 .quiz-lane.finished .quiz-car { background: var(--success); }
 .quiz-lane.leader .quiz-car { transform: translate(-50%, -50%) scale(1.1); }
-.quiz-score { font-size: 13px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.quiz-score { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; font-weight: 700; line-height: 1.2; text-align: right; font-variant-numeric: tabular-nums; }
+.quiz-score small { font-size: 11px; font-weight: 600; color: var(--muted-foreground); }
 html.presenting .quiz-prompt { font-size: 30px; }
 html.presenting .quiz-option { font-size: 26px; min-height: 92px; }
+html.presenting .quiz-with-figure .quiz-prompt { font-size: 26px; line-height: 1.45; }
+html.presenting .quiz-with-figure .quiz-option { font-size: 22px; min-height: 46px; padding-block: 4px; }
+html.presenting .quiz-with-figure .quiz-options { max-width: 520px; }
+/* Câu 6–9 on the teacher's screen: a compact race track so the question, picture, answers and every team fit on one screen. */
+.quiz-teacher:has(.quiz-with-figure) { gap: 12px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-race { padding: 10px 16px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-race-head { margin-bottom: 2px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-lanes { gap: 6px; padding-top: 14px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-lane { grid-template-columns: 28px 64px minmax(0, 1fr) 124px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-track { height: 24px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-car { width: 24px; height: 24px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-rank { width: 22px; height: 22px; }
+.quiz-teacher:has(.quiz-with-figure) .quiz-score { flex-direction: row; align-items: baseline; justify-content: flex-end; gap: 6px; }
 @media (max-width: 700px), (orientation: portrait) {
   .quiz-layout, .quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "question" "options"; grid-template-rows: none; }
   .quiz-figure { height: auto; aspect-ratio: 400 / 330; max-height: 60dvh; padding: 12px; }
+  .quiz-with-figure .quiz-figure { width: 65%; height: auto; max-height: 39dvh; justify-self: center; }
+  .quiz-with-figure .quiz-options { max-width: none; }
 }
 @media (max-width: 700px) {
   .quiz-options { grid-template-columns: minmax(0, 1fr); gap: 8px; }

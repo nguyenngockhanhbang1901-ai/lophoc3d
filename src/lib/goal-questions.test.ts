@@ -20,9 +20,9 @@ describe('Activity 1 guided questions', () => {
     expect(GOAL_QUESTIONS.every(({ member }) => names.has(member))).toBe(true);
   });
 
-  it('offers exactly Nằm ngoài and Nằm trong for questions 1 and 5 only', () => {
-    expect(GOAL_QUESTIONS[0]?.options).toEqual(['Nằm ngoài', 'Nằm trong']);
-    expect(GOAL_QUESTIONS[4]?.options).toEqual(['Nằm ngoài', 'Nằm trong']);
+  it('offers exactly Nằm trong and Không nằm trong for questions 1 and 5 only', () => {
+    expect(GOAL_QUESTIONS[0]?.options).toEqual(['Nằm trong', 'Không nằm trong']);
+    expect(GOAL_QUESTIONS[4]?.options).toEqual(['Nằm trong', 'Không nằm trong']);
     expect(GOAL_QUESTIONS.filter(question => question.options)).toHaveLength(2);
   });
 

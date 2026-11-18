@@ -1,3 +1,7 @@
 # src/lib rules
 - Bài 11.1 scheduled hand-out stores the future moment in classrooms.started_at and every cube read/submit checks assignmentStarted on the server clock, so release happens exactly on time without a timer job and other lessons are untouched.
 - The teacher's screen in timed Bài 12 parts shows sharedQuestion (slowest team's reconciled step), selected only when it changes, so manual Enter/Backspace still work and team clocks stay independent.
+- Step keys map through pure stepKeyAction (→ = Enter, ← = Backspace) and on-screen arrows (SlideArrows) dispatch the same key event, so buttons and keys share one handler and never drift apart.
+- The parallel case keeps d at a fixed PARALLEL_HEIGHT with a horizontal direction (slide + turn about a vertical axis only), so the distance from d to the plane never changes.
+- Luyện tập 3 (part 6, AI NHANH HƠN) reuses the timed-step Track on its own quiz_* columns; question data, race ranking/bar shares (raceStandings, raceBar) and the static textbook figures (quiz-figures.ts, parallel-projection points with derived midpoints/centroids drawn as SVG) stay in pure modules; lane reordering animates by FLIP on offsetTop so it never changes ranking.
+- Hoạt động 2 models are framed by pure fitCaseView (geometry-fit.ts) from the live frame shape: camera and target slide together and only the field of view narrows, capped by a growth factor and by every sampled pose of d staying inside, so enlarging never clips or alters geometry.

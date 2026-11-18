@@ -1,3 +1,4 @@
+import { MathText } from './MathText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -214,7 +215,7 @@ export function GoalModelViewer({ highlightedMember, questionNumber, compact = f
     </section>;
 }
 
-const TEACHER_PROMPT = 'Quan sát mô hình và em hãy trả lời các câu hỏi sau?';
+const TEACHER_PROMPT = 'Xem mặt sân là một phần của mặt phẳng $(\\alpha)$, thanh sắt là một phần của đường thẳng $d$. Quan sát mô hình và em hãy trả lời các câu hỏi sau?';
 
 function TeacherGoalPreview({ autoQuestion }: { autoQuestion?: number | null | undefined }) {
   const review = useEnterReview(GOAL_QUESTIONS.length + 1);
@@ -224,7 +225,7 @@ function TeacherGoalPreview({ autoQuestion }: { autoQuestion?: number | null | u
   const question = selected === null ? null : GOAL_QUESTIONS[selected];
   return <div className="goal-content goal-content-embedded goal-teacher-preview">
     <section className="goal-question-workspace goal-teacher-workspace" aria-labelledby="goal-teacher-heading">
-      <div className="goal-question-intro"><div><p className="eyebrow">HOẠT ĐỘNG 1 · QUAN SÁT</p><h2 id="goal-teacher-heading">{TEACHER_PROMPT}</h2></div></div>
+      <div className="goal-question-intro"><div><p className="eyebrow">HOẠT ĐỘNG 1 · QUAN SÁT</p><h2 id="goal-teacher-heading"><MathText text={TEACHER_PROMPT} /></h2></div></div>
       <nav className="goal-question-nav goal-teacher-nav" aria-label="Danh sách câu hỏi">
         {GOAL_QUESTIONS.map((item, index) => <Button key={`${item.member}-${index}`} variant="ghost" className={`goal-question-step ${index === selected ? 'selected' : ''}`} aria-label={`Câu ${index + 1}`} aria-current={index === selected ? 'step' : undefined} onClick={() => review.select(index + 1)}><span className="case-number">{index + 1}</span><strong>Câu {index + 1}</strong></Button>)}
       </nav>

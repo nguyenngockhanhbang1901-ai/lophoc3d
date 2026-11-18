@@ -67,12 +67,12 @@ function useLaneSlide(order: string) {
   return (team: number) => (el: HTMLLIElement | null) => { if (el) rows.current.set(team, el); else rows.current.delete(team); };
 }
 
-/** Race track: one lane per team, fastest on top with a crown; the bar is green for correct answers, then red for wrong ones. */
+/** Race track: one lane per team, most correct (then fastest) on top with a crown; the bar is green for correct answers, then red for wrong ones. */
 export function RaceTrack({ lanes, showCorrect = false, released = true }: { lanes: readonly RaceLane[]; showCorrect?: boolean; released?: boolean }) {
   const leader = raceLeader(lanes);
   const rowRef = useLaneSlide(lanes.map(l => l.number).join(','));
   return <section className="quiz-race" aria-label="Đường đua các tổ">
-    <div className="quiz-race-head"><h3><Flag size={16} />Đường đua · {QUIZ_GAME_NAME}</h3><span>{released ? showCorrect ? 'Xếp hạng theo số câu đúng' : 'Cập nhật theo thời gian thực' : 'Chờ giao bài'}</span></div>
+    <div className="quiz-race-head"><h3><Flag size={16} />Đường đua · {QUIZ_GAME_NAME}</h3><span>{released ? showCorrect ? 'Xếp hạng theo số câu đúng' : 'Đúng nhiều nhất, nhanh nhất dẫn đầu · thời gian thực' : 'Chờ giao bài'}</span></div>
     <ol className="quiz-lanes">
       {lanes.map((lane, rank) => {
         const bar = raceBar(lane);
@@ -89,7 +89,7 @@ export function RaceTrack({ lanes, showCorrect = false, released = true }: { lan
               {lane.finished ? <Trophy size={16} /> : <Zap size={16} />}
             </span>
           </div>
-          <span className="quiz-score">{showCorrect ? `${lane.correct}/${COUNT} đúng` : `${lane.done}/${COUNT} câu`}</span>
+          <span className="quiz-score">{showCorrect ? `${lane.correct}/${COUNT} đúng` : <>{lane.correct} đúng<small>{lane.done}/{COUNT} câu</small></>}</span>
         </li>;
       })}
     </ol>

@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import { MathText } from './MathText';
 import { PlaneNamePosition } from './PlaneNamePosition';
-import { CanvasTexture, SRGBColorSpace, type Group } from 'three';
+import { CanvasTexture, SRGBColorSpace, type Group, type PerspectiveCamera } from 'three';
 import type { OrbitControls as Controls, Line2 } from 'three-stdlib';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, RotateCcw, Maximize, Play, Pause } from 'lucide-react';
@@ -13,13 +13,14 @@ function draw(lines: (Line2 | null)[], segments: Segment[], dashed: boolean) {
   lines.forEach((l, i) => { if (!l) return; const s = segments[i]; l.visible = Boolean(s); if (!s) return; l.geometry.setPositions([...s[0], ...s[1]]); if (dashed) l.computeLineDistances(); });
 }
 
+import { fitCaseView, modelPoints, type FitConfig } from '@/lib/geometry-fit';
 type Palette = { plane: string; line: string; foreground: string; border: string };
 function Label({ text, position, color, size = 1 }: { text: string; position: [number,number,number]; color: string; size?: number }) {
   const [texture, setTexture] = useState<CanvasTexture | null>(null);
   useEffect(() => { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64; const ctx = canvas.getContext('2d'); if (!ctx) return; ctx.font = 'italic 44px Georgia'; ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(text,64,48); const map = new CanvasTexture(canvas); map.colorSpace = SRGBColorSpace; setTexture(map); return () => map.dispose(); }, [text,color]);
   return texture ? <sprite position={position} scale={[0.85 * size,0.425 * size,1]}><spriteMaterial map={texture} transparent depthTest={false} /></sprite> : null;
 }
-function Scene({ index, playing, speed, resetVersion, palette, controls, onReady, planeName }: { index: CaseIndex; playing: boolean; speed: MotionSpeed; resetVersion: number; palette: Palette; controls: React.RefObject<Controls | null>; onReady: () => void; planeName: React.RefObject<HTMLDivElement | null> }) {
+function Scene({ index, playing, speed, resetVersion, palette, controls, onReady, planeName, fit }: { index: CaseIndex; playing: boolean; speed: MotionSpeed; resetVersion: number; palette: Palette; controls: React.RefObject<Controls | null>; onReady: () => void; planeName: React.RefObject<HTMLDivElement | null>; fit?: FitConfig | undefined }) {
   const phase = useRef(0);
   const solid = useRef<(Line2 | null)[]>([]);
   const dashes = useRef<(Line2 | null)[]>([]);
@@ -45,8 +46,17 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     if (import.meta.env.DEV) { const element = state.gl.domElement; element.dataset['motionPhase'] = String(phase.current); element.dataset['motionOrigin'] = JSON.stringify(origin); element.dataset['motionDirection'] = JSON.stringify(direction); element.dataset['hiddenParts'] = String(parts.hidden.length); element.dataset['segment'] = JSON.stringify([a, b]); }
     if (!marked.current) { marked.current = true; requestAnimationFrame(onReady); }
   });
-  const { camera } = useThree();
-  useEffect(() => { const c = controls.current; camera.position.set(...CAMERA_VIEWS[index]); camera.lookAt(...CAMERA_TARGETS[index]); if (c) { c.target.set(...CAMERA_TARGETS[index]); c.update(); c.saveState(); } }, [index, camera, controls]);
+  const { camera, size } = useThree();
+  const points = useMemo(() => fit ? modelPoints(index) : null, [fit, index]);
+  const aspect = fit && size.height > 0 ? size.width / size.height : 0;
+  useEffect(() => {
+    const c = controls.current;
+    let position = CAMERA_VIEWS[index], target = CAMERA_TARGETS[index];
+    // Framed views (Hoạt động 2) re-aim the camera and narrow its field of view from the live frame shape; the model itself never changes.
+    if (fit && points && aspect > 0) { const v = fitCaseView(index, aspect, fit, points); position = v.position; target = v.target; (camera as PerspectiveCamera).fov = v.fov; camera.updateProjectionMatrix(); }
+    camera.position.set(...position); camera.lookAt(...target);
+    if (c) { c.target.set(...target); c.update(); c.saveState(); }
+  }, [index, camera, controls, fit, points, aspect]);
   return <>
     <ambientLight intensity={1.5} />
     <mesh rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[6.1, 4.5]} /><meshBasicMaterial color={palette.plane} transparent opacity={0.2} side={2} depthWrite={false} /></mesh>
@@ -62,7 +72,8 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     <OrbitControls ref={controls} enablePan={false} minDistance={4} maxDistance={16} maxPolarAngle={Math.PI} />
   </>;
 }
-export default function GeometryView({ index, compact = false, hideLegend = false, planeLabel = '(P)', viewMagnification = 1 }: { index: CaseIndex; compact?: boolean; hideLegend?: boolean; planeLabel?: string; viewMagnification?: number }) {
+/** `lineToken` names the CSS colour token for line d and its label (default `--line`). */
+export default function GeometryView({ index, compact = false, hideLegend = false, planeLabel = '(P)', viewMagnification = 1, lineToken = '--line', fit }: { index: CaseIndex; compact?: boolean; hideLegend?: boolean; planeLabel?: string; viewMagnification?: number; lineToken?: string; fit?: FitConfig }) {
   const planeName = useRef<HTMLDivElement | null>(null);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<MotionSpeed>('normal');
@@ -79,26 +90,29 @@ export default function GeometryView({ index, compact = false, hideLegend = fals
     const swatch = document.createElement('canvas').getContext('2d');
     if (!swatch) return;
     const resolve = (token: string) => { swatch.fillStyle = css.getPropertyValue(token).trim(); swatch.fillRect(0,0,1,1); const p = swatch.getImageData(0,0,1,1).data; return `rgb(${p[0]},${p[1]},${p[2]})`; };
-    setPalette({ plane: resolve('--plane'), line: resolve('--line'), foreground: resolve('--foreground'), border: resolve('--border') });
-  }, []);
+    setPalette({ plane: resolve('--plane'), line: resolve(lineToken), foreground: resolve('--foreground'), border: resolve('--border') });
+  }, [lineToken]);
   function zoom(factor: number) { const c = controls.current; if (!c) return; c.object.position.sub(c.target).multiplyScalar(factor).add(c.target); c.update(); }
-  return <>
-    <div ref={wrapper} className={`geometry-view ${compact ? 'compact' : ''}`} data-scene-ready={ready || undefined}>
-      {!hideLegend && <div className="scene-top"><span className="legend"><i />Đường thẳng d</span><span className="legend"><i className="plane" />Mặt phẳng (P)</span><span className="legend">Nét đứt: phần bị che khuất</span></div>}
-      {palette && <Canvas camera={{ position: CAMERA_VIEWS[index], fov: 2 * Math.atan(Math.tan(20 * Math.PI / 180) / viewMagnification) * 180 / Math.PI }} frameloop="always" dpr={[1,1.5]}><Scene index={index} playing={playing} speed={speed} resetVersion={resetVersion} palette={palette} controls={controls} onReady={markReady} planeName={planeName} /></Canvas>}
-      <div ref={planeName} className="pair-math-label pair-plane-label absolute left-0 top-0"><MathText text={planeLabel === 'α' ? '$(\\alpha)$' : `$${planeLabel}$`} /></div>
-      <div className="scene-tools">
+  // Framed views keep the zoom buttons below the frame, so they never cover any part of the model.
+  const tools = <div className={`scene-tools ${fit ? 'scene-tools-inline' : ''}`}>
         <Button variant="ghost" size="icon" title="Phóng to" aria-label="Phóng to" onClick={() => zoom(0.85)}><Plus /></Button>
         <Button variant="ghost" size="icon" title="Thu nhỏ" aria-label="Thu nhỏ" onClick={() => zoom(1.15)}><Minus /></Button>
         <Button variant="ghost" size="icon" title="Góc nhìn ban đầu" aria-label="Góc nhìn ban đầu" onClick={() => { controls.current?.reset(); }}><RotateCcw /></Button>
         {!compact && <Button variant="ghost" size="icon" title="Toàn màn hình" aria-label="Toàn màn hình" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void wrapper.current?.requestFullscreen(); }}><Maximize /></Button>}
-      </div>
+  </div>;
+  return <>
+    <div ref={wrapper} className={`geometry-view ${compact ? 'compact' : ''}`} data-scene-ready={ready || undefined}>
+      {!hideLegend && <div className="scene-top"><span className="legend"><i />Đường thẳng d</span><span className="legend"><i className="plane" />Mặt phẳng (P)</span><span className="legend">Nét đứt: phần bị che khuất</span></div>}
+      {palette && <Canvas camera={{ position: CAMERA_VIEWS[index], fov: 2 * Math.atan(Math.tan(20 * Math.PI / 180) / viewMagnification) * 180 / Math.PI }} frameloop="always" dpr={[1,1.5]}><Scene index={index} playing={playing} speed={speed} resetVersion={resetVersion} palette={palette} controls={controls} onReady={markReady} planeName={planeName} fit={fit} /></Canvas>}
+      <div ref={planeName} className="pair-math-label pair-plane-label absolute left-0 top-0"><MathText text={planeLabel === 'α' ? '$(\\alpha)$' : `$${planeLabel}$`} /></div>
+      {!fit && tools}
     </div>
     <div className="motion-row">
       <Button variant="outline" size="icon" title="PLAY · Bắt đầu" aria-label="PLAY" aria-pressed={playing} disabled={playing} onClick={() => setPlaying(true)}><Play /></Button>
       <Button variant="outline" size="icon" title="PAUSE · Tạm dừng" aria-label="PAUSE" aria-pressed={!playing} disabled={!playing} onClick={() => setPlaying(false)}><Pause /></Button>
       <Button variant="outline" size="icon" title="RESET · Vị trí ban đầu" aria-label="RESET" onClick={() => { setResetVersion(v => v+1); setPlaying(false); }}><RotateCcw /></Button>
       <select aria-label="Tốc độ chuyển động" value={speed} onChange={e => setSpeed(e.target.value as MotionSpeed)} className="min-w-0 rounded-md border border-input bg-background p-2 text-xs"><option value="slow">Chậm</option><option value="normal">Bình thường</option><option value="fast">Nhanh</option></select>
+      {fit && tools}
     </div>
   </>;
 }

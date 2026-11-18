@@ -79,3 +79,9 @@
 - [x] Full screen presentation covers: welcome → lesson title before Hoạt động 1, thank-you after the AI solution in Hoạt động 3 (Enter), cleared on part change/Esc; verified signed-in with a sample AI answer.
 - [x] Replace the three temporary text covers with the teacher's pictures.
 - [x] Bài 12 Luyện tập 3 "AI NHANH HƠN": 7 four-choice questions (PDF), 3D models for Q6/Q7, teacher auto-advance, live team race track
+- [x] LT3: figures 35% smaller, shorter answer boxes, question + race track fit on one screen while answering
+- [x] LT3 Câu 8 figure: add medians from A through I and J
+- [x] LT3 live race order: most correct first, then faster (during answering, not only in results)
+- [x] HĐ2: enlarge all three 3D models 30% inside the same frame (nothing clipped); line d and its label red
+- [x] HĐ1: new lead-in prompt; Câu 1 and Câu 5 choices "Nằm trong – Không nằm trong"
+- [x] HĐ2: definitions under the 3 static pictures laid out like the reference (bold, centred symbol line)

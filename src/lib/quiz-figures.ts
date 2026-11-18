@@ -27,7 +27,9 @@ function tetraMidpoints(): QuizFigure {
 }
 function tetraCentroids(): QuizFigure {
   const I = centroid(TETRA.A, TETRA.B, TETRA.C), J = centroid(TETRA.A, TETRA.B, TETRA.D);
-  return { title: 'Tứ diện ABCD, I và J lần lượt là trọng tâm của tam giác ABC và ABD', points: { ...TETRA, I, J }, labels: { ...TETRA_LABELS, I: [-14, 14], J: [-6, -18] }, segments: [...TETRA_EDGES, { from: 'I', to: 'J', hidden: true }], dots: ['I', 'J'] };
+  // Medians from A: AM through I (M midpoint of BC, visible face ABC) and AN through J (N midpoint of BD, hidden face ABD).
+  const M = mid(TETRA.B, TETRA.C), N = mid(TETRA.B, TETRA.D);
+  return { title: 'Tứ diện ABCD, I và J lần lượt là trọng tâm của tam giác ABC và ABD; AM, AN là hai đường trung tuyến', points: { ...TETRA, I, J, M, N }, labels: { ...TETRA_LABELS, I: [-15, 10], J: [14, -10], M: [-2, 22], N: [6, 18] }, segments: [...TETRA_EDGES, { from: 'A', to: 'M' }, { from: 'A', to: 'N', hidden: true }, { from: 'I', to: 'J', hidden: true }], dots: ['I', 'J', 'M', 'N'] };
 }
 function pyramidCenter(): QuizFigure {
   const O = mid(PYRAMID.A, PYRAMID.C), M = mid(PYRAMID.S, PYRAMID.A);

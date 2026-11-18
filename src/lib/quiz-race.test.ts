@@ -23,13 +23,27 @@ describe('Luyện tập 3 · AI NHANH HƠN', () => {
     const lanes = raceStandings([{ number: 1, progress: team([5]) }, { number: 2, progress: team([3, 6]) }], release, Date.parse(at(8)));
     expect(lanes.map(l => [l.number, l.done])).toEqual([[2, 2], [1, 1]]);
   });
+  it('more correct answers lead during the game, even when another team answered faster', () => {
+    // Tổ 1: 5 right, then a fast wrong Câu 6. Tổ 2: slower, but 6 right.
+    const t1 = team([1, 2, 3, 4, 5, 6], ['C', 'C', 'B', 'B', 'B', 'A']);
+    const t2 = team([2, 4, 6, 8, 10, 12], ['C', 'C', 'B', 'B', 'B', 'D']);
+    const lanes = raceStandings([{ number: 1, progress: t1 }, { number: 2, progress: t2 }], release, Date.parse(at(13)));
+    expect(lanes.map(l => [l.number, l.correct])).toEqual([[2, 6], [1, 5]]);
+    expect(raceLeader(lanes)).toBe(2);
+  });
+  it('with the same number correct, the team that reached that score first leads', () => {
+    const t1 = team([1, 2, 3, 4, 5, 6], ['C', 'C', 'B', 'B', 'B', 'A']);
+    const t2 = team([2, 4, 6, 8, 10], ['C', 'C', 'B', 'B', 'B']);
+    const lanes = raceStandings([{ number: 2, progress: t2 }, { number: 1, progress: t1 }], release, Date.parse(at(11)));
+    expect(lanes.map(l => l.number)).toEqual([1, 2]);
+  });
   it('with the same count, the team that got there sooner is ahead', () => {
     const lanes = raceStandings([{ number: 1, progress: team([9]) }, { number: 2, progress: team([4]) }], release, Date.parse(at(10)));
     expect(lanes.map(l => l.number)).toEqual([2, 1]);
   });
   it('final ranking after SHOW ANSWER is by correct answers', () => {
     const lanes = raceStandings([{ number: 1, progress: team([1, 2, 3, 4, 5, 6, 7, 8, 9], ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']) }, { number: 2, progress: team([2, 4, 6, 8, 10, 12, 14, 16, 18], ['C', 'C', 'B', 'B', 'B', 'D', 'C', 'D', 'C']) }], release, Date.parse(at(20)));
-    expect(lanes[0]!.number).toBe(1);
+    expect(lanes[0]!.number).toBe(2);
     expect(finalStandings(lanes).map(l => [l.number, l.correct])).toEqual([[2, 9], [1, 0]]);
   });
 });
@@ -52,6 +66,14 @@ describe('Luyện tập 3 race bar', () => {
 });
 describe('Luyện tập 3 figures', () => {
   const pts = (k: keyof typeof QUIZ_FIGURES) => QUIZ_FIGURES[k].points as Record<string, readonly [number, number]>;
+  it('Câu 8 draws the medians AM and AN through the centroids I and J', () => {
+    const { A, B, C, D, I, J, M, N } = pts('tetra-centroids');
+    expect(M).toEqual(mid(B!, C!)); expect(N).toEqual(mid(B!, D!));
+    const cross = (o: readonly [number, number], p: readonly [number, number], q: readonly [number, number]) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+    expect(cross(A!, M!, I!)).toBeCloseTo(0); expect(cross(A!, N!, J!)).toBeCloseTo(0);
+    const segs = QUIZ_FIGURES['tetra-centroids'].segments.map(s => `${s.from}${s.to}`);
+    expect(segs).toEqual(expect.arrayContaining(['AM', 'AN']));
+  });
   it('pyramid bases are parallelograms (AB = DC as vectors)', () => {
     for (const k of ['pyramid', 'pyramid-center'] as const) {
       const { A, B, C, D } = pts(k);

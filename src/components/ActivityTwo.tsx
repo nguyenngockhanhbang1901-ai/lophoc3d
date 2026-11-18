@@ -4,16 +4,17 @@ import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
 import { type CaseIndex } from '@/lib/geometry';
 import { ACTIVITY2_ORDER, ACTIVITY2_TOTAL, activity2ConceptVisible } from '@/lib/activity2-walkthrough';
+import { ACTIVITY2_FIT } from '@/lib/geometry-fit';
 import { MathText } from './MathText';
 import { reveal } from '@/lib/reveal';
 import { SlideArrows } from './SlideArrows';
 const GeometryView = lazy(() => import('./GeometryView'));
 
-/** Textbook order of the three positions: parallel, intersecting, contained (indices into `cases`). */
-const CONCEPTS: Record<CaseIndex, string> = {
-  1: 'Nếu $d$ và $(\\alpha)$ không có điểm chung thì ta nói $d$ song song với $(\\alpha)$ hay $(\\alpha)$ song song với $d$ và kí hiệu là $d \\ss (\\alpha)$ hay $(\\alpha) \\ss d$.',
-  0: 'Nếu $d$ và $(\\alpha)$ có một điểm chung duy nhất $M$ thì ta nói $d$ và $(\\alpha)$ cắt nhau tại điểm $M$ và kí hiệu $d \\cap (\\alpha) = \\{M\\}$ hay $d \\cap (\\alpha) = M$.',
-  2: 'Nếu $d$ và $(\\alpha)$ có nhiều hơn một điểm chung thì ta nói $d$ nằm trong $(\\alpha)$ hay $(\\alpha)$ chứa $d$ và kí hiệu $d \\subset (\\alpha)$ hay $(\\alpha) \\supset d$.',
+/** Textbook order of the three positions: parallel, intersecting, contained (indices into `cases`). The symbol line is shown bold and centred under its definition. */
+const CONCEPTS: Record<CaseIndex, { text: string; symbol: string }> = {
+  1: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ không có điểm chung thì ta nói $\\boldsymbol{d}$ song song với $(\\alpha)$ hay $(\\alpha)$ song song với $\\boldsymbol{d}$.', symbol: '$\\boldsymbol{d \\ss (\\alpha)}$ hay $\\boldsymbol{(\\alpha) \\ss d}$' },
+  0: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ có một điểm chung duy nhất $\\boldsymbol{M}$ thì ta nói $\\boldsymbol{d}$ và $(\\alpha)$ cắt nhau tại điểm $\\boldsymbol{M}$.', symbol: '$\\boldsymbol{d \\cap (\\alpha) = \\{M\\}}$ hay $\\boldsymbol{d \\cap (\\alpha) = M}$' },
+  2: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ có nhiều hơn một điểm chung thì ta nói $\\boldsymbol{d}$ nằm trong $(\\alpha)$ hay $(\\alpha)$ chứa $\\boldsymbol{d}$.', symbol: '$\\boldsymbol{d \\subset (\\alpha)}$ hay $\\boldsymbol{(\\alpha) \\supset d}$' },
 };
 
 /** Static textbook drawing of one case: plane (α) as a parallelogram and the line d. */
@@ -33,10 +34,13 @@ function Concept({ index, revealed }: { index: CaseIndex; revealed: boolean }) {
   const [model, setModel] = useState(false);
   return <div className="concept-column">
     <div className="concept-figure">
-      {!revealed || model ? <Suspense fallback={<div className="geometry-view compact" />}><GeometryView index={index} compact hideLegend planeLabel="α" viewMagnification={1.2} /></Suspense> : <ConceptFigure index={index} />}
+      {!revealed || model ? <Suspense fallback={<div className="geometry-view compact" />}><GeometryView index={index} compact hideLegend planeLabel="α" fit={ACTIVITY2_FIT} lineToken="--destructive" /></Suspense> : <ConceptFigure index={index} />}
       <Button size="sm" variant="outline" tabIndex={revealed ? undefined : -1} {...reveal(revealed)} onClick={() => setModel(m => !m)}>{model ? <><Image />Xem ảnh tĩnh</> : <><Box />Xem mô hình</>}</Button>
     </div>
-    <p className="concept-text" {...reveal(revealed)}><MathText text={CONCEPTS[index]} /></p>
+    <div className="concept-text concept-definition" {...reveal(revealed)}>
+      <p><MathText text={CONCEPTS[index].text} /></p>
+      <p className="concept-symbol"><strong><MathText text={CONCEPTS[index].symbol} /></strong></p>
+    </div>
   </div>;
 }
 
