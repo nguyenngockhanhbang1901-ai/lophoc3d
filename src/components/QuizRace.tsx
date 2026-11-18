@@ -1,14 +1,14 @@
-import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
-import { Check, Clock, Flag, Trophy, Zap } from 'lucide-react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Check, Clock, Crown, Flag, Trophy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
-import { finalStandings, QUIZ_GAME_NAME, QUIZ_LETTERS, QUIZ_QUESTIONS, QUIZ_SECONDS, QUIZ_STEPS, QUIZ_TITLE, raceStandings, type QuizLetter, type RaceLane } from '@/lib/quiz-race';
+import { finalStandings, QUIZ_GAME_NAME, QUIZ_LETTERS, QUIZ_QUESTIONS, QUIZ_SECONDS, QUIZ_STEPS, QUIZ_TITLE, raceBar, raceLeader, raceStandings, type QuizLetter, type RaceLane } from '@/lib/quiz-race';
 import type { StepProgress } from '@/lib/goal-progress';
 import { clockLabel, remainingMs, timerTone, type Timing } from '@/lib/timer';
 import { reveal } from '@/lib/reveal';
 import { MathText } from './MathText';
+import { QuizFigure } from './QuizFigure';
 
-const QuizModelView = lazy(() => import('./QuizModelView'));
 const COUNT = QUIZ_QUESTIONS.length;
 
 /** `**text**` marks a stressed word (e.g. "sai"); everything else goes through MathText. */
@@ -17,15 +17,15 @@ function Prompt({ text }: { text: string }) {
 }
 
 export type QuizPicks = Partial<Record<QuizLetter, number[]>>;
-/** One question: prompt on the left, 3D model (questions 6–7) on the right, the four answers below. Phones stack model → prompt → answers. */
+/** One question. With a figure: prompt and stacked A–D answers on the left, the static figure on the right; phones stack figure → prompt → answers. */
 export function QuizQuestion({ index, chosen, onChoose, disabled, showCorrect = false, picks, timer, hideOptions = false }: { index: number; chosen?: string | null; onChoose?: (letter: QuizLetter) => void; disabled?: boolean; showCorrect?: boolean; picks?: QuizPicks; timer?: React.ReactNode; hideOptions?: boolean }) {
   const question = QUIZ_QUESTIONS[index]!;
-  return <div className={`quiz-layout ${question.model ? 'quiz-with-model' : ''}`}>
+  return <div className={`quiz-layout ${question.figure ? 'quiz-with-figure' : ''}`}>
     <section className="quiz-question" aria-labelledby={`quiz-q-${index}`}>
       <div className="quiz-question-head"><span className="quiz-number">Câu {index + 1}<small>/{COUNT}</small></span>{timer}</div>
       <h3 id={`quiz-q-${index}`} className="quiz-prompt"><Prompt text={question.prompt} /></h3>
     </section>
-    {question.model && <div className="quiz-model"><Suspense fallback={<div className="quiz-model-view" />}><QuizModelView key={question.model} model={question.model} /></Suspense></div>}
+    {question.figure && <QuizFigure figure={question.figure} />}
     <div className="quiz-options" role="group" aria-label={`Đáp án câu ${index + 1}`} {...reveal(!hideOptions)}>
       {question.options.map((option, i) => {
         const letter = QUIZ_LETTERS[i]!;
@@ -45,21 +45,53 @@ function GameIntro() {
   return <div className="quiz-intro"><span className="quiz-intro-icon"><Zap size={30} /></span><div><p className="eyebrow">{QUIZ_TITLE} · Trò chơi củng cố kiến thức</p><h2>{QUIZ_GAME_NAME}</h2><p>{COUNT} câu trắc nghiệm · mỗi câu {QUIZ_SECONDS} giây · bấm chọn A, B, C hoặc D. Tổ trả lời nhanh hơn sẽ dẫn đầu đường đua.</p></div></div>;
 }
 
-/** Simple race track: one lane per team, the leading team on top; the car moves one notch per finished question. */
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+/** When the order changes, each lane slides from its old row to its new one (FLIP), so an overtaking team visibly moves up. */
+function useLaneSlide(order: string) {
+  const rows = useRef(new Map<number, HTMLLIElement>());
+  const tops = useRef(new Map<number, number>());
+  useIsoLayoutEffect(() => {
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    rows.current.forEach((el, team) => {
+      const top = el.offsetTop, before = tops.current.get(team);
+      tops.current.set(team, top);
+      if (still || before === undefined || before === top) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${before - top}px)`;
+      el.classList.toggle('overtaking', before > top);
+      void el.offsetHeight;
+      requestAnimationFrame(() => { el.style.transition = 'transform .7s cubic-bezier(.2,.8,.2,1)'; el.style.transform = ''; });
+      window.setTimeout(() => el.classList.remove('overtaking'), 750);
+    });
+  }, [order]);
+  return (team: number) => (el: HTMLLIElement | null) => { if (el) rows.current.set(team, el); else rows.current.delete(team); };
+}
+
+/** Race track: one lane per team, fastest on top with a crown; the bar is green for correct answers, then red for wrong ones. */
 export function RaceTrack({ lanes, showCorrect = false, released = true }: { lanes: readonly RaceLane[]; showCorrect?: boolean; released?: boolean }) {
+  const leader = raceLeader(lanes);
+  const rowRef = useLaneSlide(lanes.map(l => l.number).join(','));
   return <section className="quiz-race" aria-label="Đường đua các tổ">
     <div className="quiz-race-head"><h3><Flag size={16} />Đường đua · {QUIZ_GAME_NAME}</h3><span>{released ? showCorrect ? 'Xếp hạng theo số câu đúng' : 'Cập nhật theo thời gian thực' : 'Chờ giao bài'}</span></div>
     <ol className="quiz-lanes">
-      {lanes.map((lane, rank) => <li key={lane.number} className={`quiz-lane ${rank === 0 && lane.done > 0 ? 'leader' : ''} ${lane.finished ? 'finished' : ''}`}>
-        <span className="quiz-rank">{rank + 1}</span>
-        <strong className="quiz-team">Tổ {lane.number}</strong>
-        <div className="quiz-track" role="progressbar" aria-label={`Tổ ${lane.number}`} aria-valuemin={0} aria-valuemax={COUNT} aria-valuenow={lane.done}>
-          {Array.from({ length: COUNT - 1 }, (_, i) => <span key={i} className="quiz-notch" style={{ left: `${((i + 1) / COUNT) * 100}%` }} />)}
-          <span className="quiz-fill" style={{ width: `${(lane.done / COUNT) * 100}%` }} />
-          <span className="quiz-car" style={{ left: `${(lane.done / COUNT) * 100}%` }}>{lane.finished ? <Trophy size={16} /> : <Zap size={16} />}</span>
-        </div>
-        <span className="quiz-score">{showCorrect ? `${lane.correct}/${COUNT} đúng` : `${lane.done}/${COUNT} câu`}</span>
-      </li>)}
+      {lanes.map((lane, rank) => {
+        const bar = raceBar(lane);
+        const at = `${(bar.correct + bar.wrong) * 100}%`;
+        return <li key={lane.number} ref={rowRef(lane.number)} className={`quiz-lane ${lane.number === leader ? 'leader' : ''} ${lane.finished ? 'finished' : ''}`}>
+          <span className="quiz-rank">{rank + 1}</span>
+          <strong className="quiz-team">Tổ {lane.number}</strong>
+          <div className="quiz-track" role="progressbar" aria-label={`Tổ ${lane.number}: ${lane.correct} câu đúng, ${lane.done - Math.min(lane.correct, lane.done)} câu sai`} aria-valuemin={0} aria-valuemax={COUNT} aria-valuenow={lane.done}>
+            {Array.from({ length: COUNT - 1 }, (_, i) => <span key={i} className="quiz-notch" style={{ left: `${((i + 1) / COUNT) * 100}%` }} />)}
+            <span className="quiz-fill quiz-fill-correct" style={{ width: `${bar.correct * 100}%` }} />
+            <span className="quiz-fill quiz-fill-wrong" style={{ left: `${bar.correct * 100}%`, width: `${bar.wrong * 100}%` }} />
+            <span className="quiz-car" style={{ left: at }}>
+              {lane.number === leader && <Crown className="quiz-crown" size={20} aria-label="Dẫn đầu" />}
+              {lane.finished ? <Trophy size={16} /> : <Zap size={16} />}
+            </span>
+          </div>
+          <span className="quiz-score">{showCorrect ? `${lane.correct}/${COUNT} đúng` : `${lane.done}/${COUNT} câu`}</span>
+        </li>;
+      })}
     </ol>
   </section>;
 }

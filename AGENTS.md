@@ -65,5 +65,5 @@ use the editor.
 <!-- AGENT-MEMORY:BEGIN -->
 - Step keys map through pure stepKeyAction (→ = Enter, ← = Backspace) and on-screen arrows (SlideArrows) dispatch the same key event, so buttons and keys share one handler and never drift apart.
 - The parallel case keeps d at a fixed PARALLEL_HEIGHT with a horizontal direction (slide + turn about a vertical axis only), so the distance from d to the plane never changes.
-- Luyện tập 3 (part 6, AI NHANH HƠN) reuses the timed-step Track on its own quiz_* columns; four-choice data, race ranking (pure raceStandings) and the convex-solid hidden-edge math (solid-models.ts) stay in pure modules so the R3F models and race track only draw them.
+- Luyện tập 3 (part 6, AI NHANH HƠN) reuses the timed-step Track on its own quiz_* columns; question data, race ranking/bar shares (raceStandings, raceBar) and the static textbook figures (quiz-figures.ts, parallel-projection points with derived midpoints/centroids drawn as SVG) stay in pure modules; lane reordering animates by FLIP on offsetTop so it never changes ranking.
 <!-- AGENT-MEMORY:END -->

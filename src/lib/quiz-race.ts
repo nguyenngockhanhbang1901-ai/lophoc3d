@@ -1,4 +1,5 @@
 import { reconcileSteps, type StepConfig, type StepProgress } from './goal-progress';
+import type { QuizFigureKey } from './quiz-figures';
 
 /** Luyện tập 3 · "AI NHANH HƠN": four-choice consolidation game for Bài 12. */
 export const QUIZ_TITLE = 'Luyện tập 3';
@@ -6,8 +7,8 @@ export const QUIZ_GAME_NAME = 'AI NHANH HƠN';
 export const QUIZ_SECONDS = 30;
 export const QUIZ_LETTERS = ['A', 'B', 'C', 'D'] as const;
 export type QuizLetter = typeof QUIZ_LETTERS[number];
-export type QuizModel = 'tetrahedron' | 'pyramid';
-export type QuizQuestion = { prompt: string; options: readonly [string, string, string, string]; correct: QuizLetter; model?: QuizModel };
+/** `figure` names a static textbook drawing shown to the right of the question. */
+export type QuizQuestion = { prompt: string; options: readonly [string, string, string, string]; correct: QuizLetter; figure?: QuizFigureKey };
 
 /** Text uses TeX between `$...$` (rendered by MathText); `\ss` = "//". */
 export const QUIZ_QUESTIONS: readonly QuizQuestion[] = [
@@ -16,8 +17,10 @@ export const QUIZ_QUESTIONS: readonly QuizQuestion[] = [
   { prompt: 'Nếu đường thẳng $a$ không nằm trong $(P)$ và $a$ song song với một đường thẳng $d$ nằm trong $(P)$ thì:', options: ['$a$ cắt $(P)$', '$a$ song song với $(P)$', '$a$ nằm trong $(P)$', '$a$ chéo với $(P)$'], correct: 'B' },
   { prompt: 'Để chứng minh $a \\ss (P)$, ta cần chứng minh:', options: ['$a \\ss d$ với $d \\subset (P)$', '$a \\ss d$ với $d \\subset (P)$ và $a \\not\\subset (P)$', '$a$ cắt $d$ với $d \\subset (P)$', '$a$ và $(P)$ có một điểm chung'], correct: 'B' },
   { prompt: 'Cho đường thẳng $a \\ss (P)$. Khẳng định nào sau đây **sai**?', options: ['$a$ và $(P)$ không có điểm chung', 'Mọi đường thẳng nằm trong $(P)$ đều song song với $a$', 'Tồn tại đường thẳng $d$ trong $(P)$ sao cho $d \\ss a$', '$a$ không nằm trong $(P)$'], correct: 'B' },
-  { prompt: 'Cho tứ diện $ABCD$. Gọi $M, N$ lần lượt là trung điểm của $AB$ và $AC$. Đường thẳng $MN$ song song với mặt phẳng nào sau đây?', options: ['$(ABC)$', '$(ABD)$', '$(ACD)$', '$(BCD)$'], correct: 'D', model: 'tetrahedron' },
-  { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành. Đường thẳng $AB$ song song với mặt phẳng nào sau đây?', options: ['$(SAD)$', '$(SBC)$', '$(SCD)$', '$(SAC)$'], correct: 'C', model: 'pyramid' },
+  { prompt: 'Cho tứ diện $ABCD$. Gọi $M, N$ lần lượt là trung điểm của $AB$ và $AC$. Đường thẳng $MN$ song song với mặt phẳng nào sau đây?', options: ['$(ABC)$', '$(ABD)$', '$(ACD)$', '$(BCD)$'], correct: 'D', figure: 'tetra-midpoints' },
+  { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành. Đường thẳng $AB$ song song với mặt phẳng nào sau đây?', options: ['$(SAD)$', '$(SBC)$', '$(SCD)$', '$(SAC)$'], correct: 'C', figure: 'pyramid' },
+  { prompt: 'Cho tứ diện $ABCD$. Gọi $I, J$ lần lượt là trọng tâm của các tam giác $ABC$ và $ABD$. Khẳng định nào sau đây đúng?', options: ['$IJ \\ss BC$', '$IJ \\ss AD$', '$IJ$ cắt $CD$', '$IJ \\ss CD$'], correct: 'D', figure: 'tetra-centroids' },
+  { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành tâm $O$. Gọi $M$ là trung điểm của $SA$. Đường thẳng $OM$ nằm trong mặt phẳng nào sau đây?', options: ['$(SBD)$', '$(SAB)$', '$(SAC)$', '$(ABCD)$'], correct: 'C', figure: 'pyramid-center' },
 ];
 
 export function isQuizLetter(value: string): value is QuizLetter {
@@ -48,4 +51,17 @@ export function raceStandings(teams: readonly { number: number; progress: StepPr
 /** After SHOW ANSWER the final ranking is by correct answers, then by finishing time. */
 export function finalStandings(lanes: readonly RaceLane[]): RaceLane[] {
   return [...lanes].sort((a, b) => b.correct - a.correct || (a.lastAt ?? Infinity) - (b.lastAt ?? Infinity) || a.number - b.number);
+}
+
+/**
+ * Race bar for one lane, as shares of the whole game: green for correct answers first, then red for
+ * wrong or timed-out questions, so correct + wrong always equals the finished share.
+ */
+export function raceBar(lane: Pick<RaceLane, 'done' | 'correct'>): { correct: number; wrong: number } {
+  const correct = Math.min(lane.correct, lane.done);
+  return { correct: correct / QUIZ_STEPS.count, wrong: (lane.done - correct) / QUIZ_STEPS.count };
+}
+/** The crown sits on the first lane once that team has finished at least one question. */
+export function raceLeader(lanes: readonly RaceLane[]): number | null {
+  return lanes[0] && lanes[0].done > 0 ? lanes[0].number : null;
 }
