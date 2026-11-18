@@ -717,7 +717,7 @@ html.presenting .quiz-prompt { font-size: 30px; }
 html.presenting .quiz-option { font-size: 26px; min-height: 92px; }
 @media (max-width: 700px), (orientation: portrait) {
   .quiz-layout, .quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "question" "options"; grid-template-rows: none; }
-  .quiz-figure { height: auto; aspect-ratio: 400 / 330; padding: 12px; }
+  .quiz-figure { height: auto; aspect-ratio: 400 / 330; max-height: 60dvh; padding: 12px; }
 }
 @media (max-width: 700px) {
   .quiz-options { grid-template-columns: minmax(0, 1fr); gap: 8px; }
