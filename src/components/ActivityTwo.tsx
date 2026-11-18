@@ -10,11 +10,11 @@ import { reveal } from '@/lib/reveal';
 import { SlideArrows } from './SlideArrows';
 const GeometryView = lazy(() => import('./GeometryView'));
 
-/** Textbook order of the three positions: parallel, intersecting, contained (indices into `cases`). The symbol line is shown bold and centred under its definition. */
+/** Textbook order of the three positions: parallel, intersecting, contained (indices into `cases`). The symbol line is centred under its definition, in regular weight. */
 const CONCEPTS: Record<CaseIndex, { text: string; symbol: string }> = {
-  1: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ không có điểm chung thì ta nói $\\boldsymbol{d}$ song song với $(\\alpha)$ hay $(\\alpha)$ song song với $\\boldsymbol{d}$.', symbol: '$\\boldsymbol{d \\ss (\\alpha)}$ hay $\\boldsymbol{(\\alpha) \\ss d}$' },
-  0: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ có một điểm chung duy nhất $\\boldsymbol{M}$ thì ta nói $\\boldsymbol{d}$ và $(\\alpha)$ cắt nhau tại điểm $\\boldsymbol{M}$.', symbol: '$\\boldsymbol{d \\cap (\\alpha) = \\{M\\}}$ hay $\\boldsymbol{d \\cap (\\alpha) = M}$' },
-  2: { text: 'Nếu $\\boldsymbol{d}$ và $(\\alpha)$ có nhiều hơn một điểm chung thì ta nói $\\boldsymbol{d}$ nằm trong $(\\alpha)$ hay $(\\alpha)$ chứa $\\boldsymbol{d}$.', symbol: '$\\boldsymbol{d \\subset (\\alpha)}$ hay $\\boldsymbol{(\\alpha) \\supset d}$' },
+  1: { text: 'Nếu $d$ và $(\\alpha)$ không có điểm chung thì ta nói $d$ song song với $(\\alpha)$ hay $(\\alpha)$ song song với $d$.', symbol: '$d \\ss (\\alpha)$ hay $(\\alpha) \\ss d$' },
+  0: { text: 'Nếu $d$ và $(\\alpha)$ có một điểm chung duy nhất $M$ thì ta nói $d$ và $(\\alpha)$ cắt nhau tại điểm $M$.', symbol: '$d \\cap (\\alpha) = \\{M\\}$ hay $d \\cap (\\alpha) = M$' },
+  2: { text: 'Nếu $d$ và $(\\alpha)$ có nhiều hơn một điểm chung thì ta nói $d$ nằm trong $(\\alpha)$ hay $(\\alpha)$ chứa $d$.', symbol: '$d \\subset (\\alpha)$ hay $(\\alpha) \\supset d$' },
 };
 
 /** Static textbook drawing of one case: plane (α) as a parallelogram and the line d. */
@@ -39,7 +39,7 @@ function Concept({ index, revealed }: { index: CaseIndex; revealed: boolean }) {
     </div>
     <div className="concept-text concept-definition" {...reveal(revealed)}>
       <p><MathText text={CONCEPTS[index].text} /></p>
-      <p className="concept-symbol"><strong><MathText text={CONCEPTS[index].symbol} /></strong></p>
+      <p className="concept-symbol"><MathText text={CONCEPTS[index].symbol} /></p>
     </div>
   </div>;
 }

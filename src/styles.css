@@ -352,6 +352,9 @@
 /* Activity 1 teacher preview: one prompt, question chips, then the model. */
 .goal-teacher-workspace { margin: 0 0 18px; padding: 0; border: 0; }
 .goal-teacher-workspace .goal-question-intro { margin-bottom: 14px; }
+/* Hoạt động 1 teacher lead-in spans the full width instead of a narrow left column. */
+.goal-teacher-workspace .goal-question-intro > div { flex: 1 1 auto; min-width: 0; }
+.goal-teacher-workspace .goal-question-intro h2 { max-width: none; }
 .goal-teacher-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 0; border: 0; }
 .goal-teacher-nav .goal-question-step { min-height: 46px; justify-content: center; }
 .goal-teacher-prompt { margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--primary); background: var(--accent); border-radius: 6px; font-size: 13px; line-height: 1.7; }
@@ -665,7 +668,7 @@ html.presenting .line-pair-activity .models-row h3 { font-size: 29px; }
 .quiz-with-figure .quiz-letter { width: 32px; height: 32px; font-size: 15px; }
 .quiz-with-figure .quiz-question { padding: 14px 18px; }
 /* Figures in Câu 6–9 are 35% smaller than the earlier 520px box (520 × 0.65 = 338), keeping the 400:330 drawing ratio. */
-.quiz-with-figure .quiz-figure { height: 338px; width: 410px; padding: 12px; }
+.quiz-with-figure .quiz-figure { height: 389px; width: 472px; padding: 12px; }
 .quiz-question { grid-area: question; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
 .quiz-question-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .quiz-number { font-weight: 800; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); }
@@ -736,10 +739,19 @@ html.presenting .quiz-with-figure .quiz-options { max-width: 520px; }
 .quiz-teacher:has(.quiz-with-figure) .quiz-car { width: 24px; height: 24px; }
 .quiz-teacher:has(.quiz-with-figure) .quiz-rank { width: 22px; height: 22px; }
 .quiz-teacher:has(.quiz-with-figure) .quiz-score { flex-direction: row; align-items: baseline; justify-content: flex-end; gap: 6px; }
+/* SHOW ANSWER review: same sidebar layout as the other parts' results, with a compact race below the question. */
+.quiz-results .quiz-content { margin-top: 0; gap: 12px; }
+.quiz-results .quiz-race { padding: 10px 16px; }
+.quiz-results .quiz-race-head { margin-bottom: 2px; }
+.quiz-results .quiz-lanes { gap: 6px; padding-top: 14px; }
+.quiz-results .quiz-track { height: 24px; }
+.quiz-results .quiz-car { width: 24px; height: 24px; }
+.quiz-results .quiz-rank { width: 22px; height: 22px; }
+.quiz-results .case-button small { font-weight: 600; }
 @media (max-width: 700px), (orientation: portrait) {
   .quiz-layout, .quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "question" "options"; grid-template-rows: none; }
   .quiz-figure { height: auto; aspect-ratio: 400 / 330; max-height: 60dvh; padding: 12px; }
-  .quiz-with-figure .quiz-figure { width: 65%; height: auto; max-height: 39dvh; justify-self: center; }
+  .quiz-with-figure .quiz-figure { width: 75%; height: auto; max-height: 45dvh; justify-self: center; }
   .quiz-with-figure .quiz-options { max-width: none; }
 }
 @media (max-width: 700px) {

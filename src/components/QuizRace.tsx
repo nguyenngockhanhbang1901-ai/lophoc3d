@@ -116,7 +116,7 @@ export function QuizTeacher({ teams, releasedAt, autoQuestion }: { teams: readon
   </div>;
 }
 
-/** After SHOW ANSWER: each question with its correct answer and which teams chose what, then the final ranking. */
+/** After SHOW ANSWER: laid out like the other parts' results — question list on the left, the chosen question with its correct answer and each team's pick on the right, then the final ranking. */
 export function QuizResults({ teams, releasedAt }: { teams: readonly QuizTeam[]; releasedAt: string | null }) {
   const review = useEnterReview(COUNT + 1);
   // Published results always open on Câu 1, whatever question the live game ended on.
@@ -125,10 +125,26 @@ export function QuizResults({ teams, releasedAt }: { teams: readonly QuizTeam[];
   const index = review.selected;
   const picks: QuizPicks = {};
   if (index < COUNT) for (const t of teams) { const a = t.progress.answers[index]; if (a && QUIZ_LETTERS.includes(a as QuizLetter)) (picks[a as QuizLetter] ??= []).push(t.number); }
-  return <div className="quiz-content quiz-results">
-    <nav className="practice-steps" aria-label="Danh sách câu hỏi">{Array.from({ length: COUNT + 1 }, (_, i) => <Button key={i} type="button" size="sm" variant="ghost" className={`practice-step ${i === index ? 'selected' : ''}`} aria-current={i === index ? 'step' : undefined} onClick={() => review.select(i)}>{i < COUNT ? i + 1 : <Trophy size={14} />}</Button>)}</nav>
-    {index < COUNT ? <QuizQuestion index={index} showCorrect picks={picks} /> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{lanes[0] && lanes[0].done > 0 ? `Tổ ${lanes[0].number} dẫn đầu với ${lanes[0].correct}/${COUNT} câu đúng.` : 'Chưa có tổ nào trả lời.'}</p></div>}
-    <RaceTrack lanes={lanes} showCorrect />
+  const last = index >= COUNT;
+  return <div className="lesson-layout goal-results-layout quiz-results">
+    <aside className="sidebar">
+      <p className="side-label">NỘI DUNG BÀI HỌC</p>
+      <nav className="case-navigation" aria-label="Câu hỏi Luyện tập 3">
+        {QUIZ_QUESTIONS.map((q, i) => <Button key={i} type="button" variant="ghost" className={`case-button ${i === index ? 'selected' : ''}`} aria-label={`Câu ${i + 1}`} aria-current={i === index ? 'step' : undefined} onClick={() => review.select(i)}>
+          <span className="case-number">{i + 1}</span><span><strong>Câu {i + 1}</strong><small>Đáp án {q.correct}</small></span>
+        </Button>)}
+        <Button type="button" variant="ghost" className={`case-button ${last ? 'selected' : ''}`} aria-label="Xếp hạng" aria-current={last ? 'step' : undefined} onClick={() => review.select(COUNT)}>
+          <span className="case-number"><Trophy size={13} /></span><span><strong>Xếp hạng</strong><small>{QUIZ_GAME_NAME}</small></span>
+        </Button>
+      </nav>
+    </aside>
+    <section aria-label={last ? 'Xếp hạng các tổ' : `Kết quả câu ${index + 1}`}>
+      <div className="model-heading"><h2>{last ? 'Xếp hạng' : `Câu ${index + 1}`}</h2><span className="goal-enter-hint" aria-live="polite">{last ? '' : index < COUNT - 1 ? 'Nhấn Enter để sang câu tiếp theo' : 'Nhấn Enter để xem xếp hạng'}</span></div>
+      <div className="quiz-content">
+        {!last ? <QuizQuestion index={index} showCorrect picks={picks} /> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{lanes[0] && lanes[0].done > 0 ? `Tổ ${lanes[0].number} dẫn đầu với ${lanes[0].correct}/${COUNT} câu đúng.` : 'Chưa có tổ nào trả lời.'}</p></div>}
+        <RaceTrack lanes={lanes} showCorrect />
+      </div>
+    </section>
   </div>;
 }
 
