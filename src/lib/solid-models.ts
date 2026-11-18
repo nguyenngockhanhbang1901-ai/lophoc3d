@@ -4,7 +4,7 @@ export type Solid = { vertices: Record<string, P3>; faces: readonly (readonly st
 
 const mid = (a: P3, b: P3): P3 => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 /** Vertex names sit just outside the solid: pushed away from its centre so no edge runs through them. */
-function labelsFor(vertices: Record<string, P3>, extra: Record<string, P3>, push = 0.38): Record<string, P3> {
+function labelsFor(vertices: Record<string, P3>, extra: Record<string, P3>, push = 0.5): Record<string, P3> {
   const all = Object.values(vertices);
   const c = [0, 1, 2].map(i => all.reduce((s, v) => s + v[i]!, 0) / all.length) as P3;
   const out: Record<string, P3> = {};
