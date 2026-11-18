@@ -747,7 +747,11 @@ html.presenting .quiz-with-figure .quiz-options { max-width: 520px; }
 .quiz-results .quiz-track { height: 24px; }
 .quiz-results .quiz-car { width: 24px; height: 24px; }
 .quiz-results .quiz-rank { width: 22px; height: 22px; }
-.quiz-results .case-button small { font-weight: 600; }
+.quiz-results .case-button { padding: 5px 12px; margin-bottom: 4px; }
+.quiz-results .case-button small { display: none; }
+.quiz-results .case-button .case-number { width: 26px; height: 26px; }
+.goal-results-layout.quiz-results .case-button strong { font-size: 16px; line-height: 1.4; }
+html.presenting .teacher-presentation .goal-results-layout.quiz-results .case-button strong { font-size: 20px; }
 @media (max-width: 700px), (orientation: portrait) {
   .quiz-layout, .quiz-layout.quiz-with-figure { grid-template-columns: minmax(0, 1fr); grid-template-areas: "figure" "question" "options"; grid-template-rows: none; }
   .quiz-figure { height: auto; aspect-ratio: 400 / 330; max-height: 60dvh; padding: 12px; }
