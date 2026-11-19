@@ -9,7 +9,8 @@
 - [x] Bài 11.1: larger, recolored cube with clearer default view; SHOW ANSWER as "name - time: answer" earliest first; answer 1 lists line names; new question 2.
 - [x] Bài 11.1: scheduled hand-out time, student waiting screen with no content, 5-second countdown (verified teacher + phone student).
 - [x] Bài 11.1: cube looks like a true cube (25° field of view, square faces).
-- [ ] Click through Bài 11.1 SHOW ANSWER with real student submissions (teacher account now exists; not yet run).
+- [x] Click through Bài 11.1 SHOW ANSWER with real student submissions: three students joined by name, submitted all six answers, review showed each correct answer plus every "name - time: answer" line ordered earliest first, test class deleted.
+- [ ] Luyện tập 3 on the teacher's plain (non-presentation) screen at 1280×720: the question and the race track do not both fit (measured race bottom 1136 of 720); full-screen presentation does fit (race bottom 673). Waiting for the teacher to say whether to compact the plain screen.
 - [x] Bài 11.1: waiting screen shows the opening countdown on the same line as "Đợi giáo viên giao bài"; student join verified live (clock ticked 02:19 → 02:15, work opened on time), test classes deleted.
 - [x] Add parentheses to Activity 2 plane labels, shorten Bài 11 questions 1/2/3/5/6, and hide the lesson catalogue on the signed-out homepage; browser verified and 26 related tests passed.
 - [x] Place visible textbook plane labels inside the corner in Bài 11 and Bài 12 Activity 2, and set the skew model's default view from the reference; browser verified and 26 related tests passed.
