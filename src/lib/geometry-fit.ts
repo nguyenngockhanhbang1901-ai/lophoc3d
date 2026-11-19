@@ -1,4 +1,4 @@
-import { animatedLine, containedLinePoints, lineSegment, PLANE_HALF, CAMERA_VIEWS, CAMERA_TARGETS, type CaseIndex, type Vec3 } from './geometry';
+import { animatedLine, lineSegment, nameAnchors, PLANE_HALF, CAMERA_VIEWS, CAMERA_TARGETS, type CaseIndex, type Vec3 } from './geometry';
 
 /**
  * Framing for the Hoạt động 2 models: the camera (never the world geometry) is re-aimed and its field of view narrowed,
@@ -23,10 +23,10 @@ export function modelPoints(index: CaseIndex, seconds = 120, step = 0.05): Vec3[
   for (let t = 0; t <= seconds; t += step) {
     const { origin, direction } = animatedLine(index, t);
     const [a, b] = lineSegment(index, origin, direction);
-    const label: Vec3 = [b[0] + 0.25, b[1] + 0.2, b[2]];
-    points.push(a, b, add(label, [0.45, 0.25, 0]), add(label, [-0.45, -0.25, 0]));
-    if (index === 0) points.push(add(origin, [0.8, 0.35, 0]));
-    if (index === 2) for (const p of containedLinePoints(origin, direction)) points.push(add(p, [0, 0.75, 0]));
+    const names = nameAnchors(index, origin, direction);
+    points.push(a, b, add(names.d, [0.45, 0.25, 0]), add(names.d, [-0.45, -0.25, 0]));
+    if (names.M) points.push(add(names.M, [0.45, 0.25, 0]), add(names.M, [-0.2, -0.25, 0]));
+    for (const p of [names.A, names.B]) if (p) points.push(add(p, [0, 0.33, 0]));
   }
   return points;
 }

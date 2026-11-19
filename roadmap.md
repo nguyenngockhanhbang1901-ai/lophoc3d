@@ -94,3 +94,5 @@
 - [x] HĐ1: new lead-in prompt; Câu 1 and Câu 5 choices "Nằm trong – Không nằm trong"
 - [x] HĐ2: definitions under the 3 static pictures laid out like the reference (bold, centred symbol line)
 - [x] Teacher account: teacher chose Google sign-in; Google and Lovable sign-in enabled on the backend, button starts the Google sign-in (finishing it needs the teacher's own Google login in the preview).
+- [x] Bài 12 HĐ2: model 1 name d higher and never touching d; model 2 name M farther from d; model 3 d swings so its name is always visible (browser verified desktop/phone).
+- [x] Bài 12 HĐ3: Gemini solutions saved per class; on error or 6 s delay a saved solution is shown in the same frame and fade-in (verified with simulated Gemini replies).

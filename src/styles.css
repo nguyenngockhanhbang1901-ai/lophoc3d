@@ -518,6 +518,8 @@
 @media (max-width: 700px) { .lesson-ai-controls { flex-direction: column; } .lesson-ai-form { width: 100%; } .lesson-ai-key input { width: 150px; } .lesson-ai-key > svg { display: none; } .app-header:has(.lesson-ai-key) .brand small { display: none; } .app-header:has(.lesson-ai-key) .brand { white-space: nowrap; font-size: 14px; } }
 .lesson-ai-answer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--activity3-text-size); line-height: 1.7; }
 .lesson-ai-answer h4 { margin-bottom: 10px; }
+.lesson-ai-line { animation: activity3-in 0.45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .lesson-ai-line { animation: none; } }
 /* One reading size across Hoạt động 1 → Luyện tập 2, matching Hoạt động 3. */
 @media (min-width: 701px) {
   .goal-question-prompt, .practice-question-prompt, .practice-context, .question-section h3, .practice-review-text h3, .goal-question-intro h2 { font-size: 21px; line-height: 1.5; }

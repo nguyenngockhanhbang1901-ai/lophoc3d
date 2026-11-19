@@ -7,7 +7,7 @@ import { CanvasTexture, SRGBColorSpace, Vector3, type Group, type PerspectiveCam
 import type { OrbitControls as Controls, Line2 } from 'three-stdlib';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, RotateCcw, Maximize, Play, Pause } from 'lucide-react';
-import { containedLinePoints, animatedLine, advanceMotion, motionIsValid, lineSegment, segmentInsidePlane, splitByVisibility, CAMERA_VIEWS, CAMERA_TARGETS, type CaseIndex, type MotionSpeed, type Segment, type Vec3 } from '@/lib/geometry';
+import { containedLinePoints, nameAnchors, animatedLine, advanceMotion, motionIsValid, lineSegment, segmentInsidePlane, splitByVisibility, CAMERA_VIEWS, CAMERA_TARGETS, type CaseIndex, type MotionSpeed, type Segment, type Vec3 } from '@/lib/geometry';
 const SLOTS = [0, 1, 2, 3];
 function draw(lines: (Line2 | null)[], segments: Segment[], dashed: boolean) {
   lines.forEach((l, i) => { if (!l) return; const s = segments[i]; l.visible = Boolean(s); if (!s) return; l.geometry.setPositions([...s[0], ...s[1]]); if (dashed) l.computeLineDistances(); });
@@ -46,14 +46,15 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     marker.current?.position.set(...origin);
     const contained = index === 2 ? containedLinePoints(origin, direction) : null;
     if (contained) { pointA.current?.position.set(...contained[0]); pointB.current?.position.set(...contained[1]); }
-    label.current?.position.set(b[0] + 0.25, b[1] + 0.2, b[2]);
+    const anchors = nameAnchors(index, origin, direction);
+    label.current?.position.set(...anchors.d);
     const html = names?.current;
     if (html) {
-      // Same world anchors as the original 3D names (they move rigidly with d); refresh the camera first so names never trail the drawing.
+      // Names follow pure world anchors (nameAnchors) that move with d; refresh the camera first so names never trail the drawing.
       state.camera.updateMatrixWorld();
-      placeLabel(html.d, [b[0] + 0.25, b[1] + 0.2, b[2]], state.camera, state.size, projected);
-      if (index === 0) placeLabel(html.M, [origin[0] + 0.35, origin[1] + 0.12, origin[2]], state.camera, state.size, projected);
-      if (contained) { placeLabel(html.A, [contained[0][0], contained[0][1] + 0.42, contained[0][2]], state.camera, state.size, projected); placeLabel(html.B, [contained[1][0], contained[1][1] + 0.42, contained[1][2]], state.camera, state.size, projected); }
+      placeLabel(html.d, anchors.d, state.camera, state.size, projected);
+      if (anchors.M) placeLabel(html.M, anchors.M, state.camera, state.size, projected);
+      if (anchors.A && anchors.B) { placeLabel(html.A, anchors.A, state.camera, state.size, projected); placeLabel(html.B, anchors.B, state.camera, state.size, projected); }
     }
     if (import.meta.env.DEV) { const element = state.gl.domElement; element.dataset['motionPhase'] = String(phase.current); element.dataset['motionOrigin'] = JSON.stringify(origin); element.dataset['motionDirection'] = JSON.stringify(direction); element.dataset['hiddenParts'] = String(parts.hidden.length); element.dataset['segment'] = JSON.stringify([a, b]); }
     if (!marked.current) { marked.current = true; requestAnimationFrame(onReady); }

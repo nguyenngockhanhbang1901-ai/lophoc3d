@@ -32,12 +32,16 @@ export function advanceMotion(time: number, delta: number, playing: boolean, spe
 }
 /** Fixed distance of the parallel line d from (α): d only slides horizontally and turns about a vertical axis. */
 export const PARALLEL_HEIGHT = 1.15;
+/** Largest turn (radians) of the contained line d either side of its starting direction. */
+export const CONTAINED_SWING = 0.6;
 export function animatedLine(index: CaseIndex, time: number): { origin: Vec3; direction: Vec3 } {
   const angle = time * 0.55;
   const origin: Vec3 = [0.65 * Math.sin(time * 0.7), index === 1 ? PARALLEL_HEIGHT : 0, 0.45 * Math.sin(time * 0.9)];
+  // The contained line swings back and forth within ±CONTAINED_SWING instead of turning full circle, so its end (and the name d past it) stays on the right, clear of A and B.
+  const turn = index === 2 ? CONTAINED_SWING * Math.sin(angle) : angle;
   const direction: Vec3 = index === 0
     ? [0.7 * Math.cos(angle), 0.85 + 0.2 * Math.sin(time * 0.8), 0.7 * Math.sin(angle)]
-    : [Math.cos(angle), 0, Math.sin(angle)];
+    : [Math.cos(turn), 0, Math.sin(turn)];
   return { origin, direction };
 }
 export function motionIsValid(index: CaseIndex, origin: Vec3, direction: Vec3) {
@@ -89,4 +93,21 @@ export function splitByVisibility(a: Vec3, b: Vec3, camera: Vec3, samples = 96):
   }
   push(start, 1, state);
   return { visible, hidden };
+}
+
+/** Height of the name d straight above the parallel line's end: a fixed 3D distance, so it never touches d while d moves. */
+export const PARALLEL_NAME_RISE = 0.5;
+/** World offset of the name M from the intersection point (moves with M, never turns). */
+export const INTERSECTION_NAME_OFFSET: Vec3 = [0.45, 0, -0.35];
+/** Distance of the contained line's name d past its end, along d. */
+export const CONTAINED_NAME_GAP = 0.35;
+const UP = 0.42;
+/** World anchors of the names d, M, A, B for one pose of d; shared by the 3D scene and the framing so both use the same positions. */
+export function nameAnchors(index: CaseIndex, origin: Vec3, direction: Vec3): { d: Vec3; M?: Vec3; A?: Vec3; B?: Vec3 } {
+  const [, b] = lineSegment(index, origin, direction);
+  if (index === 1) return { d: [b[0], b[1] + PARALLEL_NAME_RISE, b[2]] };
+  if (index === 0) return { d: [b[0] + 0.25, b[1] + 0.2, b[2]], M: [origin[0] + INTERSECTION_NAME_OFFSET[0], origin[1] + INTERSECTION_NAME_OFFSET[1], origin[2] + INTERSECTION_NAME_OFFSET[2]] };
+  const len = Math.hypot(...direction) || 1;
+  const [A, B] = containedLinePoints(origin, direction);
+  return { d: [b[0] + direction[0] / len * CONTAINED_NAME_GAP, b[1] + 0.2, b[2] + direction[2] / len * CONTAINED_NAME_GAP], A: [A[0], A[1] + UP, A[2]], B: [B[0], B[1] + UP, B[2]] };
 }

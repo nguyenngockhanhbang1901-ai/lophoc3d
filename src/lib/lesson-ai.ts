@@ -47,10 +47,11 @@ export type LessonAiResult = { answer: string; error: string; locationBlocked?: 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
 /** One Gemini call with the teacher's key; shared by the server relay and the browser fallback so both behave identically. */
-export async function requestLessonAi(apiKey: string, prompt: string, fetcher: Fetcher = (url, init) => fetch(url, init)): Promise<LessonAiResult> {
+export async function requestLessonAi(apiKey: string, prompt: string, fetcher: Fetcher = (url, init) => fetch(url, init), signal?: AbortSignal): Promise<LessonAiResult> {
   try {
     const response = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${LESSON_AI_MODEL}:generateContent`, {
       method: 'POST',
+      ...(signal ? { signal } : {}),
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({ systemInstruction: { parts: [{ text: LESSON_AI_SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }] }),
     });
@@ -66,4 +67,47 @@ export async function requestLessonAi(apiKey: string, prompt: string, fetcher: F
 export async function solveWithFallback(viaServer: () => Promise<LessonAiResult>, direct: () => Promise<LessonAiResult>): Promise<LessonAiResult> {
   const first = await viaServer();
   return first.locationBlocked ? direct() : first;
+}
+
+/** Hoạt động 3 Câu 6: the one question the AI solver answers; saved solutions are keyed by class and this key. */
+export const LESSON_AI_QUESTION_KEY = 'bai12-hd3-cau6';
+/** Without a saved solution the request may run this long before it is cancelled with a timeout error. */
+export const AI_LIMIT_MS = 10_000;
+/** With a saved solution, an answer slower than this is cancelled and the saved one is shown instead. */
+export const AI_SAVED_AFTER_MS = 6_000;
+export const AI_TIMEOUT_ERROR = 'Gemini chưa phản hồi sau 10 giây nên yêu cầu đã được hủy. Hãy thử lại.';
+export type SolvedAnswer = { answer: string; error: string; source: 'ai' | 'saved' | 'none' };
+type Wait = (ms: number) => Promise<void>;
+const sleep: Wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Asks Gemini and races it against the class's saved solution: a fresh answer always wins when it arrives in time;
+ * on an error, or after AI_SAVED_AFTER_MS without a reply, the saved solution (if any) is shown and the request is aborted;
+ * with nothing saved the request may run up to AI_LIMIT_MS before it is aborted with a timeout error.
+ */
+export async function solveWithSaved(ask: (signal: AbortSignal) => Promise<LessonAiResult>, loadSaved: () => Promise<string>, wait: Wait = sleep): Promise<SolvedAnswer> {
+  const controller = new AbortController();
+  const saved = loadSaved().catch(() => '');
+  const ai = ask(controller.signal).catch((): LessonAiResult => ({ answer: '', error: 'Không nhận được phản hồi Gemini. Hãy kiểm tra kết nối rồi thử lại.' }));
+  const first: LessonAiResult | null = await Promise.race([ai, wait(AI_SAVED_AFTER_MS).then(() => null)]);
+  if (first?.answer) return { answer: first.answer, error: '', source: 'ai' };
+  const stored = (await saved).trim();
+  if (stored) { controller.abort(); return { answer: stored, error: '', source: 'saved' }; }
+  if (first) return { answer: '', error: first.error, source: 'none' };
+  const second: LessonAiResult | null = await Promise.race([ai, wait(AI_LIMIT_MS - AI_SAVED_AFTER_MS).then(() => null)]);
+  if (second) return second.answer ? { answer: second.answer, error: '', source: 'ai' } : { answer: '', error: second.error, source: 'none' };
+  controller.abort();
+  return { answer: '', error: AI_TIMEOUT_ERROR, source: 'none' };
+}
+
+/** Lines of a solution for the gradual reveal; a line break inside an open $…$ formula never splits it. */
+export function revealChunks(text: string): string[] {
+  const chunks: string[] = [];
+  let open = '';
+  for (const line of text.split('\n')) {
+    open = open ? `${open}\n${line}` : line;
+    if (open.split("$").length % 2 === 1) { chunks.push(open); open = ''; }
+  }
+  if (open) chunks.push(open);
+  return chunks;
 }

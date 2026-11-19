@@ -211,6 +211,38 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_ai_solutions: {
+        Row: {
+          answer: string
+          classroom_id: string
+          id: string
+          question_key: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          classroom_id: string
+          id?: string
+          question_key: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          classroom_id?: string
+          id?: string
+          question_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_ai_solutions_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson111_students: {
         Row: {
           access_hash: string
