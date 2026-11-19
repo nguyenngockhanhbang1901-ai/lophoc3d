@@ -683,7 +683,7 @@ html.presenting .line-pair-activity .models-row h3 { font-size: 29px; }
 .quiz-figure-dot { fill: currentColor; }
 .quiz-figure-label { fill: currentColor; font-family: KaTeX_Math, "Times New Roman", serif; font-style: italic; font-size: 22px; text-anchor: middle; dominant-baseline: middle; }
 .quiz-options { grid-area: options; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.quiz-option { --tone: var(--chart-1); position: relative; display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 12px 16px; text-align: left; font-size: 19px; line-height: 1.4; color: var(--foreground); background: var(--card); border: 2px solid var(--border); border-left: 8px solid var(--tone); border-radius: var(--radius); transition: transform .12s ease, border-color .12s ease, background .12s ease, opacity .2s ease; }
+.quiz-option { --tone: var(--chart-1); position: relative; display: flex; align-items: center; gap: 14px; min-height: 72px; padding: 12px 16px; text-align: left; font-size: 21px; line-height: 1.4; color: var(--foreground); background: var(--card); border: 2px solid var(--border); border-left: 8px solid var(--tone); border-radius: var(--radius); transition: transform .12s ease, border-color .12s ease, background .12s ease, opacity .2s ease; }
 .quiz-option-b { --tone: var(--chart-2); } .quiz-option-c { --tone: var(--chart-3); } .quiz-option-d { --tone: var(--chart-4); }
 .quiz-option:not(:disabled) { cursor: pointer; }
 .quiz-option:not(:disabled):hover { transform: translateY(-2px); border-color: var(--tone); }
@@ -725,9 +725,9 @@ html.presenting .line-pair-activity .models-row h3 { font-size: 29px; }
 .quiz-score { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; font-weight: 700; line-height: 1.2; text-align: right; font-variant-numeric: tabular-nums; }
 .quiz-score small { font-size: 11px; font-weight: 600; color: var(--muted-foreground); }
 html.presenting .quiz-prompt { font-size: 30px; }
-html.presenting .quiz-option { font-size: 26px; min-height: 92px; }
+html.presenting .quiz-option { font-size: 30px; min-height: 92px; }
 html.presenting .quiz-with-figure .quiz-prompt { font-size: 26px; line-height: 1.45; }
-html.presenting .quiz-with-figure .quiz-option { font-size: 22px; min-height: 46px; padding-block: 4px; }
+html.presenting .quiz-with-figure .quiz-option { font-size: 26px; min-height: 46px; padding-block: 4px; }
 html.presenting .quiz-with-figure .quiz-options { max-width: 520px; }
 /* Câu 6–9 on the teacher's screen: a compact race track so the question, picture, answers and every team fit on one screen. */
 .quiz-teacher:has(.quiz-with-figure) { gap: 12px; }
@@ -760,7 +760,7 @@ html.presenting .teacher-presentation .goal-results-layout.quiz-results .case-bu
 }
 @media (max-width: 700px) {
   .quiz-options { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .quiz-option { min-height: 56px; font-size: 16px; }
+  .quiz-option { min-height: 56px; font-size: 17px; }
   .quiz-prompt { font-size: 17px; }
   .quiz-intro { align-items: flex-start; padding: 18px; } .quiz-intro h2 { font-size: 22px; }
   .quiz-lane { grid-template-columns: 24px 48px minmax(0, 1fr) 58px; gap: 6px; }

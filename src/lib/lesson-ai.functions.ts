@@ -16,7 +16,7 @@ export const solveLessonQuestion = createServerFn({ method: 'POST' })
           contents: [{ role: 'user', parts: [{ text: data.prompt }] }],
         }),
       });
-      if (!response.ok) return { answer: '', error: geminiErrorMessage(response.status) };
+      if (!response.ok) return { answer: '', error: geminiErrorMessage(response.status, await response.json().catch(() => null)) };
       const answer = geminiAnswer(await response.json());
       return answer ? { answer, error: '' } : { answer: '', error: 'Gemini không trả về bài giải. Hãy kiểm tra lệnh và thử lại.' };
     } catch {

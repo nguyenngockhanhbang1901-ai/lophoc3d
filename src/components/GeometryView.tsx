@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
 import { MathText } from './MathText';
-import { PlaneNamePosition } from './PlaneNamePosition';
-import { CanvasTexture, SRGBColorSpace, type Group, type PerspectiveCamera } from 'three';
+import { PlaneNamePosition, placeAt, screenPoint } from './PlaneNamePosition';
+import { CanvasTexture, SRGBColorSpace, Vector3, type Group, type PerspectiveCamera } from 'three';
 import type { OrbitControls as Controls, Line2 } from 'three-stdlib';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, RotateCcw, Maximize, Play, Pause } from 'lucide-react';
@@ -15,12 +15,15 @@ function draw(lines: (Line2 | null)[], segments: Segment[], dashed: boolean) {
 
 import { fitCaseView, modelPoints, type FitConfig } from '@/lib/geometry-fit';
 type Palette = { plane: string; line: string; foreground: string; border: string };
+/** HTML labels for d, M, A, B — used by framed views so they match the (α) label's size. */
+type NameLabels = { d: HTMLDivElement | null; M: HTMLDivElement | null; A: HTMLDivElement | null; B: HTMLDivElement | null };
 function Label({ text, position, color, size = 1 }: { text: string; position: [number,number,number]; color: string; size?: number }) {
   const [texture, setTexture] = useState<CanvasTexture | null>(null);
   useEffect(() => { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 64; const ctx = canvas.getContext('2d'); if (!ctx) return; ctx.font = 'italic 44px Georgia'; ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.fillText(text,64,48); const map = new CanvasTexture(canvas); map.colorSpace = SRGBColorSpace; setTexture(map); return () => map.dispose(); }, [text,color]);
   return texture ? <sprite position={position} scale={[0.85 * size,0.425 * size,1]}><spriteMaterial map={texture} transparent depthTest={false} /></sprite> : null;
 }
-function Scene({ index, playing, speed, resetVersion, palette, controls, onReady, planeName, fit }: { index: CaseIndex; playing: boolean; speed: MotionSpeed; resetVersion: number; palette: Palette; controls: React.RefObject<Controls | null>; onReady: () => void; planeName: React.RefObject<HTMLDivElement | null>; fit?: FitConfig | undefined }) {
+function Scene({ index, playing, speed, resetVersion, palette, controls, onReady, planeName, fit, names }: { index: CaseIndex; playing: boolean; speed: MotionSpeed; resetVersion: number; palette: Palette; controls: React.RefObject<Controls | null>; onReady: () => void; planeName: React.RefObject<HTMLDivElement | null>; fit?: FitConfig | undefined; names?: React.RefObject<NameLabels> | undefined }) {
+  const projected = useMemo(() => new Vector3(), []);
   const phase = useRef(0);
   const solid = useRef<(Line2 | null)[]>([]);
   const dashes = useRef<(Line2 | null)[]>([]);
@@ -41,8 +44,22 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     const parts = splitByVisibility(a, b, cam);
     draw(solid.current, parts.visible, false); draw(dashes.current, parts.hidden, true);
     marker.current?.position.set(...origin);
-    if (index === 2) { const [pa, pb] = containedLinePoints(origin, direction); pointA.current?.position.set(...pa); pointB.current?.position.set(...pb); }
+    const contained = index === 2 ? containedLinePoints(origin, direction) : null;
+    if (contained) { pointA.current?.position.set(...contained[0]); pointB.current?.position.set(...contained[1]); }
     label.current?.position.set(b[0] + 0.25, b[1] + 0.2, b[2]);
+    const html = names?.current;
+    if (html) {
+      // Offsets are in screen pixels around the projected line, so labels never sit on d or on each other.
+      const sa = screenPoint(a, state.camera, state.size, projected), sb = screenPoint(b, state.camera, state.size, projected);
+      const len = Math.hypot(sb.x - sa.x, sb.y - sa.y) || 1, ux = (sb.x - sa.x) / len, uy = (sb.y - sa.y) / len;
+      let px = -uy, py = ux; if (py > 0 || (Math.abs(py) < 0.2 && px < 0)) { px = -px; py = -py; }
+      const gap = 20;
+      if (contained) {
+        placeAt(html.d, sb.x + ux * gap - px * gap, sb.y + uy * gap - py * gap, sb.visible);
+        for (const [el, pt] of [[html.A, contained[0]], [html.B, contained[1]]] as const) { const s = screenPoint(pt, state.camera, state.size, projected); placeAt(el, s.x + px * gap, s.y + py * gap, s.visible); }
+      } else placeAt(html.d, sb.x + ux * 10 + px * gap, sb.y + uy * 10 + py * gap, sb.visible);
+      if (index === 0) { const s = screenPoint(origin, state.camera, state.size, projected); placeAt(html.M, s.x + 20, s.y - 4, s.visible); }
+    }
     if (import.meta.env.DEV) { const element = state.gl.domElement; element.dataset['motionPhase'] = String(phase.current); element.dataset['motionOrigin'] = JSON.stringify(origin); element.dataset['motionDirection'] = JSON.stringify(direction); element.dataset['hiddenParts'] = String(parts.hidden.length); element.dataset['segment'] = JSON.stringify([a, b]); }
     if (!marked.current) { marked.current = true; requestAnimationFrame(onReady); }
   });
@@ -65,16 +82,17 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     <Line points={[[-3,0,-2.25],[3,0,-2.25],[3,0,2.25],[-3,0,2.25],[-3,0,-2.25]]} color={palette.plane} lineWidth={1.1} transparent opacity={0.6} />
     {SLOTS.map(i => <Line key={`s${i}`} ref={(l: Line2 | null) => { solid.current[i] = l; }} points={[[0,0,0],[0,0,0.01]]} color={palette.line} lineWidth={3} renderOrder={2} />)}
     {SLOTS.map(i => <Line key={`h${i}`} ref={(l: Line2 | null) => { dashes.current[i] = l; }} points={[[0,0,0],[0,0,0.01]]} color={palette.line} lineWidth={2} dashed dashSize={0.14} gapSize={0.1} transparent opacity={0.85} />)}
-    <group ref={label}><Label text="d" position={[0,0,0]} color={palette.line} /></group>
+    <group ref={label}>{!names && <Label text="d" position={[0,0,0]} color={palette.line} />}</group>
     <PlaneNamePosition label={planeName} />
-    {index === 0 && <group ref={marker}><mesh><sphereGeometry args={[0.07,16,16]} /><meshBasicMaterial color={palette.foreground} /></mesh><Label text="M" position={[0.35,0.12,0]} color={palette.foreground} /></group>}
-    {index === 2 && ([['A', pointA], ['B', pointB]] as const).map(([name, ref]) => <group key={name} ref={ref}><mesh><sphereGeometry args={[0.07,16,16]} /><meshBasicMaterial color={palette.foreground} /></mesh><Label text={name} position={[0,0.42,0]} color={palette.foreground} size={1.5} /></group>)}
+    {index === 0 && <group ref={marker}><mesh><sphereGeometry args={[0.07,16,16]} /><meshBasicMaterial color={palette.foreground} /></mesh>{!names && <Label text="M" position={[0.35,0.12,0]} color={palette.foreground} />}</group>}
+    {index === 2 && ([['A', pointA], ['B', pointB]] as const).map(([name, ref]) => <group key={name} ref={ref}><mesh><sphereGeometry args={[0.07,16,16]} /><meshBasicMaterial color={palette.foreground} /></mesh>{!names && <Label text={name} position={[0,0.42,0]} color={palette.foreground} size={1.5} />}</group>)}
     <OrbitControls ref={controls} enablePan={false} minDistance={4} maxDistance={16} maxPolarAngle={Math.PI} />
   </>;
 }
 /** `lineToken` names the CSS colour token for line d and its label (default `--line`). */
 export default function GeometryView({ index, compact = false, hideLegend = false, planeLabel = '(P)', viewMagnification = 1, lineToken = '--line', fit }: { index: CaseIndex; compact?: boolean; hideLegend?: boolean; planeLabel?: string; viewMagnification?: number; lineToken?: string; fit?: FitConfig }) {
   const planeName = useRef<HTMLDivElement | null>(null);
+  const names = useRef<NameLabels>({ d: null, M: null, A: null, B: null });
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<MotionSpeed>('normal');
   const [resetVersion,setResetVersion] = useState(0);
@@ -103,8 +121,13 @@ export default function GeometryView({ index, compact = false, hideLegend = fals
   return <>
     <div ref={wrapper} className={`geometry-view ${compact ? 'compact' : ''}`} data-scene-ready={ready || undefined}>
       {!hideLegend && <div className="scene-top"><span className="legend"><i />Đường thẳng d</span><span className="legend"><i className="plane" />Mặt phẳng (P)</span><span className="legend">Nét đứt: phần bị che khuất</span></div>}
-      {palette && <Canvas camera={{ position: CAMERA_VIEWS[index], fov: 2 * Math.atan(Math.tan(20 * Math.PI / 180) / viewMagnification) * 180 / Math.PI }} frameloop="always" dpr={[1,1.5]}><Scene index={index} playing={playing} speed={speed} resetVersion={resetVersion} palette={palette} controls={controls} onReady={markReady} planeName={planeName} fit={fit} /></Canvas>}
+      {palette && <Canvas camera={{ position: CAMERA_VIEWS[index], fov: 2 * Math.atan(Math.tan(20 * Math.PI / 180) / viewMagnification) * 180 / Math.PI }} frameloop="always" dpr={[1,1.5]}><Scene index={index} playing={playing} speed={speed} resetVersion={resetVersion} palette={palette} controls={controls} onReady={markReady} planeName={planeName} fit={fit} names={fit ? names : undefined} /></Canvas>}
       <div ref={planeName} className="pair-math-label pair-plane-label absolute left-0 top-0"><MathText text={planeLabel === 'α' ? '$(\\alpha)$' : `$${planeLabel}$`} /></div>
+      {fit && <>
+        <div ref={el => { names.current.d = el; }} className="pair-math-label absolute left-0 top-0" style={{ color: `var(${lineToken})`, visibility: 'hidden' }}><MathText text="$d$" /></div>
+        {index === 0 && <div ref={el => { names.current.M = el; }} className="pair-math-label absolute left-0 top-0 text-foreground" style={{ visibility: 'hidden' }}><MathText text="$M$" /></div>}
+        {index === 2 && (['A', 'B'] as const).map(name => <div key={name} ref={el => { names.current[name] = el; }} className="pair-math-label absolute left-0 top-0 text-foreground" style={{ visibility: 'hidden' }}><MathText text={`$${name}$`} /></div>)}
+      </>}
       {!fit && tools}
     </div>
     <div className="motion-row">

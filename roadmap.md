@@ -23,6 +23,9 @@
 - [x] Keep each Luyện tập 2 answer isolated to its selected question; never reveal other questions' answers alongside it.
 - [x] Full screen presentation: hide top area, fixed lesson title, mounted fade-in lines so Enter/Backspace never scroll or shift; parts still switch; verified signed-in through all five parts and Esc exit.
 - [x] Compact Activity 1 mobile question selectors (one row of six, phone verified); keep presentation scale when the AI panel opens (rule tested).
+- [x] Bài 12 HĐ3: short Grade 11 AI prompt; Gemini errors now name Google's real reason (fake key verified live: API_KEY_INVALID message).
+- [x] Bài 12 HĐ2: d, M, A, B names in the three 3D models the same size as (α) (22px), placed clear of line d; browser verified.
+- [x] Bài 12 LT3: old Câu 7 (centroids) removed, 8 questions; answer text equals question text size (21/26/30/17px measured).
 - [ ] Click through "Gửi AI" in a signed-in presentation class: teacher signs in with Google (enabled); waiting for their first sign-in and Gemini key.
 - [x] Repair adjacent-part keyboard navigation, remove LT1 assignment start, add lecture/presentation modes, closed-gated code-only sharing and HĐ2/HĐ3 student slide synchronization; verified signed-in teacher, phone conclusion, code-only answers, closure, desktop fitting and 101 tests.
 - [x] Move teacher AI key to the top-right header, compact AI prompt with 21px lesson-sized text, enlarge LT2 introduction; Enter advances to adjacent parts and Backspace returns to the previous final step; signed-in keyboard flow and mobile width verified.

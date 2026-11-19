@@ -6,13 +6,13 @@ import type { StepProgress } from './goal-progress';
 const release = '2026-01-01T00:00:00.000Z';
 const at = (s: number) => new Date(Date.parse(release) + s * 1000).toISOString();
 function team(ends: number[], answers: string[] = []): StepProgress {
-  return { answers, step: ends.length, completedAt: ends.length === 9 ? at(ends[8]!) : null, timings: Array.from({ length: 9 }, (_, i) => ({ started_at: i <= ends.length ? at(i === 0 ? 0 : ends[i - 1] ?? 0) : null, ended_at: ends[i] !== undefined ? at(ends[i]!) : null })) };
+  return { answers, step: ends.length, completedAt: ends.length === QUIZ_STEPS.count ? at(ends[QUIZ_STEPS.count - 1]!) : null, timings: Array.from({ length: QUIZ_STEPS.count }, (_, i) => ({ started_at: i <= ends.length ? at(i === 0 ? 0 : ends[i - 1] ?? 0) : null, ended_at: ends[i] !== undefined ? at(ends[i]!) : null })) };
 }
 describe('Luyện tập 3 · AI NHANH HƠN', () => {
-  it('has nine four-choice questions with static figures on questions 6–9', () => {
-    expect(QUIZ_QUESTIONS).toHaveLength(9);
-    expect(QUIZ_QUESTIONS.map(q => q.correct)).toEqual(['C', 'C', 'B', 'B', 'B', 'C', 'D', 'D', 'C']);
-    expect(QUIZ_QUESTIONS.map(q => q.figure ?? null)).toEqual([null, null, null, null, null, 'pyramid-center', 'tetra-centroids', 'tetra-midpoints', 'pyramid']);
+  it('has eight four-choice questions (old Câu 7 on centroids removed) with static figures on questions 6–8', () => {
+    expect(QUIZ_QUESTIONS).toHaveLength(8);
+    expect(QUIZ_QUESTIONS.map(q => q.correct)).toEqual(['C', 'C', 'B', 'B', 'B', 'C', 'D', 'C']);
+    expect(QUIZ_QUESTIONS.map(q => q.figure ?? null)).toEqual([null, null, null, null, null, 'pyramid-center', 'tetra-midpoints', 'pyramid']);
   });
   it('accepts only the letters A–D and gives 30 seconds per question', () => {
     expect(QUIZ_STEPS.accepts(0, 'B')).toBe(true);
@@ -42,16 +42,16 @@ describe('Luyện tập 3 · AI NHANH HƠN', () => {
     expect(lanes.map(l => l.number)).toEqual([2, 1]);
   });
   it('final ranking after SHOW ANSWER is by correct answers', () => {
-    const lanes = raceStandings([{ number: 1, progress: team([1, 2, 3, 4, 5, 6, 7, 8, 9], ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']) }, { number: 2, progress: team([2, 4, 6, 8, 10, 12, 14, 16, 18], ['C', 'C', 'B', 'B', 'B', 'C', 'D', 'D', 'C']) }], release, Date.parse(at(20)));
+    const lanes = raceStandings([{ number: 1, progress: team([1, 2, 3, 4, 5, 6, 7, 8], ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']) }, { number: 2, progress: team([2, 4, 6, 8, 10, 12, 14, 16], ['C', 'C', 'B', 'B', 'B', 'C', 'D', 'C']) }], release, Date.parse(at(20)));
     expect(lanes[0]!.number).toBe(2);
-    expect(finalStandings(lanes).map(l => [l.number, l.correct])).toEqual([[2, 9], [1, 0]]);
+    expect(finalStandings(lanes).map(l => [l.number, l.correct])).toEqual([[2, 8], [1, 0]]);
   });
 });
 describe('Luyện tập 3 race bar', () => {
   it('green covers correct answers and red the wrong ones (4 right of 7 done)', () => {
     const bar = raceBar({ done: 7, correct: 4 });
-    expect(bar.correct).toBeCloseTo(4 / 9);
-    expect(bar.wrong).toBeCloseTo(3 / 9);
+    expect(bar.correct).toBeCloseTo(4 / 8);
+    expect(bar.wrong).toBeCloseTo(3 / 8);
   });
   it('a team that overtakes moves to the top and wears the crown', () => {
     const before = raceStandings([{ number: 1, progress: team([3, 6]) }, { number: 2, progress: team([5]) }], release, Date.parse(at(7)));
