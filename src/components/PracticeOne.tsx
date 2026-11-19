@@ -6,6 +6,7 @@ import { PRACTICE_PLACEHOLDER, PRACTICE_SETS, questionTitle, type PracticeQuesti
 import { clockLabel, remainingMs, timerTone, type Timing } from '@/lib/timer';
 import { PracticeFigure } from './PracticeFigure';
 import { useEnterReview } from '@/hooks/use-enter-review';
+import { useFollowSharedQuestion } from '@/hooks/use-follow-question';
 
 /** Compact a · b · c strip shown under the question. */
 function PracticeSteps({ questions, current, done, disabled, onSelect }: { questions: readonly PracticeQuestion[]; current: number | null; done?: (i: number) => boolean; disabled?: (i: number) => boolean; onSelect?: (i: number) => void }) {
@@ -21,7 +22,7 @@ function TeacherPracticePreview({ set, autoQuestion }: { set: PracticeSet; autoQ
   const single = set.questions.length === 1;
   const review = useEnterReview(set.questions.length + 1);
   // While the work runs, the shared screen follows the question every team has reached.
-  useEffect(() => { if (autoQuestion != null) review.select(autoQuestion + 1); }, [autoQuestion]);
+  useFollowSharedQuestion(autoQuestion, review.select);
   const selected = review.selected === 0 ? null : review.selected - 1;
   const question = selected === null ? null : set.questions[selected];
   return <div className="goal-content goal-content-embedded practice-content practice-teacher">

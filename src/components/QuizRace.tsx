@@ -2,6 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Clock, Crown, Flag, Trophy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEnterReview } from '@/hooks/use-enter-review';
+import { useFollowSharedQuestion } from '@/hooks/use-follow-question';
 import { finalStandings, QUIZ_GAME_NAME, QUIZ_LETTERS, QUIZ_QUESTIONS, QUIZ_SECONDS, QUIZ_STEPS, QUIZ_TITLE, raceBar, raceLeader, raceStandings, type QuizLetter, type RaceLane } from '@/lib/quiz-race';
 import type { StepProgress } from '@/lib/goal-progress';
 import { clockLabel, remainingMs, timerTone, type Timing } from '@/lib/timer';
@@ -106,7 +107,7 @@ function useNow(active: boolean) {
 /** Teacher's screen: Enter steps through the game; once handed out it follows the question every team has reached. The race track sits below. */
 export function QuizTeacher({ teams, releasedAt, autoQuestion }: { teams: readonly QuizTeam[]; releasedAt: string | null; autoQuestion: number | null }) {
   const review = useEnterReview(COUNT + 1);
-  useEffect(() => { if (autoQuestion != null) review.select(autoQuestion + 1); }, [autoQuestion]);
+  useFollowSharedQuestion(autoQuestion, review.select);
   const now = useNow(Boolean(releasedAt));
   const lanes = raceStandings(teams, releasedAt, now);
   const index = review.selected - 1;

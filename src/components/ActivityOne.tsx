@@ -10,6 +10,7 @@ import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useEnterReview } from '@/hooks/use-enter-review';
+import { useFollowSharedQuestion } from '@/hooks/use-follow-question';
 import { reveal } from '@/lib/reveal';
 import { fitGoalView } from '@/lib/goal-camera';
 import { getGoalSteelMembers, goalProfileTop, GOAL_DIMENSIONS, GOAL_DISPLAY_SCALE, type Point3 } from '@/lib/goal-model';
@@ -220,7 +221,7 @@ const TEACHER_PROMPT = 'Xem mặt sân là một phần của mặt phẳng $(\\
 function TeacherGoalPreview({ autoQuestion }: { autoQuestion?: number | null | undefined }) {
   const review = useEnterReview(GOAL_QUESTIONS.length + 1);
   // While the work runs, the shared screen follows the question every team has reached.
-  useEffect(() => { if (autoQuestion != null) review.select(autoQuestion + 1); }, [autoQuestion]);
+  useFollowSharedQuestion(autoQuestion, review.select);
   const selected = review.selected === 0 ? null : review.selected - 1;
   const question = selected === null ? null : GOAL_QUESTIONS[selected];
   return <div className="goal-content goal-content-embedded goal-teacher-preview">

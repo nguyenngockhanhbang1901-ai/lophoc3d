@@ -27,6 +27,8 @@
 - [x] Bài 12 HĐ2: d, M, A, B names in the three 3D models the same size as (α) (22px), placed clear of line d; browser verified.
 - [x] Bài 12 HĐ3: when Google refuses the server's location, Gửi AI resends once straight from the teacher's browser (simulated live: browser call reached Google).
 - [x] Bài 12 HĐ2: d/M/A/B names move smoothly with the line (no side jumps, no frame lag); model 3 puts d mid-line inside (α), A and B on the other side.
+- [x] Bài 12 HĐ2: d/M/A/B names back on their original 3D anchors and movement, keeping the current 22px size (desktop + phone checked).
+- [x] Enter from the last slide of Luyện tập 1 opens Luyện tập 2 on its first slide, scrolled to its start (presentation + normal mode at 730×618 checked); timed parts follow the teams only after arrival.
 - [x] Bài 12 LT3: old Câu 7 (centroids) removed, 8 questions; answer text equals question text size (21/26/30/17px measured).
 - [ ] Click through "Gửi AI" in a signed-in presentation class: teacher signs in with Google (enabled); waiting for their first sign-in and Gemini key.
 - [x] Repair adjacent-part keyboard navigation, remove LT1 assignment start, add lecture/presentation modes, closed-gated code-only sharing and HĐ2/HĐ3 student slide synchronization; verified signed-in teacher, phone conclusion, code-only answers, closure, desktop fitting and 101 tests.
