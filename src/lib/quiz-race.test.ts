@@ -11,8 +11,8 @@ function team(ends: number[], answers: string[] = []): StepProgress {
 describe('Luyện tập 3 · AI NHANH HƠN', () => {
   it('has nine four-choice questions with static figures on questions 6–9', () => {
     expect(QUIZ_QUESTIONS).toHaveLength(9);
-    expect(QUIZ_QUESTIONS.map(q => q.correct)).toEqual(['C', 'C', 'B', 'B', 'B', 'D', 'C', 'D', 'C']);
-    expect(QUIZ_QUESTIONS.map(q => q.figure ?? null)).toEqual([null, null, null, null, null, 'tetra-midpoints', 'pyramid', 'tetra-centroids', 'pyramid-center']);
+    expect(QUIZ_QUESTIONS.map(q => q.correct)).toEqual(['C', 'C', 'B', 'B', 'B', 'C', 'D', 'D', 'C']);
+    expect(QUIZ_QUESTIONS.map(q => q.figure ?? null)).toEqual([null, null, null, null, null, 'pyramid-center', 'tetra-centroids', 'tetra-midpoints', 'pyramid']);
   });
   it('accepts only the letters A–D and gives 30 seconds per question', () => {
     expect(QUIZ_STEPS.accepts(0, 'B')).toBe(true);
@@ -26,7 +26,7 @@ describe('Luyện tập 3 · AI NHANH HƠN', () => {
   it('more correct answers lead during the game, even when another team answered faster', () => {
     // Tổ 1: 5 right, then a fast wrong Câu 6. Tổ 2: slower, but 6 right.
     const t1 = team([1, 2, 3, 4, 5, 6], ['C', 'C', 'B', 'B', 'B', 'A']);
-    const t2 = team([2, 4, 6, 8, 10, 12], ['C', 'C', 'B', 'B', 'B', 'D']);
+    const t2 = team([2, 4, 6, 8, 10, 12], ['C', 'C', 'B', 'B', 'B', 'C']);
     const lanes = raceStandings([{ number: 1, progress: t1 }, { number: 2, progress: t2 }], release, Date.parse(at(13)));
     expect(lanes.map(l => [l.number, l.correct])).toEqual([[2, 6], [1, 5]]);
     expect(raceLeader(lanes)).toBe(2);
@@ -42,7 +42,7 @@ describe('Luyện tập 3 · AI NHANH HƠN', () => {
     expect(lanes.map(l => l.number)).toEqual([2, 1]);
   });
   it('final ranking after SHOW ANSWER is by correct answers', () => {
-    const lanes = raceStandings([{ number: 1, progress: team([1, 2, 3, 4, 5, 6, 7, 8, 9], ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']) }, { number: 2, progress: team([2, 4, 6, 8, 10, 12, 14, 16, 18], ['C', 'C', 'B', 'B', 'B', 'D', 'C', 'D', 'C']) }], release, Date.parse(at(20)));
+    const lanes = raceStandings([{ number: 1, progress: team([1, 2, 3, 4, 5, 6, 7, 8, 9], ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A']) }, { number: 2, progress: team([2, 4, 6, 8, 10, 12, 14, 16, 18], ['C', 'C', 'B', 'B', 'B', 'C', 'D', 'D', 'C']) }], release, Date.parse(at(20)));
     expect(lanes[0]!.number).toBe(2);
     expect(finalStandings(lanes).map(l => [l.number, l.correct])).toEqual([[2, 9], [1, 0]]);
   });
@@ -66,7 +66,7 @@ describe('Luyện tập 3 race bar', () => {
 });
 describe('Luyện tập 3 figures', () => {
   const pts = (k: keyof typeof QUIZ_FIGURES) => QUIZ_FIGURES[k].points as Record<string, readonly [number, number]>;
-  it('Câu 8 draws the medians AM and AN through the centroids I and J', () => {
+  it('the centroid question draws the medians AM and AN through the centroids I and J', () => {
     const { A, B, C, D, I, J, M, N } = pts('tetra-centroids');
     expect(M).toEqual(mid(B!, C!)); expect(N).toEqual(mid(B!, D!));
     const cross = (o: readonly [number, number], p: readonly [number, number], q: readonly [number, number]) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);

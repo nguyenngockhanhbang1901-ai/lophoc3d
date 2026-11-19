@@ -139,7 +139,7 @@ export function QuizResults({ teams, releasedAt }: { teams: readonly QuizTeam[];
       </nav>
     </aside>
     <section aria-label={last ? 'Xếp hạng các tổ' : `Kết quả câu ${index + 1}`}>
-      <div className="model-heading"><h2>{last ? 'Xếp hạng' : `Câu ${index + 1}`}</h2><span className="goal-enter-hint" aria-live="polite">{last ? '' : index < COUNT - 1 ? 'Nhấn Enter để sang câu tiếp theo' : 'Nhấn Enter để xem xếp hạng'}</span></div>
+      <div className="model-heading"><h2>{last ? 'Xếp hạng' : `Câu ${index + 1}`}</h2></div>
       <div className="quiz-content">
         {!last ? <QuizQuestion index={index} showCorrect picks={picks} /> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{lanes[0] && lanes[0].done > 0 ? `Tổ ${lanes[0].number} dẫn đầu với ${lanes[0].correct}/${COUNT} câu đúng.` : 'Chưa có tổ nào trả lời.'}</p></div>}
         <RaceTrack lanes={lanes} showCorrect />

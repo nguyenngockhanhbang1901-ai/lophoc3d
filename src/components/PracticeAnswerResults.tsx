@@ -28,7 +28,7 @@ export function PracticeAnswerResults({ teams, set = PRACTICE_SETS[3], onFinish 
       </nav>
     </aside>}
     <section aria-label={`Kết quả ${questionTitle(set, question)}`}>
-      {!single && <div className="model-heading"><h2>{questionTitle(set, question)}</h2><span className="goal-enter-hint" aria-live="polite">{selected < set.questions.length - 1 ? 'Nhấn Enter để sang câu tiếp theo' : lastHint}</span></div>}
+      {!single && <div className="model-heading"><h2>{questionTitle(set, question)}</h2><span className="goal-enter-hint" aria-live="polite">{selected < set.questions.length - 1 ? '' : lastHint}</span></div>}
       <div className="practice-review-body">
         <PracticeFigure set={set} compact highlight={question.focus} />
         <div className="practice-review-text">

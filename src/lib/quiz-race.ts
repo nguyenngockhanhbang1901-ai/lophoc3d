@@ -17,10 +17,10 @@ export const QUIZ_QUESTIONS: readonly QuizQuestion[] = [
   { prompt: 'Nếu đường thẳng $a$ không nằm trong $(P)$ và $a$ song song với một đường thẳng $d$ nằm trong $(P)$ thì:', options: ['$a$ cắt $(P)$', '$a$ song song với $(P)$', '$a$ nằm trong $(P)$', '$a$ chéo với $(P)$'], correct: 'B' },
   { prompt: 'Để chứng minh $a \\ss (P)$, ta cần chứng minh:', options: ['$a \\ss d$ với $d \\subset (P)$', '$a \\ss d$ với $d \\subset (P)$ và $a \\not\\subset (P)$', '$a$ cắt $d$ với $d \\subset (P)$', '$a$ và $(P)$ có một điểm chung'], correct: 'B' },
   { prompt: 'Cho đường thẳng $a \\ss (P)$. Khẳng định nào sau đây **sai**?', options: ['$a$ và $(P)$ không có điểm chung', 'Mọi đường thẳng nằm trong $(P)$ đều song song với $a$', 'Tồn tại đường thẳng $d$ trong $(P)$ sao cho $d \\ss a$', '$a$ không nằm trong $(P)$'], correct: 'B' },
+  { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành tâm $O$. Gọi $M$ là trung điểm của $SA$. Đường thẳng $OM$ nằm trong mặt phẳng nào sau đây?', options: ['$(SBD)$', '$(SAB)$', '$(SAC)$', '$(ABCD)$'], correct: 'C', figure: 'pyramid-center' },
+  { prompt: 'Cho tứ diện $ABCD$. Gọi $I, J$ lần lượt là trọng tâm của các tam giác $ABC$ và $ABD$. Khẳng định nào sau đây đúng?', options: ['$IJ \\ss BC$', '$IJ \\ss AD$', '$IJ$ cắt $CD$', '$IJ \\ss CD$'], correct: 'D', figure: 'tetra-centroids' },
   { prompt: 'Cho tứ diện $ABCD$. Gọi $M, N$ lần lượt là trung điểm của $AB$ và $AC$. Đường thẳng $MN$ song song với mặt phẳng nào sau đây?', options: ['$(ABC)$', '$(ABD)$', '$(ACD)$', '$(BCD)$'], correct: 'D', figure: 'tetra-midpoints' },
   { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành. Đường thẳng $AB$ song song với mặt phẳng nào sau đây?', options: ['$(SAD)$', '$(SBC)$', '$(SCD)$', '$(SAC)$'], correct: 'C', figure: 'pyramid' },
-  { prompt: 'Cho tứ diện $ABCD$. Gọi $I, J$ lần lượt là trọng tâm của các tam giác $ABC$ và $ABD$. Khẳng định nào sau đây đúng?', options: ['$IJ \\ss BC$', '$IJ \\ss AD$', '$IJ$ cắt $CD$', '$IJ \\ss CD$'], correct: 'D', figure: 'tetra-centroids' },
-  { prompt: 'Cho hình chóp $S.ABCD$ có đáy $ABCD$ là hình bình hành tâm $O$. Gọi $M$ là trung điểm của $SA$. Đường thẳng $OM$ nằm trong mặt phẳng nào sau đây?', options: ['$(SBD)$', '$(SAB)$', '$(SAC)$', '$(ABCD)$'], correct: 'C', figure: 'pyramid-center' },
 ];
 
 export function isQuizLetter(value: string): value is QuizLetter {
