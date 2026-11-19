@@ -23,7 +23,7 @@
 - [x] Keep each Luyện tập 2 answer isolated to its selected question; never reveal other questions' answers alongside it.
 - [x] Full screen presentation: hide top area, fixed lesson title, mounted fade-in lines so Enter/Backspace never scroll or shift; parts still switch; verified signed-in through all five parts and Esc exit.
 - [x] Compact Activity 1 mobile question selectors (one row of six, phone verified); keep presentation scale when the AI panel opens (rule tested).
-- [ ] Click through "Gửi AI" in a signed-in presentation class: waiting for a teacher account in the remixed project, which has none yet.
+- [ ] Click through "Gửi AI" in a signed-in presentation class: teacher signs in with Google (enabled); waiting for their first sign-in and Gemini key.
 - [x] Repair adjacent-part keyboard navigation, remove LT1 assignment start, add lecture/presentation modes, closed-gated code-only sharing and HĐ2/HĐ3 student slide synchronization; verified signed-in teacher, phone conclusion, code-only answers, closure, desktop fitting and 101 tests.
 - [x] Move teacher AI key to the top-right header, compact AI prompt with 21px lesson-sized text, enlarge LT2 introduction; Enter advances to adjacent parts and Backspace returns to the previous final step; signed-in keyboard flow and mobile width verified.
 - [x] Remove Activity 2 model headings, enlarge its 3D views by 20%, improve textbook labels; place Activity 3 questions after recap and rename the second general introduction to Chứng minh; verified signed-in keyboard flow, screenshots, mobile width and 25 tests.
@@ -86,3 +86,4 @@
 - [x] HĐ2: enlarge all three 3D models 30% inside the same frame (nothing clipped); line d and its label red
 - [x] HĐ1: new lead-in prompt; Câu 1 and Câu 5 choices "Nằm trong – Không nằm trong"
 - [x] HĐ2: definitions under the 3 static pictures laid out like the reference (bold, centred symbol line)
+- [x] Teacher account: teacher chose Google sign-in; Google and Lovable sign-in enabled on the backend, button starts the Google sign-in (finishing it needs the teacher's own Google login in the preview).
