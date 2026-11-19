@@ -30,7 +30,7 @@ export function geminiErrorMessage(httpStatus: number, body?: unknown) {
   if (/^API_KEY_.*_BLOCKED$/.test(reason)) return `Khóa Gemini đang bị giới hạn chỉ cho một số trang web hoặc địa chỉ${tag}. Yêu cầu được gửi từ máy chủ của trang này, nên hãy bỏ giới hạn trang web của khóa trong Google Cloud, hoặc tạo một khóa mới trong Google AI Studio.`;
   if (reason === 'SERVICE_DISABLED' || /has not been used|is disabled/i.test(message)) return `Dự án Google của khóa này chưa bật Gemini API${tag}. Hãy tạo khóa trong Google AI Studio hoặc bật "Generative Language API" cho dự án.`;
   if (LOCATION_BLOCKED.test(message)) return `Google chưa cho dùng Gemini API từ nơi gửi yêu cầu${tag}. Khóa của bạn có thể vẫn đúng; hãy thử lại từ mạng khác.`;
-  if (httpStatus === 404 || status === 'NOT_FOUND') return `Gemini 3.5 Flash-Lite chưa khả dụng với khóa này${tag}. Không tự động đổi sang phiên bản khác.`;
+  if (httpStatus === 404 || status === 'NOT_FOUND') return `Gemini chưa khả dụng với khóa này${tag}.`;
   if (httpStatus === 429 || status === 'RESOURCE_EXHAUSTED') return `Gemini đã hết hạn mức hoặc đang giới hạn lượt gửi${tag}. Hãy thử lại sau.`;
   if (httpStatus === 401 || httpStatus === 403) return `Google từ chối khóa Gemini này${tag}. Hãy kiểm tra khóa trong Google AI Studio.`;
   if (httpStatus === 400) return `Gemini từ chối yêu cầu${tag}${message ? `: ${message.replace(/AIza[\w-]{10,}/g, '…').slice(0, 200)}` : ''}.`;

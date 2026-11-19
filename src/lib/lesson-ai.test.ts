@@ -4,7 +4,8 @@ import { geminiAnswer, geminiErrorMessage, lessonAiInput, requestLessonAi, solve
 describe('Gemini lesson solver', () => {
   it('keeps the requested model without a fallback', () => {
     expect(LESSON_AI_MODEL).toBe('gemini-3.5-flash-lite');
-    expect(geminiErrorMessage(404)).toContain('Không tự động đổi');
+    expect(geminiErrorMessage(404)).toContain('Gemini chưa khả dụng');
+    expect(geminiErrorMessage(404)).not.toMatch(/3\.5|Flash/i);
   });
   it('rejects empty credentials and empty prompts', () => {
     expect(lessonAiInput.safeParse({ apiKey: '', prompt: LESSON_AI_PROMPT }).success).toBe(false);

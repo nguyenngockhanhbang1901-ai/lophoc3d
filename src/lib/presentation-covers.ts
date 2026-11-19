@@ -19,7 +19,11 @@ export function coverAfterBack(cover: PresentationCover | null): PresentationCov
 export function coverOnArrival(part: ActivityNumber, presentingFullscreen: boolean, backward: boolean): PresentationCover | null {
   return presentingFullscreen && part === 1 && !backward ? 'welcome' : null;
 }
-/** The thank-you picture follows Enter on Hoạt động 3's last step once the AI solution has arrived, and on Luyện tập 3's last step (end of the lesson). */
-export function thanksAvailable(part: ActivityNumber, presentingFullscreen: boolean, aiAnswered: boolean) {
-  return presentingFullscreen && (part === 5 && aiAnswered || part === 6);
+/** The thank-you picture follows Enter only on Luyện tập 3's last step (end of the lesson); Hoạt động 3 always continues to Luyện tập 3. */
+export function thanksAvailable(part: ActivityNumber, presentingFullscreen: boolean) {
+  return presentingFullscreen && part === 6;
+}
+/** Tab jumps straight to the thank-you picture from any part, but only while the teacher presents in full screen. */
+export function isThanksShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey'>, presentingFullscreen: boolean) {
+  return presentingFullscreen && event.key === 'Tab' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
 }

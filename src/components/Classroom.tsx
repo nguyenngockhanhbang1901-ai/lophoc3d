@@ -37,7 +37,7 @@ import { LessonAiKeyControl, LessonAiKeyProvider } from './LessonAiKey';
 import { LessonSlides } from './LessonSlides';
 import { PresentationFrame } from './PresentationFrame';
 import { PresentationCovers, usePreloadCovers } from './PresentationCovers';
-import { coverAfterBack, coverAfterEnter, coverOnArrival, thanksAvailable, type PresentationCover } from '@/lib/presentation-covers';
+import { coverAfterBack, coverAfterEnter, coverOnArrival, isThanksShortcut, thanksAvailable, type PresentationCover } from '@/lib/presentation-covers';
 import { ACTIVITY3_STAGES } from '@/lib/activity3-walkthrough';
 import { GOAL_QUESTIONS } from '@/lib/goal-questions';
 import { GOAL_STEPS, sharedQuestion, type StepProgress } from '@/lib/goal-progress';
@@ -132,7 +132,6 @@ function ClassroomContent() {
   // Opening/closing pictures exist only in full screen presentation; any other state clears them.
   const [cover, setCover] = useState<PresentationCover | null>(null);
   const [coverRound, setCoverRound] = useState(0);
-  const [aiAnswered, setAiAnswered] = useState(false);
   usePreloadCovers(presenting);
   const startWelcome = useRef<() => void>(() => {});
   const arrivingActivity = useRef<ActivityNumber | null>(null);
@@ -188,6 +187,17 @@ function ClassroomContent() {
   const activeLessonTitle = role === 'student' ? student?.room.lesson_title ?? lecture?.lesson_title ?? lessonTitle : room?.lesson_title ?? lessonTitle;
   const activeLessonContent = role === 'student' ? student?.room.lesson_content ?? lecture?.lesson_content ?? lessonContent : room?.lesson_content ?? lessonContent;
   const legacyLesson = activeLessonKey === '12';
+  // Tab: the teacher can close the lesson with the thank-you picture from any part.
+  useEffect(() => {
+    if (!presentingFullscreen || !legacyLesson) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!isThanksShortcut(event, true)) return;
+      event.preventDefault(); event.stopPropagation();
+      setCover('thanks');
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [presentingFullscreen, legacyLesson]);
   const cubeLesson = activeLessonKey === '11.1';
   const section = legacyLesson ? lessonSection(currentActivity) : null;
   const waiting = currentActivity === 2 && role === 'student' && Boolean(access) && !released;
@@ -213,7 +223,7 @@ function ClassroomContent() {
     if (role === 'student' && access && !lecture) return;
     if (busy || !legacyLesson && nextActivity !== 1) return;
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    setCover(coverOnArrival(nextActivity, presentingFullscreen && legacyLesson, fromPrevious)); setAiAnswered(false);
+    setCover(coverOnArrival(nextActivity, presentingFullscreen && legacyLesson, fromPrevious));
     arrivingActivity.current = nextActivity;
     if (lecture || !room || !user) { setInitialLast(fromPrevious); setSlideStep(0); setActivity(nextActivity); return; }
     await action(async () => {
@@ -368,7 +378,7 @@ function ClassroomContent() {
       <div ref={partTop} aria-hidden />
       <PresentationFrame enabled={presenting} shrink={!presentingFullscreen} reserved={presentingFullscreen ? (section ? 132 : 92) : 28} slideKey={`${currentActivity}-${slideStep}-${results}`}>
       {legacyLesson && (role === 'teacher' || lecture) && [1, 3, 4].includes(currentActivity) && <SlideArrows />}
-      <PresentationNavigation.Provider key={`${lecture?.id ?? room?.id ?? 'preview'}-${currentActivity}-${results}-${room?.lesson_mode ?? ''}-${coverRound}`} value={role === 'teacher' || lecture ? { onFinish: legacyLesson && thanksAvailable(currentActivity, presentingFullscreen, aiAnswered) ? () => setCover('thanks') : legacyLesson && adjacentLessonPart(currentActivity, 1) ? () => movePart(1) : undefined, onBack: legacyLesson && adjacentLessonPart(currentActivity, -1) ? () => movePart(-1) : legacyLesson && presentingFullscreen && currentActivity === 1 ? () => setCover('title') : undefined, readOnly: cover !== null, onAiAnswer: setAiAnswered, aiRoomId: role === 'teacher' ? room?.id : undefined, initialLast, initialStep: lecture ? 0 : room?.presentation_step ?? 0, onStep: presentStep } : followingSlides ? { controlledStep: student?.room.presentation_step ?? 0, readOnly: true } : {}}>
+      <PresentationNavigation.Provider key={`${lecture?.id ?? room?.id ?? 'preview'}-${currentActivity}-${results}-${room?.lesson_mode ?? ''}-${coverRound}`} value={role === 'teacher' || lecture ? { onFinish: legacyLesson && thanksAvailable(currentActivity, presentingFullscreen) ? () => setCover('thanks') : legacyLesson && adjacentLessonPart(currentActivity, 1) ? () => movePart(1) : undefined, onBack: legacyLesson && adjacentLessonPart(currentActivity, -1) ? () => movePart(-1) : legacyLesson && presentingFullscreen && currentActivity === 1 ? () => setCover('title') : undefined, readOnly: cover !== null, aiRoomId: role === 'teacher' ? room?.id : undefined, initialLast, initialStep: lecture ? 0 : room?.presentation_step ?? 0, onStep: presentStep } : followingSlides ? { controlledStep: student?.room.presentation_step ?? 0, readOnly: true } : {}}>
       {cubeLesson ? <CubePractice teacher={role === 'teacher'} roomId={room?.id} review={results} access={cubeAccess} /> : activeLessonKey === '11' ? <LinePairActivity teacher={role === 'teacher'} lecture={lectureContent} released={activityOneReleased} review={results} step={student?.team.goal_step ?? 0} answers={student?.team.goal_answers ?? []} timings={student?.team.goal_timings ?? []} completed={Boolean(student?.team.goal_completed_at)} closed={Boolean(student?.room.closed)} now={serverNow} teams={teams} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer) => { await saveGoal({ data: { ...access, step, answer, completed: step === 5 } }); await refresh(access); } : undefined} /> : !legacyLesson ? <CustomLesson content={activeLessonContent} /> : lectureContent || followingSlides ? <LessonSlides part={currentActivity} review={slideReview} lecture={lectureContent} /> : currentActivity === 6 ? renderQuiz() : isPracticeActivity(currentActivity) ? renderPractice(currentActivity) : currentActivity === 1 && role === 'teacher' && results ? <div ref={resultsRef} className="results-anchor"><div className="model-heading"><h2>Câu trả lời của các tổ · Hoạt động 1</h2></div><GoalAnswerResults teams={teams} /></div> : currentActivity === 1 ? <Suspense fallback={<div className="goal-viewer" />}><ActivityOne key={access ? `${access.code}-${access.number}` : role} embedded teacherPreview={role === 'teacher'} autoQuestion={autoQuestion} questionsVisible={role === 'teacher' || activityOneReleased} initialAnswers={student?.team.goal_answers} initialStep={student?.team.goal_step} initialCompleted={Boolean(student?.team.goal_completed_at)} timings={student?.team.goal_timings} serverNow={serverNow} closed={Boolean(student?.room.closed)} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer, completed) => { await saveGoal({ data: { ...access, step, answer, completed } }); await refresh(access); } : undefined} /></Suspense> : <ActivityTwo />}
       </PresentationNavigation.Provider>
       </PresentationFrame>
