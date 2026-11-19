@@ -6,7 +6,7 @@ import type { Vec3 } from '@/lib/geometry';
 /** Position a normal React math label from the live camera, avoiding separate Html roots. */
 export function PlaneNamePosition({ label, position = [-2.1, 0.08, 1.45] }: { label: RefObject<HTMLDivElement | null>; position?: Vec3 }) {
   const point = useMemo(() => new Vector3(), []);
-  useFrame(({ camera, size }) => { placeLabel(label.current, position, camera, size, point); });
+  useFrame(({ camera, size }) => { camera.updateMatrixWorld(); placeLabel(label.current, position, camera, size, point); });
   return null;
 }
 /** Screen position (px) of a world point in the live canvas; `visible` is false behind the camera. */

@@ -14,6 +14,7 @@ function draw(lines: (Line2 | null)[], segments: Segment[], dashed: boolean) {
 }
 
 import { fitCaseView, modelPoints, type FitConfig } from '@/lib/geometry-fit';
+import { containedLabels, endLabel, lineFrame } from '@/lib/line-labels';
 type Palette = { plane: string; line: string; foreground: string; border: string };
 /** HTML labels for d, M, A, B — used by framed views so they match the (α) label's size. */
 type NameLabels = { d: HTMLDivElement | null; M: HTMLDivElement | null; A: HTMLDivElement | null; B: HTMLDivElement | null };
@@ -49,16 +50,17 @@ function Scene({ index, playing, speed, resetVersion, palette, controls, onReady
     label.current?.position.set(b[0] + 0.25, b[1] + 0.2, b[2]);
     const html = names?.current;
     if (html) {
-      // Offsets are in screen pixels around the projected line, so labels never sit on d or on each other.
+      // Orbit controls move the camera earlier in this frame; refresh its matrices so names never trail the drawing by a frame.
+      state.camera.updateMatrixWorld();
       const sa = screenPoint(a, state.camera, state.size, projected), sb = screenPoint(b, state.camera, state.size, projected);
-      const len = Math.hypot(sb.x - sa.x, sb.y - sa.y) || 1, ux = (sb.x - sa.x) / len, uy = (sb.y - sa.y) / len;
-      let px = -uy, py = ux; if (py > 0 || (Math.abs(py) < 0.2 && px < 0)) { px = -px; py = -py; }
-      const gap = 20;
       if (contained) {
-        placeAt(html.d, sb.x + ux * gap - px * gap, sb.y + uy * gap - py * gap, sb.visible);
-        for (const [el, pt] of [[html.A, contained[0]], [html.B, contained[1]]] as const) { const s = screenPoint(pt, state.camera, state.size, projected); placeAt(el, s.x + px * gap, s.y + py * gap, s.visible); }
-      } else placeAt(html.d, sb.x + ux * 10 + px * gap, sb.y + uy * 10 + py * gap, sb.visible);
-      if (index === 0) { const s = screenPoint(origin, state.camera, state.size, projected); placeAt(html.M, s.x + 20, s.y - 4, s.visible); }
+        const middle = screenPoint(origin, state.camera, state.size, projected);
+        const places = containedLabels(sa, sb, middle, contained.map(pt => screenPoint(pt, state.camera, state.size, projected)));
+        placeAt(html.d, places.d.x, places.d.y, middle.visible);
+        placeAt(html.A, places.points[0]!.x, places.points[0]!.y, sa.visible);
+        placeAt(html.B, places.points[1]!.x, places.points[1]!.y, sb.visible);
+      } else { const at = endLabel(sa, sb); placeAt(html.d, at.x, at.y, sb.visible); }
+      if (index === 0) { const s = screenPoint(origin, state.camera, state.size, projected), f = lineFrame(sa, sb); placeAt(html.M, s.x - f.nx * 20, s.y - f.ny * 20, s.visible); }
     }
     if (import.meta.env.DEV) { const element = state.gl.domElement; element.dataset['motionPhase'] = String(phase.current); element.dataset['motionOrigin'] = JSON.stringify(origin); element.dataset['motionDirection'] = JSON.stringify(direction); element.dataset['hiddenParts'] = String(parts.hidden.length); element.dataset['segment'] = JSON.stringify([a, b]); }
     if (!marked.current) { marked.current = true; requestAnimationFrame(onReady); }

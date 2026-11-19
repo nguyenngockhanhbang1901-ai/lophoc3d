@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { geminiAnswer, geminiErrorMessage, lessonAiInput, LESSON_AI_MODEL, LESSON_AI_PROMPT } from './lesson-ai';
+import { geminiAnswer, geminiErrorMessage, lessonAiInput, requestLessonAi, solveWithFallback, LESSON_AI_MODEL, LESSON_AI_PROMPT } from './lesson-ai';
 
 describe('Gemini lesson solver', () => {
   it('keeps the requested model without a fallback', () => {
@@ -22,7 +22,24 @@ describe('Gemini lesson solver', () => {
     expect(geminiErrorMessage(400, body('API_KEY_INVALID', 'INVALID_ARGUMENT'))).toContain('không đúng (Google: API_KEY_INVALID)');
     expect(geminiErrorMessage(403, body('API_KEY_HTTP_REFERRER_BLOCKED', 'PERMISSION_DENIED'))).toContain('bỏ giới hạn trang web');
     expect(geminiErrorMessage(403, body('SERVICE_DISABLED', 'PERMISSION_DENIED'))).toContain('chưa bật Gemini API');
-    expect(geminiErrorMessage(400, { error: { status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' } })).toContain('vị trí của máy chủ');
+    expect(geminiErrorMessage(400, { error: { status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' } })).toContain('nơi gửi yêu cầu');
     expect(geminiErrorMessage(400, { error: { status: 'INVALID_ARGUMENT', message: 'bad key AIzaSyABCDEFGHIJKLMNOP' } })).not.toContain('AIzaSyABCDEFGHIJKLMNOP');
+  });
+});
+
+describe('Gemini location fallback', () => {
+  const blocked = { error: { code: 400, status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' } };
+  const reply = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
+  it('flags a location refusal but not a wrong key', async () => {
+    expect((await requestLessonAi('k', 'p', reply(400, blocked))).locationBlocked).toBe(true);
+    expect((await requestLessonAi('k', 'p', reply(400, { error: { status: 'INVALID_ARGUMENT', details: [{ reason: 'API_KEY_INVALID' }] } }))).locationBlocked).toBe(false);
+  });
+  it('resends from the browser only when the server location is refused', async () => {
+    let direct = 0;
+    const viaBrowser = async () => { direct += 1; return { answer: 'Lời giải', error: '' }; };
+    expect((await solveWithFallback(() => requestLessonAi('k', 'p', reply(400, blocked)), viaBrowser)).answer).toBe('Lời giải');
+    expect(direct).toBe(1);
+    await solveWithFallback(async () => ({ answer: '', error: 'Google báo khóa Gemini không đúng' }), viaBrowser);
+    expect(direct).toBe(1);
   });
 });

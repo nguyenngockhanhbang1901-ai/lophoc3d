@@ -4,7 +4,7 @@ import { LoaderCircle, Send, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { MathText } from './MathText';
-import { LESSON_AI_PROMPT } from '@/lib/lesson-ai';
+import { LESSON_AI_PROMPT, requestLessonAi, solveWithFallback } from '@/lib/lesson-ai';
 import { solveLessonQuestion } from '@/lib/lesson-ai.functions';
 import { useLessonAiKey } from './LessonAiKey';
 import { PresentationNavigation } from '@/lib/presentation-navigation';
@@ -24,7 +24,8 @@ export function LessonAiSolver() {
     if (busy || !apiKey.trim() || !prompt.trim()) return;
     setBusy(true); setError('');
     try {
-      const result = await solve({ data: { apiKey, prompt } });
+      const key = apiKey.trim(), text = prompt.trim();
+      const result = await solveWithFallback(() => solve({ data: { apiKey: key, prompt: text } }), () => requestLessonAi(key, text));
       setAnswer(result.answer); setError(result.error);
     } catch {
       setError('Chưa gửi được yêu cầu. Hãy kiểm tra đăng nhập và kết nối rồi thử lại.');
