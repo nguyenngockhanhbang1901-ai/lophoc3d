@@ -100,6 +100,11 @@ export async function solveWithSaved(ask: (signal: AbortSignal) => Promise<Lesso
   return { answer: '', error: AI_TIMEOUT_ERROR, source: 'none' };
 }
 
+/** What Gửi AI falls back to: the teacher's prepared answer (nút Đáp án) wins over the class's last saved Gemini solution. */
+export function fallbackAnswer(prepared: string | null | undefined, saved: string | null | undefined): string {
+  return prepared?.trim() || saved?.trim() || '';
+}
+
 /** Lines of a solution for the gradual reveal; a line break inside an open $…$ formula never splits it. */
 export function revealChunks(text: string): string[] {
   const chunks: string[] = [];

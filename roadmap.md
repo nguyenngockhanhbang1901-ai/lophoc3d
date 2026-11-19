@@ -18,6 +18,7 @@
 - [x] Enlarge Bài 11 models by 30%, improve line contrast and textbook math labels, put student answers under their questions, and default new classroom names to the lesson plus Vietnam date/time; 13 tests and signed-in teacher / phone student flow verified.
 - [x] Enlarge Bài 11 SHOW ANSWER team labels and student answers to match lesson reading size (21px normally, 29px in full-screen presentation).
 # Classroom build
+- [x] Bài 12 HĐ3: nút Đáp án (ẩn khi trình chiếu) lưu đáp án chuẩn bị sẵn; Gửi AI hiện đáp án đó khi Gemini lỗi hoặc 6 giây chưa trả lời (verified: shown at 6.4s, no error).
 - [x] Add editable lesson catalogue, preserve existing content as Bài 12, and add Bài 11 with three coplanar models and a skew-lines model; browser Enter/Backspace and mobile layout verified, 133 tests pass.
 - [x] Verify Bài 11 teacher release and student submission/rejoin end-to-end: all six answers submitted from phone, completion restored after code-only rejoin, and teacher SHOW ANSWER readback verified.
 - [x] Update Luyện tập 2 question c and show correct answers in concise mathematical notation matching the Hoạt động 3 recap.

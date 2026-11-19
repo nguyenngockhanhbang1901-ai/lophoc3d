@@ -211,6 +211,27 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_ai_prepared: {
+        Row: {
+          answer: string
+          owner_id: string
+          question_key: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          owner_id?: string
+          question_key: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          owner_id?: string
+          question_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lesson_ai_solutions: {
         Row: {
           answer: string

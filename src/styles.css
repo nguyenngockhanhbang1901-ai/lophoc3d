@@ -506,7 +506,11 @@
 .activity3-qtitle { font-weight: 700; color: var(--primary); }
 .lesson-ai { margin-top: 20px; }
 .lesson-ai-controls { display: flex; align-items: flex-start; gap: 12px; }
-.lesson-ai-controls > button { flex-shrink: 0; }
+.lesson-ai-controls > button, .lesson-ai-buttons { flex-shrink: 0; }
+.lesson-ai-buttons { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.lesson-ai-prepared { display: grid; gap: 10px; margin-top: 14px; }
+/* Nút Đáp án and its box never appear in full screen presentation. */
+html.presenting .lesson-ai-prepared-toggle, html.presenting .lesson-ai-prepared { display: none; }
 .lesson-ai-form { display: grid; flex: 1; min-width: 0; gap: 10px; }
 .lesson-ai-prompt-frame { position: relative; }
 .lesson-ai-prompt-frame label { position: absolute; top: 7px; left: 12px; font-size: 12px; color: var(--muted-foreground); }
@@ -515,7 +519,7 @@
 .lesson-ai-key { position: relative; }
 .lesson-ai-key input { width: 230px; padding-right: 84px; }
 .lesson-ai-key-save { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); height: calc(100% - 6px); padding: 0 10px; font-size: 12px; }
-@media (max-width: 700px) { .lesson-ai-controls { flex-direction: column; } .lesson-ai-form { width: 100%; } .lesson-ai-key input { width: 150px; } .lesson-ai-key > svg { display: none; } .app-header:has(.lesson-ai-key) .brand small { display: none; } .app-header:has(.lesson-ai-key) .brand { white-space: nowrap; font-size: 14px; } }
+@media (max-width: 700px) { .lesson-ai-controls { flex-direction: column; } .lesson-ai-buttons { flex-direction: row; } .lesson-ai-form { width: 100%; } .lesson-ai-key input { width: 150px; } .lesson-ai-key > svg { display: none; } .app-header:has(.lesson-ai-key) .brand small { display: none; } .app-header:has(.lesson-ai-key) .brand { white-space: nowrap; font-size: 14px; } }
 .lesson-ai-answer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--activity3-text-size); line-height: 1.7; }
 .lesson-ai-answer h4 { margin-bottom: 10px; }
 .lesson-ai-line { animation: activity3-in 0.45s ease-out both; }
