@@ -21,4 +21,10 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).toBe('/activity-1');
   });
+  it("matches the online exam pages for teachers and students", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    expect(router.matchRoutes("/lop-thi").at(-1)?.routeId).toBe("/lop-thi");
+    expect(router.matchRoutes("/hoc-sinh").at(-1)?.routeId).toBe("/hoc-sinh");
+  });
 });

@@ -1,0 +1,13 @@
+# Thi online — các bước áp dụng cơ sở dữ liệu
+
+Dự án để Lovable quản lý cơ sở dữ liệu, nên mỗi giai đoạn có một file SQL ở thư mục này.
+Sau khi gộp code, dán lời nhắn dưới đây vào Lovable để tạo bảng.
+
+## Giai đoạn 1–2: lớp và tài khoản học sinh
+
+> Hãy tạo migration mới với đúng nội dung SQL trong file `docs/thi-online/01-lop-va-tai-khoan.sql`
+> (bảng exam_classes, exam_students, exam_student_sessions, exam_login_logs và các chính sách RLS).
+> Không sửa code giao diện hay server functions. Sau khi tạo xong, cập nhật lại types của Supabase.
+
+Học sinh không dùng Supabase Auth: tài khoản, mật khẩu (băm PBKDF2) và phiên đăng nhập do
+server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc được các bảng học sinh.

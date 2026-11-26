@@ -357,13 +357,13 @@ function ClassroomContent() {
       {user && <LessonCatalogue userId={user.id} value={lessonKey} disabled={false} onChange={(key, name, content) => { setLessonKey(key); setLessonTitle(name); setLessonContent(content); setActivity(1); setSlideStep(0); }} />}
       <Button variant="outline" className="mb-8" onClick={() => { setRoom(null); setCubeAccess(null); setAccess(null); setStudent(null); setLecture(null); setRole('teacher'); setEntered(true); }}><BookOpen />Xem bài học</Button>
       <div className="entry-columns">
-        <section className="entry-section"><GraduationCap className="text-primary" size={32} /><h2>Giáo viên</h2><Button className="w-full" onClick={() => { if (user) { setRole('teacher'); setEntered(true); } else void navigate({ to: '/auth' }); }}>{user ? 'Vào lớp học của tôi' : 'Đăng nhập giáo viên'}<ArrowRight /></Button></section>
+        <section className="entry-section"><GraduationCap className="text-primary" size={32} /><h2>Giáo viên</h2><Button className="w-full" onClick={() => { if (user) { setRole('teacher'); setEntered(true); } else void navigate({ to: '/auth' }); }}>{user ? 'Vào lớp học của tôi' : 'Đăng nhập giáo viên'}<ArrowRight /></Button>{user && <Button className="w-full mt-2" variant="outline" asChild><Link to="/lop-thi">Thi online · Lớp và tài khoản<ArrowRight /></Link></Button>}</section>
         <section className="entry-section"><Users className="text-success" size={32} /><h2>Học sinh</h2><form className="form-stack" onSubmit={e => { e.preventDefault(); if (joinInfo) void join(); else void lookup(); }}>
           <label>Mã lớp<Input required minLength={4} maxLength={12} autoComplete="off" placeholder="Nhập mã lớp" value={code} onChange={e => { setCode(e.target.value); setKey(''); setJoinInfo(null); setError(''); }} /></label>
           {joinInfo && (joinInfo.individual || joinInfo.mode !== 'lecture') && <><p>{joinInfo.title}</p>{joinInfo.individual ? <label>Họ và tên<Input aria-label="Họ và tên" required minLength={2} maxLength={100} value={studentName} onChange={e => setStudentName(e.target.value)} autoComplete="name" /></label> : <label>Chọn tổ<select aria-label="Chọn tổ" className="entry-select" value={number} onChange={e => setNumber(Number(e.target.value))}>{joinInfo.numbers.map(n => <option key={n} value={n}>Tổ {n}</option>)}</select></label>}</>}
           {error && <p className="error-note" role="alert">{error}</p>}
           <Button disabled={busy} type="submit" variant="outline">{busy ? 'Đang xử lý…' : joinInfo ? 'Vào lớp học' : 'Tham gia lớp học'}<ArrowRight /></Button>
-        </form></section>
+        </form><Button className="w-full mt-2" variant="ghost" asChild><Link to="/hoc-sinh">Có tài khoản thi online? Đăng nhập<ArrowRight /></Link></Button></section>
       </div>
     </main>
   </>;
