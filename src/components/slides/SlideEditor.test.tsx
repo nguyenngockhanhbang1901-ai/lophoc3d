@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { OVERFLOW_MESSAGE, SlideEditor } from "./SlideEditor";
 import type { Measure } from "@/lib/slides/fit";
 
+// jsdom cannot draw on a canvas; pretend the picture was shrunk.
+vi.mock("./media-files", async (original) => ({
+  ...(await original<typeof import("./media-files")>()),
+  imageFileToDataUrl: async () => "data:image/webp;base64,UPLOADED",
+  imageThumb: async () => "data:image/jpeg;base64,THUMB",
+}));
 // 3D scenes need WebGL; the editor only needs to know a model was chosen.
 vi.mock("./ModelView", () => ({
   ModelView: ({ id, src }: { id?: string; src?: string }) => (
@@ -50,6 +56,24 @@ function makeStore(rows: Row[]) {
             data: rows.filter((r) => filters.every((f) => f(r))),
             error: null,
           }).then(resolve);
+        },
+        maybeSingle() {
+          const hit = rows.find((r) => filters.every((f) => f(r)));
+          return Promise.resolve({ data: hit ?? null, error: null });
+        },
+        update(patch: Partial<Row>) {
+          writes.push("update");
+          const upd = {
+            eq(col: keyof Row, val: string) {
+              filters.push((r) => r[col] === val);
+              return upd;
+            },
+            then(resolve: (v: { error: null }) => unknown) {
+              for (const r of rows) if (filters.every((f) => f(r))) Object.assign(r, patch);
+              return Promise.resolve({ error: null }).then(resolve);
+            },
+          };
+          return upd;
         },
         upsert(row: Omit<Row, "created_at">) {
           writes.push(`upsert:${row.lesson_key}`);
@@ -467,6 +491,30 @@ it("a new text box is ready to type into", async () => {
   await waitFor(() => expect(saved(store)?.elements[2]?.text).toBe("Ví dụ 1"), { timeout: 3000 });
 });
 
+it("number boxes can be typed into: the value applies on Enter or when leaving the box", async () => {
+  const store = await openEditor();
+  fireEvent.pointerDown(stageEl(1), { button: 0 });
+  fireEvent.pointerUp(window);
+  const size = screen.getByLabelText("Cỡ chữ") as HTMLInputElement;
+  const type = (v: string) =>
+    fireEvent.input(size, { target: { value: v }, inputType: "insertText" });
+  type("");
+  type("3");
+  expect(size.value).toBe("3"); // kept while typing, not snapped back
+  type("32");
+  fireEvent.keyDown(size, { key: "Enter" });
+  await waitFor(() => expect(saved(store)?.elements[1]?.fontSize).toBe(32), { timeout: 3000 });
+  const left = screen.getByLabelText("Rộng") as HTMLInputElement;
+  fireEvent.input(left, { target: { value: "6" }, inputType: "insertText" });
+  fireEvent.input(left, { target: { value: "60" }, inputType: "insertText" });
+  expect(boxOf(stageEl(1))[2]).toBe(90);
+  fireEvent.blur(left);
+  expect(boxOf(stageEl(1))[2]).toBe(60);
+  fireEvent.input(size, { target: { value: "999" }, inputType: "insertText" });
+  fireEvent.blur(size);
+  expect(size.value).toBe("200");
+});
+
 describe("SlideEditor Hiệu ứng tab", () => {
   const rows = () => screen.getAllByTestId("anim-row");
   const steps = () => rows().map((r) => r.getAttribute("data-step"));
@@ -579,7 +627,7 @@ describe("SlideEditor layouts and media", () => {
   it("inserts a picture from a link, at the end of the appearance order", async () => {
     const store = await openEditor();
     fireEvent.click(screen.getByRole("button", { name: "Hình ảnh" }));
-    fireEvent.change(await screen.findByLabelText("Đường link ảnh"), {
+    fireEvent.change(await screen.findByLabelText("Hoặc dùng đường link ảnh"), {
       target: { value: "https://example.com/a.png" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Dùng link" }));
@@ -598,7 +646,7 @@ describe("SlideEditor layouts and media", () => {
   it("rejects a link that is not a web address", async () => {
     await openEditor();
     fireEvent.click(screen.getByRole("button", { name: "Hình ảnh" }));
-    fireEvent.change(await screen.findByLabelText("Đường link ảnh"), {
+    fireEvent.change(await screen.findByLabelText("Hoặc dùng đường link ảnh"), {
       target: { value: "javascript:alert(1)" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Dùng link" }));
@@ -611,12 +659,12 @@ describe("SlideEditor layouts and media", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Hai đường thẳng chéo nhau/ }));
     expect(screen.getByTestId("model").getAttribute("data-model")).toBe("pair-skew");
     fireEvent.click(screen.getByRole("button", { name: "Mô hình 3D" }));
-    fireEvent.change(await screen.findByLabelText(/Đường link tệp \.glb/), {
+    fireEvent.change(await screen.findByLabelText(/đường link tệp \.glb/), {
       target: { value: "https://example.com/m.png" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Dùng link" }));
     expect(screen.getByRole("alert").textContent).toMatch(/\.glb/);
-    fireEvent.change(screen.getByLabelText(/Đường link tệp \.glb/), {
+    fireEvent.change(screen.getByLabelText(/đường link tệp \.glb/), {
       target: { value: "https://example.com/m.glb" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Dùng link" }));
@@ -635,5 +683,121 @@ describe("SlideEditor layouts and media", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Mô hình 3D", pressed: false }));
     fireEvent.click(screen.getByRole("button", { name: /Hình lập phương/ }));
     expect(screen.getByTestId("model").getAttribute("data-model")).toBe("cube");
+  });
+});
+
+describe("Thư viện hình ảnh", () => {
+  function libraryRow(key: string, title: string, src: string): Row {
+    return {
+      owner_id: "me",
+      lesson_key: key,
+      title,
+      content: {
+        kind: "media",
+        type: key.startsWith("img:") ? "image" : "model3d",
+        src,
+        thumb: src,
+      },
+      created_at: "2026-01-01",
+    };
+  }
+  async function openWith(extra: Row[]) {
+    const store = makeStore([slideRow("me", "slides:a", "Bài A"), ...extra]);
+    render(<SlideEditor userId="me" client={asStore(store)} measure={fakeMeasure} />);
+    await screen.findByTestId("slide-editor");
+    return store;
+  }
+
+  it("library items are not lessons", async () => {
+    await openWith([libraryRow("img:1", "Hình chóp", "data:a")]);
+    const select = screen.getByLabelText("Chọn bài học");
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Bài A"]);
+  });
+
+  it("lists the teacher's pictures, finds them by name and inserts one", async () => {
+    const store = await openWith([
+      libraryRow("img:1", "Hình chóp S.ABCD", "data:image/png;base64,CHOP"),
+      libraryRow("img:2", "Lăng trụ", "data:image/png;base64,LANG"),
+      { ...libraryRow("img:3", "Ảnh của người khác", "data:z"), owner_id: "other" },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Hình ảnh" }));
+    expect(await screen.findAllByTestId("library-item")).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText("Tìm ảnh theo tên"), { target: { value: "chop" } });
+    expect(screen.getAllByTestId("library-item")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: 'Chèn "Hình chóp S.ABCD"' }));
+    await waitFor(() =>
+      expect(document.querySelector(".slide-stage img")?.getAttribute("src")).toBe(
+        "data:image/png;base64,CHOP",
+      ),
+    );
+    await waitFor(() => expect(saved(store)?.elements[2]?.alt).toBe("Hình chóp S.ABCD"), {
+      timeout: 3000,
+    });
+  });
+
+  it("uploads pictures into the library, then they can be renamed, inserted and deleted", async () => {
+    const store = await openWith([]);
+    fireEvent.click(screen.getByRole("button", { name: "Hình ảnh" }));
+    expect(await screen.findByText(/Thư viện chưa có ảnh/)).toBeTruthy();
+    const file = new File(["x"], "mat-phang.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("Tải ảnh lên"), { target: { files: [file] } });
+    expect(await screen.findByText(/Đã thêm 1 ảnh vào thư viện/)).toBeTruthy();
+    const row = store.rows.find((r) => r.lesson_key.startsWith("img:"));
+    expect(row?.title).toBe("mat-phang");
+    expect(row?.content).toEqual({
+      kind: "media",
+      type: "image",
+      src: "data:image/webp;base64,UPLOADED",
+      thumb: "data:image/jpeg;base64,THUMB",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: 'Đổi tên "mat-phang"' }));
+    fireEvent.change(screen.getByLabelText("Tên mới"), { target: { value: "Mặt phẳng (P)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu tên" }));
+    await waitFor(() => expect(row?.title).toBe("Mặt phẳng (P)"));
+    expect(screen.getByRole("button", { name: 'Chèn "Mặt phẳng (P)"' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: 'Xóa "Mặt phẳng (P)"' }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa" }));
+    await waitFor(() =>
+      expect(store.rows.some((r) => r.lesson_key.startsWith("img:"))).toBe(false),
+    );
+    expect(store.rows.map((r) => r.lesson_key)).toEqual(["slides:a"]);
+  });
+
+  it("a picture used by link is kept in the library too", async () => {
+    const store = await openWith([]);
+    fireEvent.click(screen.getByRole("button", { name: "Hình ảnh" }));
+    fireEvent.change(await screen.findByLabelText("Hoặc dùng đường link ảnh"), {
+      target: { value: "https://example.com/hinh-chop.jpg" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Dùng link" }));
+    await waitFor(() =>
+      expect(store.rows.find((r) => r.lesson_key.startsWith("img:"))?.title).toBe("hinh-chop"),
+    );
+  });
+
+  it("the teacher's own models appear under Mô hình của tôi and can be inserted", async () => {
+    await openWith([libraryRow("glb:1", "Hình chóp tứ giác", "https://example.com/chop.glb")]);
+    fireEvent.click(screen.getByRole("button", { name: "Mô hình 3D" }));
+    const mine = await screen.findByRole("region", { name: "Mô hình của tôi" });
+    await waitFor(() => expect(within(mine).getAllByTestId("library-item")).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Tìm mô hình theo tên"), {
+      target: { value: "khung thanh" },
+    });
+    expect(
+      within(screen.getByRole("region", { name: "Mô hình dùng chung" })).getAllByRole("button"),
+    ).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("Tìm mô hình theo tên"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: 'Chèn "Hình chóp tứ giác"' }));
+    await waitFor(() =>
+      expect(screen.getByTestId("model").getAttribute("data-model")).toBe(
+        "https://example.com/chop.glb",
+      ),
+    );
   });
 });

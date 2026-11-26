@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { CustomLesson } from "../CustomLesson";
 import { SlideLessonView } from "./SlideLessonView";
@@ -76,14 +76,14 @@ describe("SlideLessonView", () => {
   it("after the last element Enter moves to the next slide, and Backspace returns fully shown", () => {
     const c = lesson();
     render(<SlideLessonView content={c} />);
-    expect(screen.getByText(/Slide 1\/2/)).toBeTruthy();
+    expect(screen.getByText(/Hoạt động 1 · Slide 1\/1/)).toBeTruthy();
     press("Enter");
     press("Enter");
-    expect(screen.getByText(/Slide 1\/2/)).toBeTruthy();
+    expect(screen.getByText(/Hoạt động 1 · Slide 1\/1/)).toBeTruthy();
     press("Enter");
-    expect(screen.getByText(/Khám phá · Slide 2\/2/)).toBeTruthy();
+    expect(screen.getByText(/Khám phá · Slide 1\/1/)).toBeTruthy();
     press("Backspace");
-    expect(screen.getByText(/Slide 1\/2/)).toBeTruthy();
+    expect(screen.getByText(/Hoạt động 1 · Slide 1\/1/)).toBeTruthy();
     const [title, body] = c.activities[0]!.slides[0]!.elements as unknown as [
       { id: string },
       { id: string },
@@ -162,6 +162,46 @@ describe("SlideLessonView", () => {
   it("shows a plain message for content that is not a slide lesson", () => {
     render(<SlideLessonView content={{ text: "chữ" }} />);
     expect(screen.getByText("Chưa có nội dung bài học.")).toBeTruthy();
+  });
+});
+
+describe("SlideLessonView normal mode and activity bar", () => {
+  it("normal mode shows every slide whole and Enter goes slide by slide", () => {
+    const c = lesson();
+    render(<SlideLessonView content={c} stepped={false} />);
+    const [title, body] = c.activities[0]!.slides[0]!.elements as unknown as [
+      { id: string },
+      { id: string },
+    ];
+    expect(hidden(title.id)).toBe(false);
+    expect(hidden(body.id)).toBe(false);
+    press("Enter");
+    expect(screen.getByText(/Khám phá · Slide 1\/1/)).toBeTruthy();
+    press("ArrowLeft");
+    expect(screen.getByText(/Hoạt động 1 · Slide 1\/1/)).toBeTruthy();
+  });
+  it("lists every activity and jumps to the one clicked, in either mode", () => {
+    for (const stepped of [false, true]) {
+      render(<SlideLessonView content={lesson()} stepped={stepped} />);
+      const nav = screen.getByRole("navigation", { name: "Các hoạt động trong bài học" });
+      expect(
+        within(nav)
+          .getAllByRole("button")
+          .map((b) => b.querySelector("strong")?.textContent),
+      ).toEqual(["Hoạt động 1", "Khám phá"]);
+      fireEvent.click(within(nav).getByRole("button", { name: /Khám phá/ }));
+      expect(screen.getByText(/Khám phá · Slide 1\/1/)).toBeTruthy();
+      expect(
+        within(nav)
+          .getByRole("button", { name: /Khám phá/ })
+          .getAttribute("aria-current"),
+      ).toBe("step");
+      cleanup();
+    }
+  });
+  it("the presentation view has no activity bar", () => {
+    render(<SlideLessonView content={lesson()} bare />);
+    expect(screen.queryByRole("navigation")).toBeNull();
   });
 });
 

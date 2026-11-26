@@ -20,6 +20,14 @@ const rows: Row[] = [
     id: "1",
   },
   {
+    lesson_key: "img:pic",
+    title: "Ảnh trong thư viện",
+    content: { kind: "media", type: "image", src: "data:x", thumb: "" },
+    owner_id: "me",
+    created_at: "0",
+    id: "0",
+  },
+  {
     lesson_key: "slides:abc",
     title: "Bài slide mới",
     content: newSlideContent(),
@@ -30,9 +38,22 @@ const rows: Row[] = [
 ];
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
-      select: () => ({ order: () => Promise.resolve({ data: [...rows], error: null }) }),
-    }),
+    from: () => {
+      // the catalogue asks the database to leave library rows out; this fake honours that
+      const skip: string[] = [];
+      const chain = {
+        not: (_c: string, _op: string, pattern: string) => {
+          skip.push(pattern.replace("%", ""));
+          return chain;
+        },
+        order: () =>
+          Promise.resolve({
+            data: rows.filter((r) => !skip.some((p) => r.lesson_key.startsWith(p))),
+            error: null,
+          }),
+      };
+      return { select: () => chain };
+    },
   },
 }));
 
@@ -40,7 +61,7 @@ import { LessonCatalogue } from "./LessonCatalogue";
 
 afterEach(() => {
   cleanup();
-  rows.splice(2);
+  rows.splice(3);
 });
 const labels = () =>
   within(screen.getByLabelText("Chọn bài học"))
@@ -65,7 +86,7 @@ describe("LessonCatalogue (Bài học page)", () => {
     render(<LessonCatalogue userId="me" value="12" disabled={false} onChange={onChange} />);
     await waitFor(() => expect(labels()).toHaveLength(5));
     fireEvent.change(screen.getByLabelText("Chọn bài học"), { target: { value: "slides:abc" } });
-    expect(onChange).toHaveBeenCalledWith("slides:abc", "Bài slide mới", rows[1]!.content);
+    expect(onChange).toHaveBeenCalledWith("slides:abc", "Bài slide mới", rows[2]!.content);
   });
 
   it("a lesson saved in Soạn bài giảng appears when this page regains focus, without a reload", async () => {

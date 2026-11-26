@@ -17,6 +17,7 @@ export const MODEL_LIBRARY: readonly ModelEntry[] = [
   { id: "pair-coincident", name: "Hai đường thẳng trùng nhau", group: "Hai đường thẳng" },
   { id: "pair-skew", name: "Hai đường thẳng chéo nhau", group: "Hai đường thẳng" },
   { id: "cube", name: "Hình lập phương MNPQ.M′N′P′Q′", group: "Hình khối" },
+  { id: "goal", name: "Khung thành bóng đá (thanh thép và mặt sân)", group: "Mô hình thực tế" },
 ];
 export function modelName(id: string | undefined): string {
   return MODEL_LIBRARY.find((m) => m.id === id)?.name ?? "Mô hình 3D";

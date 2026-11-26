@@ -10,6 +10,7 @@ import {
   SendToBack,
   Trash2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { ElementPatch } from "@/lib/slides/model";
 import { slotOf } from "@/lib/slides/layouts";
 import type { Align, Box, Slide, SlideElement } from "@/lib/slides/types";
@@ -17,6 +18,74 @@ import { modelName } from "@/lib/slides/model-library";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { TYPE_NAMES } from "./labels";
+
+/**
+ * A number box you can type into: what you type is kept as you type it and only applied with Enter,
+ * on leaving the box, or straight away for the spinner arrows. Out-of-range values are brought into range.
+ */
+export function DraftNumber({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  className,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  className: string;
+  onCommit: (v: number) => void;
+}) {
+  const shown = String(Math.round(value * 100) / 100);
+  const [text, setText] = useState(shown);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(shown);
+  }, [shown, focused]);
+  function apply(raw: string) {
+    const v = Number(raw.replace(",", "."));
+    if (raw.trim() === "" || !Number.isFinite(v)) {
+      setText(shown);
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, v));
+    setText(String(clamped));
+    if (clamped !== value) onCommit(clamped);
+  }
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      aria-label={label}
+      className={className}
+      value={text}
+      min={min}
+      max={max}
+      step={step}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => {
+        setText(e.target.value);
+        // typing has an inputType; spinner arrows and the arrow keys do not, so they apply at once
+        const typed = Boolean((e.nativeEvent as InputEvent).inputType);
+        if (!typed) apply(e.target.value);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        apply(e.target.value);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          apply((e.target as HTMLInputElement).value);
+        } else if (e.key === "Escape") setText(shown);
+      }}
+    />
+  );
+}
 
 function NumberField({
   label,
@@ -36,19 +105,14 @@ function NumberField({
   return (
     <label className="flex items-center gap-1 text-xs">
       <span className="w-12 shrink-0 text-muted-foreground">{label}</span>
-      <input
-        type="number"
-        aria-label={label}
-        className="h-7 w-full min-w-0 rounded border bg-background px-1 text-sm"
-        value={Math.round(value * 100) / 100}
+      <DraftNumber
+        label={label}
+        value={value}
         min={min}
         max={max}
         step={step}
-        onChange={(e) => {
-          const v = Number(e.target.value);
-          if (e.target.value !== "" && Number.isFinite(v))
-            onChange(Math.min(max, Math.max(min, v)));
-        }}
+        className="h-7 w-full min-w-0 rounded border bg-background px-1 text-sm"
+        onCommit={onChange}
       />
     </label>
   );
@@ -159,17 +223,13 @@ export function ElementInspector({
           <div className="flex flex-wrap items-center gap-1">
             <label className="flex items-center gap-1 text-xs">
               <span className="text-muted-foreground">Cỡ chữ</span>
-              <input
-                type="number"
-                aria-label="Cỡ chữ"
+              <DraftNumber
+                label="Cỡ chữ"
                 className="h-7 w-16 rounded border bg-background px-1 text-sm"
                 min={8}
                 max={200}
                 value={el.fontSize ?? (el.type === "title" ? 40 : 24)}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (e.target.value !== "" && v >= 8 && v <= 200) onPatch({ fontSize: v });
-                }}
+                onCommit={(v) => onPatch({ fontSize: v })}
               />
             </label>
             <Button
