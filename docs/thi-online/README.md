@@ -17,3 +17,8 @@ server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc đ�
 > Hãy tạo migration mới với đúng SQL trong `docs/thi-online/02-mat-khau-mac-dinh.sql`
 > (thêm cột default_password_enc cho exam_classes; password_enc và password_by_student cho exam_students),
 > rồi cập nhật lại types. Không sửa code khác.
+
+## Giai đoạn 3: ngân hàng đề
+
+> Hãy tạo migration mới với đúng SQL trong `docs/thi-online/03-ngan-hang-de.sql`
+> (bảng exam_banks, exam_questions và chính sách RLS), rồi cập nhật lại types. Không sửa code khác.

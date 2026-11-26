@@ -57,6 +57,7 @@ use the editor.
 - Keep Activity 1's fixed football-goal dimensions and steel-member coordinates in a pure geometry module, separate from its R3F scene, so camera movement cannot alter the model.
 
 - Online-exam students are not Supabase Auth users: teacher-issued usernames with PBKDF2 hashes in exam_students (plus an AES-GCM copy, keyed by HKDF from the server's service-role secret, so the teacher can read class default and student-changed passwords), random session tokens stored only as SHA-256 in exam_student_sessions, all reads/writes through src/lib/exam server functions with the service role after checking class ownership, so student accounts never reach teacher-only routes or RLS.
+- Exam questions (exam_banks/exam_questions, teacher-owned RLS) keep a jsonb body validated by questionBodySchema on every write and read; scoring rules live only in pure grading.ts (short answers compared by value after normalizeShortInput, true/false by TF_SHARES_THPT), so the editor's trial and the server's grading never disagree.
 
 ## Database migrations
 - Schema changes are new ALTER migrations after the 0000_create_classroom_schema baseline, never edits to it, so history replays cleanly.
