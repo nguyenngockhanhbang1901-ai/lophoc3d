@@ -215,6 +215,7 @@ export type Database = {
         Row: {
           archived: boolean
           created_at: string
+          default_password_enc: string | null
           id: string
           name: string
           owner_id: string
@@ -224,6 +225,7 @@ export type Database = {
         Insert: {
           archived?: boolean
           created_at?: string
+          default_password_enc?: string | null
           id?: string
           name: string
           owner_id?: string
@@ -233,6 +235,7 @@ export type Database = {
         Update: {
           archived?: boolean
           created_at?: string
+          default_password_enc?: string | null
           id?: string
           name?: string
           owner_id?: string
@@ -320,6 +323,8 @@ export type Database = {
           id: string
           locked: boolean
           owner_id: string
+          password_by_student: boolean
+          password_enc: string | null
           password_hash: string
           password_set_at: string
           student_code: string | null
@@ -333,6 +338,8 @@ export type Database = {
           id?: string
           locked?: boolean
           owner_id: string
+          password_by_student?: boolean
+          password_enc?: string | null
           password_hash: string
           password_set_at?: string
           student_code?: string | null
@@ -346,6 +353,8 @@ export type Database = {
           id?: string
           locked?: boolean
           owner_id?: string
+          password_by_student?: boolean
+          password_enc?: string | null
           password_hash?: string
           password_set_at?: string
           student_code?: string | null
