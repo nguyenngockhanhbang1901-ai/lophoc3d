@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeacher } from "@/components/slides/use-teacher";
 import { TeacherClasses } from "@/components/exam/TeacherClasses";
+import { ExamNav } from "@/components/exam/ExamNav";
 
 export const Route = createFileRoute("/lop-thi")({
   ssr: false,
@@ -29,15 +30,7 @@ function TeacherClassesPage() {
   const user = useTeacher();
   return (
     <main className="mx-auto min-h-screen max-w-[1400px] px-4 py-4">
-      <header className="mb-4 flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/">
-            <ArrowLeft />
-            Lớp học
-          </Link>
-        </Button>
-        <h1 className="text-lg font-semibold">Thi online · Lớp và tài khoản học sinh</h1>
-      </header>
+      <ExamNav current="/lop-thi" />
       {user === undefined ? (
         <p className="text-muted-foreground">Đang tải…</p>
       ) : user === null ? (

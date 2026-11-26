@@ -26,5 +26,6 @@ describe("App routing", () => {
 
     expect(router.matchRoutes("/lop-thi").at(-1)?.routeId).toBe("/lop-thi");
     expect(router.matchRoutes("/hoc-sinh").at(-1)?.routeId).toBe("/hoc-sinh");
+    expect(router.matchRoutes("/ngan-hang-de").at(-1)?.routeId).toBe("/ngan-hang-de");
   });
 });
