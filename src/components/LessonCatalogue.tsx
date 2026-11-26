@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pencil, Plus, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_LESSONS, customLessonText } from "@/lib/lessons";
+import { MEDIA_KEY_PATTERNS, isMediaKey } from "@/lib/slides/media-library";
 import { isSlideLessonKey } from "@/lib/slides/model";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -41,9 +42,12 @@ export function LessonCatalogue({
       void supabase
         .from("lessons")
         .select()
+        // pictures and models of the slide library share the table; they are not lessons
+        .not("lesson_key", "like", MEDIA_KEY_PATTERNS[0] as string)
+        .not("lesson_key", "like", MEDIA_KEY_PATTERNS[1] as string)
         .order("created_at")
         .then(({ data }) => {
-          if (!cancelled && data) setLessons(data);
+          if (!cancelled && data) setLessons(data.filter((l) => !isMediaKey(l.lesson_key)));
         });
     };
     load();

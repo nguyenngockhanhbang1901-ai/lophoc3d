@@ -73,3 +73,25 @@ export function isWebUrl(value: string): boolean {
     return false;
   }
 }
+
+/** A small preview (longest side 240 px) for the library grid. */
+export async function imageThumb(src: string): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error("Không đọc được ảnh"));
+    i.src = src;
+  });
+  const scale = Math.min(1, 240 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.7);
+}
+/** File name without its extension, as a starting name for the library. */
+export const baseName = (name: string) => name.replace(/\.[^.]+$/, "").slice(0, 150);

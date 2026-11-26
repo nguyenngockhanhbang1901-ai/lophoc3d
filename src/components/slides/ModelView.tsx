@@ -5,6 +5,9 @@ const GeometryView = lazy(() => import("../GeometryView"));
 const LinePairView = lazy(() => import("../LinePairView"));
 const CubePracticeView = lazy(() => import("../CubePracticeView"));
 const UserModelView = lazy(() => import("./UserModelView"));
+const GoalModelViewer = lazy(() =>
+  import("../ActivityOne").then((m) => ({ default: m.GoalModelViewer })),
+);
 
 /** One library model, drawn by the lesson's own scene component; sized by `.slide-model3d` to fill its box. */
 export function ModelView({ id, src }: { id: string | undefined; src?: string | undefined }) {
@@ -35,6 +38,8 @@ export function ModelView({ id, src }: { id: string | undefined; src?: string | 
           <LinePairView kind="coincident" />
         ) : id === "pair-skew" ? (
           <LinePairView kind="skew" />
+        ) : id === "goal" ? (
+          <GoalModelViewer highlightedMember={null} questionNumber={0} compact />
         ) : (
           <CubePracticeView />
         )}

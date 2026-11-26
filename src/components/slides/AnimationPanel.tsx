@@ -57,7 +57,7 @@ export function AnimationPanel({
       <p className="text-xs text-muted-foreground">
         {steps === 0
           ? "Mọi phần tử hiện ngay khi mở slide."
-          : `Slide cần ${steps} lần nhấn Enter. Kéo để đổi thứ tự; chọn "Cùng lúc với phần tử trước" để gộp vào lượt trên.`}
+          : `Số là thứ tự xuất hiện (${steps} lượt); số 0 là hiện ngay. Kéo để đổi thứ tự; chọn "Cùng lúc với phần tử trước" để gộp vào lượt trên.`}
       </p>
       <ol className="flex flex-col gap-1">
         {rows.map((r, i) => {
@@ -97,10 +97,10 @@ export function AnimationPanel({
                   aria-hidden="true"
                 />
                 <span
-                  className="inline-flex h-5 min-w-9 shrink-0 items-center justify-center rounded bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
-                  title={r.step === 0 ? "Hiện ngay khi mở slide" : `Lần nhấn Enter thứ ${r.step}`}
+                  className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
+                  title={r.step === 0 ? "Hiện ngay khi mở slide" : `Xuất hiện ở lượt ${r.step}`}
                 >
-                  {r.step === 0 ? "Ngay" : `Enter ${r.step}`}
+                  {r.step}
                 </span>
                 <button
                   type="button"

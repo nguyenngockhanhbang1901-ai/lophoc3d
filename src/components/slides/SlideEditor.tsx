@@ -85,7 +85,14 @@ import { SlideStage } from "./SlideStage";
 import { ElementInspector } from "./ElementInspector";
 import { AnimationPanel } from "./AnimationPanel";
 import { LayoutPicker } from "./LayoutPicker";
-import { MediaDialog, type MediaKind, type MediaPick } from "./MediaDialog";
+import { MediaDialog, type MediaKind, type MediaLibrary, type MediaPick } from "./MediaDialog";
+import {
+  deleteMedia,
+  listMedia,
+  loadMediaSrc,
+  renameMedia,
+  saveMedia,
+} from "@/lib/slides/media-library";
 import { domMeasure } from "./measure";
 
 export const OVERFLOW_MESSAGE =
@@ -160,6 +167,16 @@ export function SlideEditor({
     : null;
   const found = content && slideId ? findSlide(content, slideId) : null;
   const slide = found?.slide ?? null;
+  const library = useMemo<MediaLibrary>(
+    () => ({
+      list: (type) => listMedia(client, userId, type),
+      load: (key) => loadMediaSrc(client, userId, key),
+      save: (type, name, src, thumb) => saveMedia(client, userId, type, name, src, thumb),
+      rename: (key, name) => renameMedia(client, userId, key, name),
+      remove: (key) => deleteMedia(client, userId, key),
+    }),
+    [client, userId],
+  );
   const selectedEl = slide?.elements.find((e) => e.id === elementId) ?? null;
   const numbers = useMemo(
     () =>
@@ -791,7 +808,7 @@ export function SlideEditor({
                 <p className="text-xs text-muted-foreground">
                   Bấm đúp vào chữ để sửa · kéo các ô vuông để đổi kích thước (Shift giữ tỉ lệ) ·
                   phím mũi tên để dịch từng chút · Delete để xóa · giữ Alt để đặt tự do không bám
-                  đường căn · số xanh là lượt Enter.
+                  đường căn · số xanh là thứ tự xuất hiện khi bấm Enter.
                 </p>
               </>
             )}
@@ -899,6 +916,7 @@ export function SlideEditor({
       <MediaDialog
         kind={media?.kind ?? null}
         switchable={media?.switchable ?? false}
+        library={library}
         initial={
           media?.elementId
             ? (() => {

@@ -5,9 +5,10 @@ import { SlideArrows } from "./SlideArrows";
 import { reveal } from "@/lib/reveal";
 import { parseSlideContent } from "@/lib/slides/model";
 import { SlideLessonView } from "./slides/SlideLessonView";
-export function CustomLesson({ content }: { content: unknown }) {
-  // Slide lessons (made in Soạn bài giảng) have their own viewer; plain text lessons below are unchanged.
-  if (parseSlideContent(content)) return <SlideLessonView content={content} />;
+export function CustomLesson({ content, stepped = true }: { content: unknown; stepped?: boolean }) {
+  // Slide lessons (made in Soạn bài giảng) have their own viewer, step by step only in lecture and
+  // presentation modes; plain text lessons below are unchanged.
+  if (parseSlideContent(content)) return <SlideLessonView content={content} stepped={stepped} />;
   return <TextLesson content={content} />;
 }
 function TextLesson({ content }: { content: unknown }) {
