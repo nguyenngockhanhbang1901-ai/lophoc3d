@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BookOpen,
+  Copy,
+  Plus,
+  Presentation,
+  Redo2,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   addActivity,
@@ -63,9 +73,12 @@ type Pending = { row: SlideLessonRow };
 export function SlideEditor({
   userId,
   client = supabase,
+  initialKey = "",
 }: {
   userId: string;
   client?: SlideStore;
+  /** Lesson to open first (from the Bài học page or the viewer); falls back to the first lesson. */
+  initialKey?: string;
 }) {
   const [lessons, setLessons] = useState<SlideLessonRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -129,7 +142,7 @@ export function SlideEditor({
         setLessons(rows);
         setUnreadable(bad);
         setLoaded(true);
-        const first = rows[0];
+        const first = rows.find((r) => r.lesson_key === initialKey) ?? rows[0];
         if (first) {
           setActiveKey(first.lesson_key);
           setTitle(first.title);
@@ -170,6 +183,12 @@ export function SlideEditor({
   function selectLesson(key: string) {
     const row = lessons.find((l) => l.lesson_key === key);
     if (row && row.lesson_key !== activeKey) openLesson(row);
+  }
+  /** Saves what is pending, then opens the lesson read from the database in a new tab. */
+  function openViewer(mode: "lecture" | "presentation") {
+    if (!activeKey) return;
+    const url = `/xem-bai?lesson=${encodeURIComponent(activeKey)}&mode=${mode}`;
+    void flush().then(() => window.open(url, "_blank"));
   }
   function createLesson() {
     void flush();
@@ -317,6 +336,18 @@ export function SlideEditor({
           <Plus />
           Thêm bài học
         </Button>
+        {activeKey && (
+          <>
+            <Button variant="outline" size="sm" onClick={() => openViewer("lecture")}>
+              <BookOpen />
+              Xem bài giảng
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => openViewer("presentation")}>
+              <Presentation />
+              Trình chiếu
+            </Button>
+          </>
+        )}
         {activeKey && (
           <Button
             variant="outline"

@@ -5,6 +5,7 @@ import { ArrowLeft, GraduationCap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SlideEditor } from "@/components/slides/SlideEditor";
+import { useTeacher } from "@/components/slides/use-teacher";
 
 export const Route = createFileRoute("/soan-bai")({
   ssr: false,
@@ -22,20 +23,14 @@ export const Route = createFileRoute("/soan-bai")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { lesson?: string } => (typeof search['lesson'] === 'string' && search['lesson'] ? { lesson: search['lesson'] } : {}),
   component: SlideEditorPage,
 });
 
 function SlideEditorPage() {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const user = useTeacher();
+  const { lesson = '' } = Route.useSearch();
   const navigate = useNavigate();
-  useEffect(() => {
-    const refresh = () => {
-      void supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    };
-    refresh();
-    window.addEventListener("classroom-auth-changed", refresh);
-    return () => window.removeEventListener("classroom-auth-changed", refresh);
-  }, []);
   return (
     <main className="mx-auto min-h-screen max-w-[1500px] px-4 py-4">
       <header className="mb-4 flex items-center gap-3">
@@ -65,7 +60,7 @@ function SlideEditorPage() {
           </Button>
         </section>
       ) : (
-        <SlideEditor userId={user.id} />
+        <SlideEditor userId={user.id} initialKey={lesson} />
       )}
     </main>
   );

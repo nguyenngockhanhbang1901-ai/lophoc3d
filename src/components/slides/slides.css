@@ -1,0 +1,16 @@
+/* Slide drawing. Sizes are container units (cqw) of the 16:9 slide, so one slide looks the same at any size. */
+.slide-canvas { position: relative; width: 100%; aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; background: #fff; color: #111827; border: 1px solid var(--border); border-radius: 6px; user-select: none; }
+.slide-el { position: absolute; box-sizing: border-box; transition: opacity 0.45s ease; }
+.slide-el[data-hidden="true"] { opacity: 0; pointer-events: none; transition: none; }
+.slide-text { width: 100%; height: 100%; padding: 0.5cqw 0.8cqw; line-height: 1.25; white-space: pre-wrap; overflow-wrap: anywhere; overflow: hidden; margin: 0; }
+.slide-text[data-overflow="visible"] { overflow: visible; }
+.slide-text .math-inline { font-size: 1em; }
+.slide-image { width: 100%; height: 100%; object-fit: contain; display: block; }
+.slide-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; border: 0.2cqw dashed #9ca3af; color: #6b7280; font-size: 1.8cqw; padding: 1cqw; box-sizing: border-box; }
+.slide-model3d { position: absolute; inset: 0; }
+.slide-model3d .geometry-view, .slide-model3d .cube-practice-view { height: 100% !important; width: 100%; border-radius: 0.6cqw; }
+.slide-model-missing { margin: 0; padding: 1cqw; font-size: 1.8cqw; color: #6b7280; }
+.slide-el[data-edit="true"] .slide-model3d, .slide-el[data-edit="true"] .slide-image { pointer-events: none; }
+.slide-frame { margin-inline: auto; width: min(100%, calc((100dvh - var(--slide-reserve, 240px)) * 16 / 9)); }
+.slide-order-badge { position: absolute; left: -0.6cqw; top: -0.6cqw; min-width: 2.2cqw; height: 2.2cqw; padding: 0 0.4cqw; border-radius: 1.1cqw; background: #2563eb; color: #fff; font-size: 1.5cqw; font-weight: 600; display: flex; align-items: center; justify-content: center; z-index: 5; pointer-events: none; }
+.slide-lesson-status { margin: 0 0 6px; font-size: 13px; color: var(--muted-foreground, #6b7280); }
