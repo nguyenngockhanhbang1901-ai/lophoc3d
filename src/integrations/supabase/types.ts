@@ -211,6 +211,156 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_classes: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          school_year: string
+          subject: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          owner_id?: string
+          school_year?: string
+          subject?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          school_year?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      exam_login_logs: {
+        Row: {
+          at: string
+          id: string
+          student_id: string | null
+          success: boolean
+          user_agent: string
+          username: string
+        }
+        Insert: {
+          at?: string
+          id?: string
+          student_id?: string | null
+          success: boolean
+          user_agent?: string
+          username: string
+        }
+        Update: {
+          at?: string
+          id?: string
+          student_id?: string | null
+          success?: boolean
+          user_agent?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_login_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_student_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          last_seen_at: string
+          student_id: string
+          token_hash: string
+          user_agent: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          last_seen_at?: string
+          student_id: string
+          token_hash: string
+          user_agent?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          last_seen_at?: string
+          student_id?: string
+          token_hash?: string
+          user_agent?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_student_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_students: {
+        Row: {
+          birth_date: string | null
+          class_id: string
+          created_at: string
+          full_name: string
+          id: string
+          locked: boolean
+          owner_id: string
+          password_hash: string
+          password_set_at: string
+          student_code: string | null
+          username: string
+        }
+        Insert: {
+          birth_date?: string | null
+          class_id: string
+          created_at?: string
+          full_name: string
+          id?: string
+          locked?: boolean
+          owner_id: string
+          password_hash: string
+          password_set_at?: string
+          student_code?: string | null
+          username: string
+        }
+        Update: {
+          birth_date?: string | null
+          class_id?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          locked?: boolean
+          owner_id?: string
+          password_hash?: string
+          password_set_at?: string
+          student_code?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_ai_prepared: {
         Row: {
           answer: string
