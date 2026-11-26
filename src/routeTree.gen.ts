@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Activity1RouteImport } from './routes/activity-1'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as HocSinhRouteImport } from './routes/hoc-sinh'
+import { Route as LopThiRouteImport } from './routes/lop-thi'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SoanBaiRouteImport } from './routes/soan-bai'
 import { Route as XemBaiRouteImport } from './routes/xem-bai'
@@ -29,6 +31,16 @@ const Activity1Route = Activity1RouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HocSinhRoute = HocSinhRouteImport.update({
+  id: '/hoc-sinh',
+  path: '/hoc-sinh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LopThiRoute = LopThiRouteImport.update({
+  id: '/lop-thi',
+  path: '/lop-thi',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -51,6 +63,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/hoc-sinh': typeof HocSinhRoute
+  '/lop-thi': typeof LopThiRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
@@ -59,6 +73,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/hoc-sinh': typeof HocSinhRoute
+  '/lop-thi': typeof LopThiRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
@@ -68,6 +84,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/hoc-sinh': typeof HocSinhRoute
+  '/lop-thi': typeof LopThiRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
@@ -75,15 +93,31 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/activity-1' | '/auth' | '/reset-password' | '/soan-bai' | '/xem-bai'
+    | '/'
+    | '/activity-1'
+    | '/auth'
+    | '/hoc-sinh'
+    | '/lop-thi'
+    | '/reset-password'
+    | '/soan-bai'
+    | '/xem-bai'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/activity-1' | '/auth' | '/reset-password' | '/soan-bai' | '/xem-bai'
+    | '/'
+    | '/activity-1'
+    | '/auth'
+    | '/hoc-sinh'
+    | '/lop-thi'
+    | '/reset-password'
+    | '/soan-bai'
+    | '/xem-bai'
   id:
     | '__root__'
     | '/'
     | '/activity-1'
     | '/auth'
+    | '/hoc-sinh'
+    | '/lop-thi'
     | '/reset-password'
     | '/soan-bai'
     | '/xem-bai'
@@ -93,6 +127,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Activity1Route: typeof Activity1Route
   AuthRoute: typeof AuthRoute
+  HocSinhRoute: typeof HocSinhRoute
+  LopThiRoute: typeof LopThiRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SoanBaiRoute: typeof SoanBaiRoute
   XemBaiRoute: typeof XemBaiRoute
@@ -119,6 +155,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hoc-sinh': {
+      id: '/hoc-sinh'
+      path: '/hoc-sinh'
+      fullPath: '/hoc-sinh'
+      preLoaderRoute: typeof HocSinhRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lop-thi': {
+      id: '/lop-thi'
+      path: '/lop-thi'
+      fullPath: '/lop-thi'
+      preLoaderRoute: typeof LopThiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -149,6 +199,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Activity1Route: Activity1Route,
   AuthRoute: AuthRoute,
+  HocSinhRoute: HocSinhRoute,
+  LopThiRoute: LopThiRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SoanBaiRoute: SoanBaiRoute,
   XemBaiRoute: XemBaiRoute,

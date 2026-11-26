@@ -56,6 +56,8 @@ use the editor.
 - Solid/dashed line parts are computed per frame from the live camera by pure visibility math; points on the plane are never hidden.
 - Keep Activity 1's fixed football-goal dimensions and steel-member coordinates in a pure geometry module, separate from its R3F scene, so camera movement cannot alter the model.
 
+- Online-exam students are not Supabase Auth users: teacher-issued usernames with PBKDF2 hashes in exam_students, random session tokens stored only as SHA-256 in exam_student_sessions, all reads/writes through src/lib/exam server functions with the service role after checking class ownership, so student accounts never reach teacher-only routes or RLS.
+
 ## Database migrations
 - Schema changes are new ALTER migrations after the 0000_create_classroom_schema baseline, never edits to it, so history replays cleanly.
 - Lesson formulas are TeX between `$...$` in the pure lesson data, typeset only by MathText (KaTeX, `\ss` macro = "//"), so every symbol uses one math font and textbook spacing.
