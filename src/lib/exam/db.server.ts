@@ -13,6 +13,7 @@ export interface ExamClassRow {
   school_year: string;
   subject: string;
   archived: boolean;
+  default_password_enc: string | null;
   created_at: string;
 }
 
@@ -25,13 +26,15 @@ export interface ExamStudentRow {
   student_code: string | null;
   username: string;
   password_hash: string;
+  password_enc: string | null;
+  password_by_student: boolean;
   locked: boolean;
   password_set_at: string;
   created_at: string;
 }
 
 export const STUDENT_PUBLIC_COLUMNS =
-  "id,class_id,full_name,birth_date,student_code,username,locked,password_set_at,created_at";
+  "id,class_id,full_name,birth_date,student_code,username,locked,password_set_at,created_at,password_enc,password_by_student";
 
 export function examDb(): SupabaseClient {
   return supabaseAdmin as unknown as SupabaseClient;
@@ -103,4 +106,11 @@ export async function sessionStudent(token: string): Promise<StudentSession> {
       .eq("token_hash", tokenHash);
   }
   return { tokenHash, student: student as ExamStudentRow };
+}
+
+/** Server secret the password copies are encrypted with (never stored in the database). */
+export function passwordKey(): string {
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!key) throw new Error("Thiếu khóa máy chủ để mã hóa mật khẩu");
+  return key;
 }

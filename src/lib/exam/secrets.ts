@@ -79,3 +79,54 @@ export async function hashToken(token: string): Promise<string> {
 }
 
 export const SESSION_DAYS = 30;
+
+// Reversible copy of a password so the teacher can read it back. AES-GCM with a key derived
+// (HKDF) from a server secret, so the database alone never reveals passwords.
+async function aesKey(secret: string): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey("raw", encoder.encode(secret), "HKDF", false, [
+    "deriveKey",
+  ]);
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: encoder.encode("lophoc3d-exam-password"),
+      info: encoder.encode("v1"),
+    },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+/** "v1:<iv>:<ciphertext>" */
+export async function encryptSecret(plain: string, secret: string): Promise<string> {
+  const iv = randomBytes(12);
+  const data = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    await aesKey(secret),
+    encoder.encode(plain),
+  );
+  return `v1:${toBase64(iv)}:${toBase64(new Uint8Array(data))}`;
+}
+
+/** The plain text, or null when it cannot be read (missing, damaged, or the key changed). */
+export async function decryptSecret(
+  stored: string | null | undefined,
+  secret: string,
+): Promise<string | null> {
+  if (!stored) return null;
+  const [version, iv, data] = stored.split(":");
+  if (version !== "v1" || !iv || !data) return null;
+  try {
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: fromBase64(iv) as BufferSource },
+      await aesKey(secret),
+      fromBase64(data) as BufferSource,
+    );
+    return new TextDecoder().decode(plain);
+  } catch {
+    return null;
+  }
+}

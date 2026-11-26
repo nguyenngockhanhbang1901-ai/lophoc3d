@@ -56,7 +56,7 @@ export function makePassword(randomBytes: ArrayLike<number>): string {
   return out;
 }
 
-/** A password a student may choose: 6–64 characters, no leading/trailing spaces. */
+/** A password a teacher (class default) or student may set: 6–64 characters, no leading/trailing spaces. */
 export function passwordProblem(password: string): string | null {
   if (password.length < 6) return "Mật khẩu cần ít nhất 6 ký tự";
   if (password.length > 64) return "Mật khẩu tối đa 64 ký tự";

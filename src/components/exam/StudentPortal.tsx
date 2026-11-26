@@ -215,9 +215,7 @@ function LoginForm({
         )}
         <Button disabled={busy}>{busy ? "Đang đăng nhập…" : "Đăng nhập"}</Button>
       </form>
-      <p className="mt-4 text-sm text-muted-foreground">
-        Quên mật khẩu? Hãy nhờ giáo viên cấp lại mật khẩu mới.
-      </p>
+      <p className="mt-4 text-sm text-muted-foreground">Quên mật khẩu? Hãy hỏi giáo viên.</p>
     </div>
   );
 }
@@ -338,7 +336,8 @@ function ProfileTab({
           <Button disabled={busy}>{busy ? "Đang đổi…" : "Đổi mật khẩu"}</Button>
         </form>
         <p className="mt-3 text-xs text-muted-foreground">
-          Không bắt buộc đổi. Nếu quên mật khẩu, giáo viên sẽ cấp mật khẩu mới.
+          Không bắt buộc đổi. Giáo viên xem được mật khẩu của em; nếu quên, nhờ giáo viên xem lại
+          hoặc đặt lại về mật khẩu mặc định của lớp.
         </p>
       </div>
     </div>

@@ -4,6 +4,8 @@ import {
   Archive,
   ArchiveRestore,
   Download,
+  Eye,
+  EyeOff,
   FileSpreadsheet,
   History,
   KeyRound,
@@ -13,6 +15,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  RefreshCw,
   Trash2,
   Upload,
   UserPlus,
@@ -27,25 +30,21 @@ import {
   listClassStudents,
   listExamClasses,
   moveStudents,
-  resetPasswords,
+  resetToDefaultPassword,
   saveExamClass,
   setStudentsLocked,
   studentLoginLog,
   updateStudent,
   type ExamClassSummary,
   type ExamStudentSummary,
-  type IssuedAccount,
 } from "@/lib/exam/classes.functions";
 import { parseRoster, displayDate, type RosterResult, type RosterStudent } from "@/lib/exam/roster";
-import {
-  downloadAccounts,
-  downloadClassList,
-  downloadTemplate,
-  printSlips,
-  readRosterFile,
-} from "@/lib/exam/files";
+import { passwordProblem } from "@/lib/exam/accounts";
+import { downloadClassList, downloadTemplate, printSlips, readRosterFile } from "@/lib/exam/files";
 
 const GROUP = 10;
+/** Student passwords changed on their own devices show up here without a manual reload. */
+const REFRESH_MS = 30_000;
 
 type DialogKind =
   | { kind: "class"; edit?: ExamClassSummary }
@@ -53,7 +52,7 @@ type DialogKind =
   | { kind: "import" }
   | { kind: "add" }
   | { kind: "edit-student"; student: ExamStudentSummary }
-  | { kind: "issued"; title: string; slips: IssuedAccount[] }
+  | { kind: "reset"; students: ExamStudentSummary[] }
   | { kind: "move" }
   | { kind: "delete-students" }
   | { kind: "log"; student: ExamStudentSummary }
@@ -74,13 +73,17 @@ function when(iso: string | null): string {
   });
 }
 
+function studentSite(): string {
+  return typeof window === "undefined" ? "" : `${window.location.origin}/hoc-sinh`;
+}
+
 export function TeacherClasses() {
   const listClasses = useServerFn(listExamClasses);
   const saveClass = useServerFn(saveExamClass);
   const removeClass = useServerFn(deleteExamClass);
   const listStudents = useServerFn(listClassStudents);
   const add = useServerFn(addStudents);
-  const reset = useServerFn(resetPasswords);
+  const reset = useServerFn(resetToDefaultPassword);
   const lock = useServerFn(setStudentsLocked);
   const move = useServerFn(moveStudents);
   const removeStudents = useServerFn(deleteStudents);
@@ -92,9 +95,12 @@ export function TeacherClasses() {
   const [showArchived, setShowArchived] = useState(false);
   const [students, setStudents] = useState<ExamStudentSummary[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showPasswords, setShowPasswords] = useState(false);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [printBlocked, setPrintBlocked] = useState(false);
 
   const current = classes?.find((c) => c.id === classId) ?? null;
   const visibleClasses = useMemo(
@@ -137,10 +143,24 @@ export function TeacherClasses() {
     setSelected(new Set());
     void loadStudents(classId);
   }, [classId, loadStudents]);
+  // Keep the list (and passwords students changed themselves) current.
+  useEffect(() => {
+    if (!classId) return;
+    const reload = () => {
+      if (document.visibilityState === "visible") void loadStudents(classId);
+    };
+    const timer = window.setInterval(reload, REFRESH_MS);
+    window.addEventListener("focus", reload);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", reload);
+    };
+  }, [classId, loadStudents]);
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await task();
     } catch (e) {
@@ -156,24 +176,12 @@ export function TeacherClasses() {
   };
 
   const selectedIds = [...selected];
+  const selectedStudents = students.filter((s) => selected.has(s.id));
   const allChecked = students.length > 0 && selected.size === students.length;
 
-  async function issuePasswords(ids: string[]) {
+  function print(list: ExamStudentSummary[]) {
     if (!current) return;
-    const slips: IssuedAccount[] = [];
-    for (let i = 0; i < ids.length; i += GROUP)
-      slips.push(
-        ...(await reset({ data: { classId: current.id, studentIds: ids.slice(i, i + GROUP) } })),
-      );
-    setDialog({
-      kind: "issued",
-      title:
-        slips.length === 1
-          ? `Mật khẩu mới của ${slips[0]?.fullName}`
-          : `Mật khẩu mới cho ${slips.length} học sinh`,
-      slips,
-    });
-    await refresh();
+    setPrintBlocked(!printSlips(current.name, list, studentSite()));
   }
 
   if (classes === null) return <p className="text-muted-foreground">Đang tải…</p>;
@@ -229,6 +237,16 @@ export function TeacherClasses() {
             {error}
           </p>
         )}
+        {notice && (
+          <p className="mb-3 text-sm text-green-700" role="status">
+            {notice}
+          </p>
+        )}
+        {printBlocked && (
+          <p className="error-note mb-3">
+            Trình duyệt chặn cửa sổ in. Hãy cho phép cửa sổ bật lên rồi bấm lại.
+          </p>
+        )}
         {!current ? (
           <p className="text-muted-foreground">Chọn hoặc tạo một lớp để quản lý học sinh.</p>
         ) : (
@@ -240,6 +258,16 @@ export function TeacherClasses() {
                   {[current.subject, current.schoolYear].filter(Boolean).join(" · ")} ·{" "}
                   {students.length} học sinh
                 </p>
+                <p className="mt-1 text-sm">
+                  Mật khẩu mặc định:{" "}
+                  {current.defaultPassword ? (
+                    <span className="font-mono font-semibold">
+                      {showPasswords ? current.defaultPassword : "••••••"}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">chưa đặt — bấm Sửa lớp để đặt</span>
+                  )}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -248,7 +276,7 @@ export function TeacherClasses() {
                   onClick={() => setDialog({ kind: "class", edit: current })}
                 >
                   <Pencil />
-                  Sửa lớp
+                  Sửa lớp · mật khẩu mặc định
                 </Button>
                 <Button
                   size="sm"
@@ -293,11 +321,20 @@ export function TeacherClasses() {
             </div>
 
             <div className="mb-3 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setDialog({ kind: "import" })}>
+              <Button
+                size="sm"
+                disabled={!current.defaultPassword}
+                onClick={() => setDialog({ kind: "import" })}
+              >
                 <Upload />
                 Nhập từ Excel
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setDialog({ kind: "add" })}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!current.defaultPassword}
+                onClick={() => setDialog({ kind: "add" })}
+              >
                 <UserPlus />
                 Thêm học sinh
               </Button>
@@ -320,7 +357,26 @@ export function TeacherClasses() {
                 }}
               >
                 <Download />
-                Xuất danh sách
+                Xuất danh sách và mật khẩu
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!students.length}
+                onClick={() => print(selectedStudents.length ? selectedStudents : students)}
+              >
+                <Printer />
+                {selectedStudents.length
+                  ? `In phiếu ${selectedStudents.length} em`
+                  : "In phiếu cả lớp"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowPasswords((v) => !v)}>
+                {showPasswords ? <EyeOff /> : <Eye />}
+                {showPasswords ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              </Button>
+              <Button size="sm" variant="ghost" title="Làm mới" onClick={() => run(refresh)}>
+                <RefreshCw />
+                <span className="sr-only">Làm mới</span>
               </Button>
             </div>
 
@@ -329,11 +385,11 @@ export function TeacherClasses() {
                 <strong className="mr-1">Đã chọn {selected.size}</strong>
                 <Button
                   size="sm"
-                  disabled={busy}
-                  onClick={() => run(() => issuePasswords(selectedIds))}
+                  disabled={busy || !current.defaultPassword}
+                  onClick={() => setDialog({ kind: "reset", students: selectedStudents })}
                 >
                   <KeyRound />
-                  Cấp lại mật khẩu
+                  Đặt lại mật khẩu mặc định
                 </Button>
                 <Button
                   size="sm"
@@ -414,6 +470,7 @@ export function TeacherClasses() {
                       <th className="p-2">Ngày sinh</th>
                       <th className="p-2">Mã HS</th>
                       <th className="p-2">Tên đăng nhập</th>
+                      <th className="p-2">Mật khẩu</th>
                       <th className="p-2">Trạng thái</th>
                       <th className="p-2">Đăng nhập gần nhất</th>
                       <th className="p-2" />
@@ -443,6 +500,20 @@ export function TeacherClasses() {
                         <td className="p-2">{s.studentCode ?? ""}</td>
                         <td className="p-2 font-mono">{s.username}</td>
                         <td className="p-2">
+                          {s.password === null ? (
+                            <span className="text-xs text-muted-foreground">— đặt lại để xem</span>
+                          ) : (
+                            <span className="font-mono">
+                              {showPasswords ? s.password : "••••••"}
+                            </span>
+                          )}
+                          {s.passwordByStudent && (
+                            <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
+                              HS tự đổi
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2">
                           {s.locked ? (
                             <span className="text-destructive">Đã khóa</span>
                           ) : (
@@ -454,12 +525,12 @@ export function TeacherClasses() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            title="Cấp lại mật khẩu"
-                            disabled={busy}
-                            onClick={() => run(() => issuePasswords([s.id]))}
+                            title="Đặt lại mật khẩu mặc định"
+                            disabled={busy || !current.defaultPassword}
+                            onClick={() => setDialog({ kind: "reset", students: [s] })}
                           >
                             <KeyRound />
-                            <span className="sr-only">Cấp lại mật khẩu</span>
+                            <span className="sr-only">Đặt lại mật khẩu mặc định</span>
                           </Button>
                           <Button
                             size="sm"
@@ -487,8 +558,9 @@ export function TeacherClasses() {
               </div>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
-              Mật khẩu được mã hóa nên không xem lại được. Học sinh quên mật khẩu thì bấm biểu tượng
-              chìa khóa để cấp mật khẩu mới và gửi cho em.
+              Học sinh đăng nhập tại <span className="font-mono">{studentSite()}</span>. Em nào tự
+              đổi mật khẩu thì mật khẩu mới hiện ở đây (đánh dấu “HS tự đổi”). Em quên mật khẩu thì
+              bấm biểu tượng chìa khóa để đưa về mật khẩu mặc định của lớp.
             </p>
           </>
         )}
@@ -500,21 +572,21 @@ export function TeacherClasses() {
           if (!open && !busy) setDialog(null);
         }}
       >
-        <DialogContent
-          className={
-            dialog?.kind === "import" || dialog?.kind === "issued" ? "max-w-3xl" : undefined
-          }
-        >
+        <DialogContent className={dialog?.kind === "import" ? "max-w-3xl" : undefined}>
           {dialog?.kind === "class" && (
             <ClassForm
               initial={dialog.edit}
+              studentCount={dialog.edit ? students.length : 0}
               busy={busy}
               onSubmit={(values) =>
                 run(async () => {
                   const { id } = await saveClass({ data: { ...values, id: dialog.edit?.id } });
                   await loadClasses();
                   setClassId(id);
+                  if (dialog.edit) await loadStudents(id);
                   setDialog(null);
+                  if (values.applyToAll)
+                    setNotice("Đã đưa mật khẩu của cả lớp về mật khẩu mặc định mới.");
                 })
               }
             />
@@ -553,7 +625,7 @@ export function TeacherClasses() {
               busy={busy}
               onCreate={(rows, onProgress) =>
                 run(async () => {
-                  const created: IssuedAccount[] = [];
+                  let created = 0;
                   const problems: string[] = [];
                   for (let i = 0; i < rows.length; i += GROUP) {
                     const part = rows.slice(i, i + GROUP);
@@ -568,7 +640,7 @@ export function TeacherClasses() {
                           })),
                         },
                       });
-                      created.push(...r.created);
+                      created += r.created;
                       problems.push(...r.problems.map((p) => `${p.fullName}: ${p.message}`));
                     } catch (e) {
                       problems.push(...part.map((s) => `${s.fullName}: ${message(e)}`));
@@ -576,19 +648,15 @@ export function TeacherClasses() {
                     onProgress(Math.min(rows.length, i + GROUP));
                   }
                   await refresh();
+                  setDialog(null);
+                  if (created)
+                    setNotice(
+                      `Đã tạo ${created} tài khoản với mật khẩu mặc định của lớp. Bấm “In phiếu cả lớp” hoặc “Xuất danh sách” để phát cho học sinh.`,
+                    );
                   if (problems.length)
                     setError(
                       `Không tạo được ${problems.length} tài khoản: ${problems.slice(0, 5).join("; ")}${problems.length > 5 ? "…" : ""}`,
                     );
-                  setDialog(
-                    created.length
-                      ? {
-                          kind: "issued",
-                          title: `Đã tạo ${created.length} tài khoản`,
-                          slips: created,
-                        }
-                      : null,
-                  );
                 })
               }
             />
@@ -603,11 +671,8 @@ export function TeacherClasses() {
                   if (r.problems.length)
                     throw new Error(r.problems[0]?.message ?? "Không thêm được");
                   await refresh();
-                  setDialog({
-                    kind: "issued",
-                    title: `Tài khoản của ${v.fullName}`,
-                    slips: r.created,
-                  });
+                  setDialog(null);
+                  setNotice(`Đã tạo tài khoản cho ${v.fullName} với mật khẩu mặc định của lớp.`);
                 })
               }
             />
@@ -628,8 +693,42 @@ export function TeacherClasses() {
               }
             />
           )}
-          {dialog?.kind === "issued" && current && (
-            <IssuedAccounts title={dialog.title} className={current.name} slips={dialog.slips} />
+          {dialog?.kind === "reset" && current && (
+            <>
+              <DialogTitle>
+                Đặt lại mật khẩu mặc định cho{" "}
+                {dialog.students.length === 1
+                  ? dialog.students[0]?.fullName
+                  : `${dialog.students.length} học sinh`}
+                ?
+              </DialogTitle>
+              <DialogDescription>
+                Mật khẩu sẽ trở về mật khẩu mặc định của lớp
+                {current.defaultPassword && showPasswords ? ` (${current.defaultPassword})` : ""}.
+                Các em đang đăng nhập sẽ phải đăng nhập lại.
+                {dialog.students.some((s) => s.passwordByStudent) &&
+                  " Có em đã tự đổi mật khẩu, mật khẩu riêng đó sẽ mất."}
+              </DialogDescription>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setDialog(null)}>
+                  Hủy
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      const ids = dialog.students.map((s) => s.id);
+                      await reset({ data: { classId: current.id, studentIds: ids } });
+                      await refresh();
+                      setDialog(null);
+                      setNotice(`Đã đặt lại mật khẩu mặc định cho ${ids.length} học sinh.`);
+                    })
+                  }
+                >
+                  Đặt lại
+                </Button>
+              </div>
+            </>
           )}
           {dialog?.kind === "move" && current && (
             <MoveForm
@@ -688,26 +787,51 @@ export function TeacherClasses() {
 
 function ClassForm({
   initial,
+  studentCount,
   busy,
   onSubmit,
 }: {
   initial?: ExamClassSummary | undefined;
+  studentCount: number;
   busy: boolean;
-  onSubmit: (v: { name: string; schoolYear: string; subject: string }) => void;
+  onSubmit: (v: {
+    name: string;
+    schoolYear: string;
+    subject: string;
+    defaultPassword?: string;
+    applyToAll: boolean;
+  }) => void;
 }) {
   const year = new Date().getMonth() >= 6 ? new Date().getFullYear() : new Date().getFullYear() - 1;
   const [name, setName] = useState(initial?.name ?? "");
   const [schoolYear, setSchoolYear] = useState(initial?.schoolYear ?? `${year}-${year + 1}`);
   const [subject, setSubject] = useState(initial?.subject ?? "Toán");
+  const [password, setPassword] = useState(initial?.defaultPassword ?? "");
+  const [applyToAll, setApplyToAll] = useState(false);
+  const [problem, setProblem] = useState("");
+  const changed = password !== (initial?.defaultPassword ?? "");
   return (
     <>
       <DialogTitle>{initial ? "Sửa lớp" : "Tạo lớp mới"}</DialogTitle>
-      <DialogDescription>Mỗi lớp có danh sách học sinh và tài khoản riêng.</DialogDescription>
+      <DialogDescription>
+        Học sinh mới thêm vào lớp sẽ dùng mật khẩu mặc định; các em có thể tự đổi sau khi đăng nhập.
+      </DialogDescription>
       <form
         className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
-          onSubmit({ name, schoolYear, subject });
+          const p = password || !initial ? passwordProblem(password) : null;
+          if (p) {
+            setProblem(p);
+            return;
+          }
+          onSubmit({
+            name,
+            schoolYear,
+            subject,
+            ...(changed && password ? { defaultPassword: password } : {}),
+            applyToAll: changed && applyToAll,
+          });
         }}
       >
         <label>
@@ -732,6 +856,39 @@ function ClassForm({
           Môn
           <Input maxLength={60} value={subject} onChange={(e) => setSubject(e.target.value)} />
         </label>
+        <label>
+          Mật khẩu mặc định của lớp (ít nhất 6 ký tự)
+          <Input
+            required={!initial}
+            maxLength={64}
+            autoComplete="off"
+            className="font-mono"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setProblem("");
+            }}
+          />
+        </label>
+        {initial && changed && studentCount > 0 && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={applyToAll}
+              onChange={(e) => setApplyToAll(e.target.checked)}
+            />
+            <span>
+              Đưa cả {studentCount} học sinh hiện có về mật khẩu mới này (kể cả em đã tự đổi). Không
+              chọn thì chỉ học sinh thêm sau mới dùng mật khẩu mới.
+            </span>
+          </label>
+        )}
+        {problem && (
+          <p className="error-note" role="alert">
+            {problem}
+          </p>
+        )}
         <Button disabled={busy}>{busy ? "Đang lưu…" : initial ? "Lưu" : "Tạo lớp"}</Button>
       </form>
     </>
@@ -758,7 +915,7 @@ function StudentForm({
       <DialogDescription>
         {initial
           ? "Tên đăng nhập và mật khẩu không đổi."
-          : "Hệ thống tự tạo tên đăng nhập và mật khẩu."}
+          : "Hệ thống tự tạo tên đăng nhập; mật khẩu là mật khẩu mặc định của lớp."}
       </DialogDescription>
       <form
         className="form-stack"
@@ -833,7 +990,8 @@ function ImportRoster({
       <DialogTitle>Nhập danh sách từ Excel</DialogTitle>
       <DialogDescription>
         File .xlsx có cột Họ và tên (hoặc hai cột Họ và Tên), có thể thêm Ngày sinh và Mã học sinh.
-        Dòng tiêu đề có thể nằm dưới tên trường, tên lớp.
+        Dòng tiêu đề có thể nằm dưới tên trường, tên lớp. Mọi tài khoản dùng mật khẩu mặc định của
+        lớp.
       </DialogDescription>
       <input
         type="file"
@@ -912,72 +1070,6 @@ function ImportRoster({
   );
 }
 
-function IssuedAccounts({
-  title,
-  className,
-  slips,
-}: {
-  title: string;
-  className: string;
-  slips: IssuedAccount[];
-}) {
-  const [printBlocked, setPrintBlocked] = useState(false);
-  const site = typeof window === "undefined" ? "" : `${window.location.origin}/hoc-sinh`;
-  return (
-    <>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogDescription>
-        Mật khẩu chỉ hiển thị lần này. Hãy tải file Excel hoặc in phiếu trước khi đóng.
-      </DialogDescription>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={() => {
-            void downloadAccounts(className, slips);
-          }}
-        >
-          <Download />
-          Tải Excel
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setPrintBlocked(!printSlips(className, slips, site))}
-        >
-          <Printer />
-          In phiếu
-        </Button>
-      </div>
-      {printBlocked && (
-        <p className="error-note">
-          Trình duyệt chặn cửa sổ in. Hãy cho phép cửa sổ bật lên rồi bấm lại.
-        </p>
-      )}
-      <div className="max-h-80 overflow-y-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-xs text-muted-foreground">
-              <th className="p-2">Họ và tên</th>
-              <th className="p-2">Tên đăng nhập</th>
-              <th className="p-2">Mật khẩu</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slips.map((s) => (
-              <tr key={s.id} className="border-b last:border-0">
-                <td className="p-2">{s.fullName}</td>
-                <td className="p-2 font-mono">{s.username}</td>
-                <td className="p-2 font-mono font-semibold">{s.password}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Học sinh đăng nhập tại <span className="font-mono">{site}</span>
-      </p>
-    </>
-  );
-}
-
 function MoveForm({
   classes,
   count,
@@ -1036,7 +1128,9 @@ function LoginLog({
     void load()
       .then(setRows)
       .catch(() => setRows([]));
-  }, [load]);
+    // load is recreated on every render of the parent; read once per opened student
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student.id]);
   return (
     <>
       <DialogTitle>Nhật ký đăng nhập · {student.fullName}</DialogTitle>
@@ -1051,7 +1145,7 @@ function LoginLog({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.at} className="border-b last:border-0">
-                  <td className="p-2 whitespace-nowrap">{when(r.at)}</td>
+                  <td className="whitespace-nowrap p-2">{when(r.at)}</td>
                   <td className="p-2">
                     {r.success ? (
                       "Thành công"
