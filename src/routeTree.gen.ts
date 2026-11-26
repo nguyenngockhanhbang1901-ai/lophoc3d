@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as Activity1RouteImport } from './routes/activity-1'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SoanBaiRouteImport } from './routes/soan-bai'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoanBaiRoute = SoanBaiRouteImport.update({
+  id: '/soan-bai',
+  path: '/soan-bai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soan-bai': typeof SoanBaiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soan-bai': typeof SoanBaiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,15 @@ export interface FileRoutesById {
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soan-bai': typeof SoanBaiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/activity-1' | '/auth' | '/reset-password'
+  fullPaths: '/' | '/activity-1' | '/auth' | '/reset-password' | '/soan-bai'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/activity-1' | '/auth' | '/reset-password'
-  id: '__root__' | '/' | '/activity-1' | '/auth' | '/reset-password'
+  to: '/' | '/activity-1' | '/auth' | '/reset-password' | '/soan-bai'
+  id:
+    '__root__' | '/' | '/activity-1' | '/auth' | '/reset-password' | '/soan-bai'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +77,7 @@ export interface RootRouteChildren {
   Activity1Route: typeof Activity1Route
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SoanBaiRoute: typeof SoanBaiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soan-bai': {
+      id: '/soan-bai'
+      path: '/soan-bai'
+      fullPath: '/soan-bai'
+      preLoaderRoute: typeof SoanBaiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +125,7 @@ const rootRouteChildren: RootRouteChildren = {
   Activity1Route: Activity1Route,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SoanBaiRoute: SoanBaiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

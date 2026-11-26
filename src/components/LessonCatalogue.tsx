@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pencil, Plus, Save, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_LESSONS, customLessonText } from '@/lib/lessons';
+import { isSlideLessonKey } from '@/lib/slides/model';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -12,7 +13,7 @@ export function LessonCatalogue({ userId, value, disabled, onChange }: { userId?
   const [editing, setEditing] = useState<string | null>(null); const [title, setTitle] = useState(''); const [text, setText] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const defaultKeys: readonly string[] = DEFAULT_LESSONS.map(l => l.lesson_key);
   const items = [...DEFAULT_LESSONS.map(l => lessons.find(row => row.lesson_key === l.lesson_key) ?? l), ...lessons.filter(l => !defaultKeys.includes(l.lesson_key))];
-  useEffect(() => { if (!userId) { setLessons([]); return; } void supabase.from('lessons').select().order('created_at').then(({ data }) => setLessons(data ?? [])); }, [userId]);
+  useEffect(() => { if (!userId) { setLessons([]); return; } void supabase.from('lessons').select().order('created_at').then(({ data }) => setLessons((data ?? []).filter(l => !isSlideLessonKey(l.lesson_key)))); }, [userId]);
   const current = items.find(l => l.lesson_key === value);
   async function save() {
     if (!userId || !editing) return;
