@@ -48,7 +48,11 @@ export function ElementView({
             data-overflow={el.custom ? "visible" : undefined}
             style={textStyle(el)}
           >
-            <MathText text={el.text} />
+            {edit && !el.text ? (
+              <span className="slide-empty-hint">Bấm đúp để nhập tiêu đề</span>
+            ) : (
+              <MathText text={el.text} />
+            )}
           </h2>
         ) : (
           <div
@@ -56,7 +60,11 @@ export function ElementView({
             data-overflow={el.custom ? "visible" : undefined}
             style={textStyle(el)}
           >
-            <MathText text={el.text} />
+            {edit && !el.text ? (
+              <span className="slide-empty-hint">Bấm đúp để nhập văn bản</span>
+            ) : (
+              <MathText text={el.text} />
+            )}
           </div>
         )
       ) : el.type === "image" ? (
@@ -66,12 +74,12 @@ export function ElementView({
           <div className="slide-placeholder">Chọn hình ảnh</div>
         ) : null
       ) : // a 3D scene only starts once it is on screen
-      el.modelId ? (
+      el.modelId || el.src ? (
         visible || edit ? (
-          <ModelView id={el.modelId} />
+          <ModelView id={el.modelId} src={el.src} />
         ) : null
       ) : edit ? (
-        <div className="slide-placeholder">{modelName(undefined)}</div>
+        <div className="slide-placeholder">Chọn {modelName(undefined).toLowerCase()}</div>
       ) : null}
       {number !== undefined && (
         <span className="slide-order-badge" aria-hidden="true">

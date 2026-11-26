@@ -470,3 +470,26 @@ export function countSlides(content: SlideContent): number {
 export function allSlides(content: SlideContent): Slide[] {
   return content.activities.flatMap((a) => a.slides);
 }
+
+/** Replaces one element with an already-computed version (from the stage or the fitter). */
+export function replaceElement(
+  content: SlideContent,
+  slideId: string,
+  next: SlideElement,
+): SlideContent {
+  return mapSlide(content, slideId, (s) => {
+    const i = s.elements.findIndex((e) => e.id === next.id);
+    if (i < 0 || JSON.stringify(s.elements[i]) === JSON.stringify(next)) return s;
+    const elements = [...s.elements];
+    elements[i] = { ...next, ...clampBox(next) };
+    return { ...s, elements };
+  });
+}
+/** Applies a slide-wide function (layout re-fit) as one change. */
+export function updateSlide(
+  content: SlideContent,
+  slideId: string,
+  fn: (s: Slide) => Slide,
+): SlideContent {
+  return mapSlide(content, slideId, fn);
+}
