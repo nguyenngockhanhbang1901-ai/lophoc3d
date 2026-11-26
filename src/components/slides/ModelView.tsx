@@ -4,9 +4,18 @@ import { isKnownModel } from "@/lib/slides/model-library";
 const GeometryView = lazy(() => import("../GeometryView"));
 const LinePairView = lazy(() => import("../LinePairView"));
 const CubePracticeView = lazy(() => import("../CubePracticeView"));
+const UserModelView = lazy(() => import("./UserModelView"));
 
 /** One library model, drawn by the lesson's own scene component; sized by `.slide-model3d` to fill its box. */
-export function ModelView({ id }: { id: string | undefined }) {
+export function ModelView({ id, src }: { id: string | undefined; src?: string | undefined }) {
+  if (!id && src)
+    return (
+      <div className="slide-model3d slide-model-user" data-model="user">
+        <Suspense fallback={<p className="slide-model-missing">Đang tải mô hình…</p>}>
+          <UserModelView src={src} />
+        </Suspense>
+      </div>
+    );
   if (!isKnownModel(id))
     return <p className="slide-model-missing">Mô hình không có trong thư viện</p>;
   return (

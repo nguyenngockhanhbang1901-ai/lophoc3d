@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   BookOpen,
+  Box as BoxIcon,
   Copy,
+  ImagePlus,
+  LayoutTemplate,
+  Play,
   Plus,
   Presentation,
   Redo2,
+  RotateCcw,
   Trash2,
+  Type,
   Undo2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,18 +24,33 @@ import {
   deleteActivity,
   deleteElement,
   deleteSlide,
+  duplicateElement,
   duplicateSlide,
   findSlide,
   firstSlideId,
   moveActivity,
+  moveElementInOrder,
   moveSlide,
   newSlideContent,
   newSlideLessonKey,
+  randomId,
   renameActivity,
-  updateElementText,
-  type ElementType,
+  reorderElement,
+  replaceElement,
+  resetSlideAnimation,
+  restoreSlideLayout,
+  setElementAnim,
+  setSlideLayout,
+  updateSlide,
+  MAX_TEXT_LENGTH,
+  type Box,
+  type ElementPatch,
   type SlideContent,
+  type SlideElement,
 } from "@/lib/slides/model";
+import { appearances, stepCount } from "@/lib/slides/animation";
+import { fitElement, markCustom, refitSlide, type Measure } from "@/lib/slides/fit";
+import { getLayout } from "@/lib/slides/layouts";
 import {
   canRedo,
   canUndo,
@@ -48,7 +69,7 @@ import {
 } from "@/lib/slides/storage";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +81,29 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { SlideCanvas } from "./SlideCanvas";
+import { SlideStage } from "./SlideStage";
+import { ElementInspector } from "./ElementInspector";
+import { AnimationPanel } from "./AnimationPanel";
+import { LayoutPicker } from "./LayoutPicker";
+import { MediaDialog, type MediaKind, type MediaPick } from "./MediaDialog";
+import { domMeasure } from "./measure";
+
+export const OVERFLOW_MESSAGE =
+  "Nội dung vượt quá khung của layout. Tiếp tục chỉnh sửa có thể làm slide kém đẹp hơn mặc định. Bạn có muốn tiếp tục?";
+
+function withMedia(el: SlideElement, pick: MediaPick, kind: MediaKind): SlideElement {
+  const { src: _s, modelId: _m, alt: _a, ...rest } = el;
+  void _s;
+  void _m;
+  void _a;
+  return {
+    ...rest,
+    type: kind,
+    ...(pick.src ? { src: pick.src } : {}),
+    ...(pick.modelId ? { modelId: pick.modelId } : {}),
+    ...(pick.alt ? { alt: pick.alt } : {}),
+  };
+}
 
 export const AUTOSAVE_DELAY_MS = 800;
 type Status = "idle" | "saving" | "saved" | "error";
@@ -74,9 +118,12 @@ export function SlideEditor({
   userId,
   client = supabase,
   initialKey = "",
+  measure = domMeasure,
 }: {
   userId: string;
   client?: SlideStore;
+  /** How tall a text box's text is (percent of slide height); the tests pass a fake. */
+  measure?: Measure;
   /** Lesson to open first (from the Bài học page or the viewer); falls back to the first lesson. */
   initialKey?: string;
 }) {
@@ -91,6 +138,17 @@ export function SlideEditor({
   const [status, setStatus] = useState<Status>("idle");
   const [confirm, setConfirm] = useState<{ message: string; onOk: () => void } | null>(null);
   const [dragFrom, setDragFrom] = useState<{ activityId: string; index: number } | null>(null);
+  const [elementId, setElementId] = useState<string | null>(null);
+  const [tab, setTab] = useState("format");
+  const [media, setMedia] = useState<{
+    kind: MediaKind;
+    elementId: string | null;
+    switchable: boolean;
+  } | null>(null);
+  const [layoutFor, setLayoutFor] = useState<{ activityId: string | null } | null>(null);
+  const [overflow, setOverflow] = useState<{ apply: () => void } | null>(null);
+  const [previewStep, setPreviewStep] = useState<number | null>(null);
+  const [editRequest, setEditRequest] = useState<string | null>(null);
   const pending = useRef<Pending | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -101,6 +159,19 @@ export function SlideEditor({
       : firstSlideId(content)
     : null;
   const found = content && slideId ? findSlide(content, slideId) : null;
+  const slide = found?.slide ?? null;
+  const selectedEl = slide?.elements.find((e) => e.id === elementId) ?? null;
+  const numbers = useMemo(
+    () =>
+      new Map(
+        slide
+          ? appearances(slide)
+              .filter((a) => a.step > 0)
+              .map((a) => [a.id, a.step])
+          : [],
+      ),
+    [slide],
+  );
 
   const flush = useCallback(async () => {
     if (timer.current) {
@@ -255,13 +326,145 @@ export function SlideEditor({
     if (content && activeKey) queueSave(rowFor(content, value));
   }
 
+  // A new slide starts with nothing selected and no preview running.
+  useEffect(() => {
+    setElementId(null);
+    setPreviewStep(null);
+  }, [slideId]);
+
+  // "Xem thử": plays the slide's steps one by one, then returns to editing.
+  useEffect(() => {
+    if (previewStep === null || !slide) return;
+    const total = stepCount(slide);
+    const t = setTimeout(
+      () => setPreviewStep((s) => (s === null || s >= total ? null : s + 1)),
+      previewStep >= total ? 1500 : 900,
+    );
+    return () => clearTimeout(t);
+  }, [previewStep, slide]);
+
+  // Ctrl+Z / Ctrl+Y anywhere except while typing in a field.
+  const historyKeys = useRef<(e: KeyboardEvent) => void>(() => {});
+  historyKeys.current = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest("input, textarea, select, [contenteditable='true']")) return;
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) {
+      e.preventDefault();
+      stepHistory(undo);
+    } else if (k === "y" || (k === "z" && e.shiftKey)) {
+      e.preventDefault();
+      stepHistory(redo);
+    }
+  };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => historyKeys.current(e);
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
+
+  /**
+   * Every change to one element goes through here: text is fitted to its box, and a change that
+   * would push a layout box's content out of its frame asks first. "Đồng ý" keeps it (the box
+   * becomes custom); "Hủy" drops the change.
+   */
+  function propose(next: SlideElement) {
+    if (!slide) return;
+    const sid = slide.id;
+    const result = fitElement(slide, next, measure);
+    if (result.overflow) {
+      setOverflow({ apply: () => edit((c) => replaceElement(c, sid, markCustom(next))) });
+      return;
+    }
+    edit((c) => replaceElement(c, sid, result.el));
+  }
+  const elementById = (id: string) => slide?.elements.find((e) => e.id === id) ?? null;
+  function commitBox(id: string, box: Box) {
+    const el = elementById(id);
+    if (el) propose({ ...el, ...box });
+  }
+  function commitText(id: string, text: string) {
+    const el = elementById(id);
+    if (el) propose({ ...el, text: text.slice(0, MAX_TEXT_LENGTH) });
+  }
+  function patchSelected(patch: ElementPatch) {
+    if (selectedEl) propose({ ...selectedEl, ...patch });
+  }
+  function onAddElement(type: "text" | "image" | "model3d") {
+    if (!slide) return;
+    if (type !== "text") {
+      setMedia({ kind: type, elementId: null, switchable: false });
+      return;
+    }
+    const newId = randomId();
+    edit((c) => addElement(c, slide.id, "text", () => newId));
+    setElementId(newId);
+    setEditRequest(newId);
+    setTab("format");
+  }
+  function openMediaFor(el: SlideElement) {
+    const empty = !el.src && !el.modelId;
+    setMedia({
+      kind: el.type === "model3d" ? "model3d" : "image",
+      elementId: el.id,
+      switchable: Boolean(el.slot) && empty,
+    });
+  }
+  function pickMedia(pick: MediaPick, kind: MediaKind) {
+    if (!slide || !media) return;
+    const sid = slide.id;
+    const target = media.elementId ? elementById(media.elementId) : null;
+    if (target) edit((c) => replaceElement(c, sid, withMedia(target, pick, kind)));
+    else {
+      const newId = randomId();
+      edit((c) => {
+        const added = addElement(c, sid, kind, () => newId);
+        const el = findSlide(added, sid)?.slide.elements.find((e) => e.id === newId);
+        return el ? replaceElement(added, sid, withMedia(el, pick, kind)) : added;
+      });
+      setElementId(newId);
+    }
+    setMedia(null);
+  }
+  function removeElement(id: string) {
+    if (!slide) return;
+    edit((c) => deleteElement(c, slide.id, id));
+    setElementId(null);
+  }
+  function copyElement(id: string) {
+    if (!slide) return;
+    const newId = randomId();
+    if (edit((c) => duplicateElement(c, slide.id, id, () => newId))) setElementId(newId);
+  }
+  function chooseLayout(layoutId: string) {
+    const target = layoutFor;
+    setLayoutFor(null);
+    if (!target) return;
+    if (target.activityId) {
+      onAddSlide(target.activityId, layoutId);
+      return;
+    }
+    if (!slide) return;
+    const sid = slide.id;
+    edit((c) => updateSlide(setSlideLayout(c, sid, layoutId), sid, (s) => refitSlide(s, measure)));
+  }
+  function restoreLayout() {
+    if (!slide) return;
+    const sid = slide.id;
+    edit((c) => updateSlide(restoreSlideLayout(c, sid), sid, (s) => refitSlide(s, measure)));
+  }
+  const canRestore = Boolean(
+    content && slide && restoreSlideLayout(content, slide.id, () => "x") !== content,
+  );
+
   function onAddActivity() {
     const next = edit((c) => addActivity(c));
     const last = next?.activities[next.activities.length - 1];
     if (last?.slides[0]) setSelectedId(last.slides[0].id);
   }
-  function onAddSlide(activityId: string) {
-    const next = edit((c) => addSlide(c, activityId));
+  function onAddSlide(activityId: string, layoutId?: string) {
+    const next = edit((c) => addSlide(c, activityId, layoutId));
     const slides = next?.activities.find((a) => a.id === activityId)?.slides;
     const created = slides?.[slides.length - 1];
     if (created) setSelectedId(created.id);
@@ -416,7 +619,7 @@ export function SlideEditor({
       {!hist || !content ? (
         <p>Chưa có bài học dạng slide. Bấm "Thêm bài học" để bắt đầu.</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)_320px]">
+        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_330px]">
           <aside className="flex flex-col gap-3" aria-label="Hoạt động và slide">
             {content.activities.map((a, ai) => (
               <section
@@ -502,7 +705,7 @@ export function SlideEditor({
                   variant="ghost"
                   size="sm"
                   className="mt-1 w-full"
-                  onClick={() => onAddSlide(a.id)}
+                  onClick={() => setLayoutFor({ activityId: a.id })}
                 >
                   <Plus />
                   Thêm slide
@@ -515,10 +718,87 @@ export function SlideEditor({
             </Button>
           </aside>
 
-          <main aria-label="Slide đang chọn">{found && <SlideCanvas slide={found.slide} />}</main>
+          <main aria-label="Slide đang chọn" className="flex min-w-0 flex-col gap-2">
+            {slide && (
+              <>
+                <div
+                  className="flex flex-wrap items-center gap-2"
+                  role="toolbar"
+                  aria-label="Chèn và bố cục"
+                >
+                  <Button variant="outline" size="sm" onClick={() => onAddElement("text")}>
+                    <Type />
+                    Văn bản
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => onAddElement("image")}>
+                    <ImagePlus />
+                    Hình ảnh
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => onAddElement("model3d")}>
+                    <BoxIcon />
+                    Mô hình 3D
+                  </Button>
+                  <span className="mx-1 h-6 w-px bg-border" aria-hidden="true" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLayoutFor({ activityId: null })}
+                  >
+                    <LayoutTemplate />
+                    Layout: {getLayout(slide.layout).name}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canRestore}
+                    onClick={restoreLayout}
+                  >
+                    <RotateCcw />
+                    Khôi phục layout mặc định
+                  </Button>
+                  <Button
+                    variant={previewStep !== null ? "default" : "outline"}
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => setPreviewStep((p) => (p === null ? 0 : null))}
+                  >
+                    <Play />
+                    {previewStep !== null ? "Dừng xem thử" : "Xem thử"}
+                  </Button>
+                </div>
+                {previewStep !== null ? (
+                  <div
+                    className="slide-preview"
+                    title="Bấm để dừng xem thử"
+                    onClick={() => setPreviewStep(null)}
+                  >
+                    <SlideCanvas key={`p-${slide.id}`} slide={slide} step={previewStep} />
+                  </div>
+                ) : (
+                  <SlideStage
+                    slide={slide}
+                    selectedId={elementId}
+                    numbers={numbers}
+                    onSelect={setElementId}
+                    onCommitBox={commitBox}
+                    onCommitText={commitText}
+                    onDelete={removeElement}
+                    onDuplicate={copyElement}
+                    onActivate={openMediaFor}
+                    editRequest={editRequest}
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Bấm đúp vào chữ để sửa · kéo các ô vuông để đổi kích thước (Shift giữ tỉ lệ) ·
+                  phím mũi tên để dịch từng chút · Delete để xóa · giữ Alt để đặt tự do không bám
+                  đường căn · số xanh là lượt Enter.
+                </p>
+              </>
+            )}
+          </main>
 
           <section className="flex flex-col gap-3" aria-label="Nội dung slide">
-            {found && (
+            {found && slide && (
               <>
                 <div className="flex flex-wrap items-center gap-1">
                   <strong className="mr-auto text-sm">
@@ -567,52 +847,99 @@ export function SlideEditor({
                     <Trash2 />
                   </Button>
                 </div>
-                {found.slide.elements.map((e) => (
-                  <div key={e.id} className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{e.type === "title" ? "Tiêu đề" : "Văn bản"}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        aria-label={`Xóa phần tử ${e.type === "title" ? "tiêu đề" : "văn bản"}`}
-                        onClick={() => edit((c) => deleteElement(c, found.slide.id, e.id))}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                    <Textarea
-                      aria-label={e.type === "title" ? "Nội dung tiêu đề" : "Nội dung văn bản"}
-                      rows={e.type === "title" ? 2 : 6}
-                      value={e.text}
-                      placeholder={
-                        e.type === "title" ? "Tiêu đề slide" : "Văn bản; công thức viết trong $…$"
+                <Tabs value={tab} onValueChange={setTab}>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="format" className="flex-1">
+                      Định dạng
+                    </TabsTrigger>
+                    <TabsTrigger value="anim" className="flex-1">
+                      Hiệu ứng
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="format" className="mt-3">
+                    <ElementInspector
+                      slide={slide}
+                      el={selectedEl}
+                      onPatch={patchSelected}
+                      onBox={(box) => selectedEl && commitBox(selectedEl.id, box)}
+                      onLayer={(to) =>
+                        selectedEl && edit((c) => reorderElement(c, slide.id, selectedEl.id, to))
                       }
-                      onChange={(ev) =>
-                        edit((c) => updateElementText(c, found.slide.id, e.id, ev.target.value))
-                      }
+                      onDuplicate={() => selectedEl && copyElement(selectedEl.id)}
+                      onDelete={() => selectedEl && removeElement(selectedEl.id)}
+                      onMedia={() => selectedEl && openMediaFor(selectedEl)}
                     />
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  {(["title", "text"] as ElementType[]).map((t) => (
-                    <Button
-                      key={t}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => edit((c) => addElement(c, found.slide.id, t))}
-                    >
-                      <Plus />
-                      {t === "title" ? "Thêm tiêu đề" : "Thêm văn bản"}
-                    </Button>
-                  ))}
-                </div>
+                  </TabsContent>
+                  <TabsContent value="anim" className="mt-3">
+                    <AnimationPanel
+                      slide={slide}
+                      selectedId={elementId}
+                      previewing={previewStep !== null}
+                      onSelect={setElementId}
+                      onMode={(id, mode) => edit((c) => setElementAnim(c, slide.id, id, mode))}
+                      onMove={(from, to) => edit((c) => moveElementInOrder(c, slide.id, from, to))}
+                      onReset={() => edit((c) => resetSlideAnimation(c, slide.id))}
+                      onPreview={() => setPreviewStep((p) => (p === null ? 0 : null))}
+                    />
+                  </TabsContent>
+                </Tabs>
               </>
             )}
           </section>
         </div>
       )}
 
+      <LayoutPicker
+        open={layoutFor !== null}
+        title={layoutFor?.activityId ? "Chọn layout cho slide mới" : "Đổi layout của slide"}
+        current={layoutFor?.activityId ? undefined : slide?.layout}
+        onPick={chooseLayout}
+        onClose={() => setLayoutFor(null)}
+      />
+      <MediaDialog
+        kind={media?.kind ?? null}
+        switchable={media?.switchable ?? false}
+        initial={
+          media?.elementId
+            ? (() => {
+                const el = elementById(media.elementId);
+                return el
+                  ? {
+                      ...(el.src ? { src: el.src } : {}),
+                      ...(el.modelId ? { modelId: el.modelId } : {}),
+                      ...(el.alt ? { alt: el.alt } : {}),
+                    }
+                  : undefined;
+              })()
+            : undefined
+        }
+        onPick={pickMedia}
+        onClose={() => setMedia(null)}
+      />
+      <AlertDialog
+        open={overflow !== null}
+        onOpenChange={(open) => {
+          if (!open) setOverflow(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Nội dung vượt khung</AlertDialogTitle>
+            <AlertDialogDescription>{OVERFLOW_MESSAGE}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                overflow?.apply();
+                setOverflow(null);
+              }}
+            >
+              Đồng ý
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog
         open={confirm !== null}
         onOpenChange={(open) => {
