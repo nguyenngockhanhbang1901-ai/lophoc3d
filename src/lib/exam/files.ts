@@ -6,7 +6,8 @@ export interface AccountSlip {
   fullName: string;
   birthDate: string | null;
   username: string;
-  password: string;
+  /** null when the teacher cannot see it (print a note to ask the teacher) */
+  password: string | null;
 }
 
 export interface ClassListRow {
@@ -14,6 +15,8 @@ export interface ClassListRow {
   birthDate: string | null;
   studentCode: string | null;
   username: string;
+  password: string | null;
+  passwordByStudent: boolean;
   locked: boolean;
 }
 
@@ -53,27 +56,7 @@ export async function downloadTemplate(): Promise<void> {
   ).toFile("mau-danh-sach-hoc-sinh.xlsx");
 }
 
-/** Accounts with their passwords, only available right after creating or resetting them. */
-export async function downloadAccounts(className: string, slips: AccountSlip[]): Promise<void> {
-  const { default: writeXlsxFile } = await import("write-excel-file/browser");
-  await writeXlsxFile(
-    [
-      [
-        header("STT"),
-        header("Họ và tên"),
-        header("Ngày sinh"),
-        header("Tên đăng nhập"),
-        header("Mật khẩu"),
-      ],
-      ...slips.map((s, i) => [i + 1, s.fullName, displayDate(s.birthDate), s.username, s.password]),
-    ],
-    {
-      columns: [{ width: 6 }, { width: 30 }, { width: 14 }, { width: 18 }, { width: 14 }],
-      sheet: "Tài khoản",
-    },
-  ).toFile(`tai-khoan-${safeFileName(className)}.xlsx`);
-}
-
+/** The class list with usernames and current passwords, for the teacher to keep or hand out. */
 export async function downloadClassList(className: string, rows: ClassListRow[]): Promise<void> {
   const { default: writeXlsxFile } = await import("write-excel-file/browser");
   await writeXlsxFile(
@@ -84,7 +67,8 @@ export async function downloadClassList(className: string, rows: ClassListRow[])
         header("Ngày sinh"),
         header("Mã học sinh"),
         header("Tên đăng nhập"),
-        header("Trạng thái"),
+        header("Mật khẩu"),
+        header("Ghi chú"),
       ],
       ...rows.map((s, i) => [
         i + 1,
@@ -92,7 +76,10 @@ export async function downloadClassList(className: string, rows: ClassListRow[])
         displayDate(s.birthDate),
         s.studentCode ?? "",
         s.username,
-        s.locked ? "Đã khóa" : "Đang dùng",
+        s.password ?? "",
+        [s.passwordByStudent ? "HS tự đổi mật khẩu" : "", s.locked ? "Đã khóa" : ""]
+          .filter(Boolean)
+          .join(", "),
       ]),
     ],
     {
@@ -102,7 +89,8 @@ export async function downloadClassList(className: string, rows: ClassListRow[])
         { width: 14 },
         { width: 16 },
         { width: 18 },
-        { width: 12 },
+        { width: 16 },
+        { width: 24 },
       ],
       sheet: "Danh sách",
     },
@@ -125,7 +113,7 @@ export function printSlips(className: string, slips: AccountSlip[], siteUrl: str
       <div class="cls">${escapeHtml(className)}</div>
       <div class="name">${escapeHtml(s.fullName)}${s.birthDate ? ` <span>· ${displayDate(s.birthDate)}</span>` : ""}</div>
       <table><tr><td>Tên đăng nhập</td><td class="mono">${escapeHtml(s.username)}</td></tr>
-      <tr><td>Mật khẩu</td><td class="mono">${escapeHtml(s.password)}</td></tr></table>
+      <tr><td>Mật khẩu</td><td class="mono">${s.password ? escapeHtml(s.password) : "(hỏi giáo viên)"}</td></tr></table>
       <div class="url">Đăng nhập tại ${escapeHtml(siteUrl)}</div>
     </div>`,
     )
@@ -139,7 +127,7 @@ export function printSlips(className: string, slips: AccountSlip[], siteUrl: str
     td{padding:2px 10px 2px 0}.mono{font-family:Consolas,monospace;font-size:16px;font-weight:bold;letter-spacing:1px}
     .url{font-size:11px;color:#555;margin-top:4px}
     @media print{body{margin:8mm}.hint{display:none}}
-  </style></head><body><p class="hint">Cắt theo đường viền nét đứt và phát cho từng học sinh. Mật khẩu chỉ hiển thị lần này.</p>
+  </style></head><body><p class="hint">Cắt theo đường viền nét đứt và phát cho từng học sinh.</p>
   <div class="grid">${cards}</div><script>window.onload=function(){window.print()}</script></body></html>`;
   const w = window.open("", "_blank");
   if (!w) return false;

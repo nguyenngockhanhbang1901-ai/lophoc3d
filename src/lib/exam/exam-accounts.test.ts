@@ -123,3 +123,16 @@ describe("class list import", () => {
     expect(r.problems[0]?.message).toMatch(/Họ và tên/);
   });
 });
+
+describe("readable password copies", () => {
+  it("encrypts so only the server key reads it back", async () => {
+    const { encryptSecret, decryptSecret } = await import("./secrets");
+    const sealed = await encryptSecret("123456", "server-key");
+    expect(sealed).toMatch(/^v1:/);
+    expect(sealed).not.toContain("123456");
+    expect(await decryptSecret(sealed, "server-key")).toBe("123456");
+    expect(await decryptSecret(sealed, "other-key")).toBeNull();
+    expect(await decryptSecret(null, "server-key")).toBeNull();
+    expect(await encryptSecret("123456", "server-key")).not.toBe(sealed);
+  });
+});

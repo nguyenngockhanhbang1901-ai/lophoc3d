@@ -72,7 +72,7 @@ export const studentLogin = createServerFn({ method: "POST" })
       .gte("at", since);
     if ((count ?? 0) >= FAILED_LIMIT)
       throw new Error(
-        "Đăng nhập sai quá nhiều lần. Hãy thử lại sau 10 phút hoặc nhờ giáo viên cấp lại mật khẩu.",
+        "Đăng nhập sai quá nhiều lần. Hãy thử lại sau 10 phút hoặc hỏi giáo viên mật khẩu.",
       );
 
     const { data: row } = await db
@@ -128,12 +128,12 @@ export const studentProfile = createServerFn({ method: "POST" })
     return profileOf(student);
   });
 
-/** The student changes their own password; other devices are signed out. */
+/** The student changes their own password; other devices are signed out and the teacher sees the new one. */
 export const studentChangePassword = createServerFn({ method: "POST" })
   .inputValidator(z.object({ token, current: z.string().min(1).max(64), next: z.string().max(64) }))
   .handler(async ({ data }) => {
-    const { sessionStudent, examDb } = await import("./db.server");
-    const { verifyPassword, hashPassword } = await import("./secrets");
+    const { sessionStudent, examDb, passwordKey } = await import("./db.server");
+    const { verifyPassword, hashPassword, encryptSecret } = await import("./secrets");
     const problem = passwordProblem(data.next);
     if (problem) throw new Error(problem);
     const { student, tokenHash } = await sessionStudent(data.token);
@@ -145,6 +145,9 @@ export const studentChangePassword = createServerFn({ method: "POST" })
       .from("exam_students")
       .update({
         password_hash: await hashPassword(data.next),
+        // readable copy so the teacher's list shows the new password
+        password_enc: await encryptSecret(data.next, passwordKey()),
+        password_by_student: true,
         password_set_at: new Date().toISOString(),
       })
       .eq("id", student.id);
