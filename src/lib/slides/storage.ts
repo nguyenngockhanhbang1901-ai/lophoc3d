@@ -59,3 +59,20 @@ export async function deleteSlideLesson(
     .eq("lesson_key", key);
   if (error) throw new Error("Không xóa được bài học");
 }
+
+export async function loadSlideLesson(
+  client: SlideStore,
+  ownerId: string,
+  key: string,
+): Promise<SlideLessonRow | null> {
+  if (!isSlideLessonKey(key)) return null;
+  const { data, error } = await client
+    .from("lessons")
+    .select("lesson_key,title,content")
+    .eq("owner_id", ownerId)
+    .eq("lesson_key", key)
+    .maybeSingle();
+  if (error) throw new Error("Không tải được bài học");
+  const content = data ? parseSlideContent(data.content) : null;
+  return data && content ? { lesson_key: data.lesson_key, title: data.title, content } : null;
+}

@@ -69,7 +69,7 @@ describe("slide lesson data", () => {
     const frozen = JSON.stringify(c);
     const slideId = c.activities[0]!.slides[0]!.id;
     addActivity(c, "B", id);
-    addSlide(c, c.activities[0]!.id, id);
+    addSlide(c, c.activities[0]!.id, undefined, id);
     duplicateSlide(c, slideId, id);
     renameActivity(c, c.activities[0]!.id, "Z");
     addElement(c, slideId, "text", id);
@@ -108,8 +108,8 @@ describe("slide lesson data", () => {
       const id = counter();
       let c = addActivity(newSlideContent(id), "B", id);
       const [a, b] = c.activities as [(typeof c.activities)[number], (typeof c.activities)[number]];
-      c = addSlide(c, a.id, id);
-      c = addSlide(c, a.id, id);
+      c = addSlide(c, a.id, undefined, id);
+      c = addSlide(c, a.id, undefined, id);
       expect(c.activities[0]!.slides).toHaveLength(3);
       expect(c.activities[1]!.slides).toHaveLength(b.slides.length);
       expect(countSlides(c)).toBe(4);
@@ -132,8 +132,8 @@ describe("slide lesson data", () => {
 
     it("deletes a slide but keeps the last one of an activity", () => {
       const id = counter();
-      let c = addSlide(newSlideContent(id), "x", id);
-      c = addSlide(c, c.activities[0]!.id, id);
+      let c = addSlide(newSlideContent(id), "x", undefined, id);
+      c = addSlide(c, c.activities[0]!.id, undefined, id);
       const [s1, s2] = c.activities[0]!.slides;
       c = deleteSlide(c, s1!.id);
       expect(c.activities[0]!.slides.map((s) => s.id)).toEqual([s2!.id]);
@@ -144,8 +144,8 @@ describe("slide lesson data", () => {
       const id = counter();
       let c = newSlideContent(id);
       const act = c.activities[0]!.id;
-      c = addSlide(c, act, id);
-      c = addSlide(c, act, id);
+      c = addSlide(c, act, undefined, id);
+      c = addSlide(c, act, undefined, id);
       const ids = c.activities[0]!.slides.map((s) => s.id);
       c = moveSlide(c, act, 0, 2);
       expect(c.activities[0]!.slides.map((s) => s.id)).toEqual([ids[1], ids[2], ids[0]]);
@@ -157,7 +157,7 @@ describe("slide lesson data", () => {
       const id = counter();
       let c = newSlideContent(id);
       const act = c.activities[0]!.id;
-      for (let i = 0; i < MAX_SLIDES_PER_ACTIVITY + 5; i++) c = addSlide(c, act, id);
+      for (let i = 0; i < MAX_SLIDES_PER_ACTIVITY + 5; i++) c = addSlide(c, act, undefined, id);
       expect(c.activities[0]!.slides).toHaveLength(MAX_SLIDES_PER_ACTIVITY);
       expect(duplicateSlide(c, c.activities[0]!.slides[0]!.id, id)).toBe(c);
     });
@@ -166,8 +166,8 @@ describe("slide lesson data", () => {
   describe("elements", () => {
     it("adds, edits and deletes one element of one slide", () => {
       const id = counter();
-      let c = addSlide(newSlideContent(id), "x", id);
-      c = addSlide(c, c.activities[0]!.id, id);
+      let c = addSlide(newSlideContent(id), "x", undefined, id);
+      c = addSlide(c, c.activities[0]!.id, undefined, id);
       const [s1, s2] = c.activities[0]!.slides;
       c = addElement(c, s2!.id, "text", id);
       expect(c.activities[0]!.slides[1]!.elements).toHaveLength(3);
@@ -192,7 +192,7 @@ describe("slide lesson data", () => {
   it("finds slides and the first slide", () => {
     const id = counter();
     let c = addActivity(newSlideContent(id), "B", id);
-    c = addSlide(c, c.activities[1]!.id, id);
+    c = addSlide(c, c.activities[1]!.id, undefined, id);
     const target = c.activities[1]!.slides[1]!;
     expect(findSlide(c, target.id)).toMatchObject({ index: 1, activity: { title: "B" } });
     expect(findSlide(c, "missing")).toBeNull();
