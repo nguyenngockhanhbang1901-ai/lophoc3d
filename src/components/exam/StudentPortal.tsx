@@ -13,6 +13,8 @@ import {
 } from "@/lib/exam/student.functions";
 import { displayDate } from "@/lib/exam/roster";
 import { AssignedList, ExamFlow } from "./StudentExam";
+import { myNotices, readNotices } from "@/lib/exam/attempt.functions";
+import type { Notice } from "@/lib/exam/retakes.server";
 import { passwordProblem } from "@/lib/exam/accounts";
 
 const TOKEN_KEY = "exam-student-token";
@@ -48,6 +50,10 @@ export function StudentPortal() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [openAssignment, setOpenAssignment] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const loadNotices = useServerFn(myNotices);
+  const markRead = useServerFn(readNotices);
+  const [notices, setNotices] = useState<Notice[] | null>(null);
+  const [noticesSeen, setNoticesSeen] = useState(0);
 
   const signOut = useCallback((why = "") => {
     writeToken("");
@@ -64,6 +70,35 @@ export function StudentPortal() {
       .then(setProfile)
       .catch((e) => signOut(message(e)));
   }, [loadProfile, signOut]);
+
+  // notices refresh every minute while the portal is open
+  const signedIn = !!token && !!profile && !openAssignment;
+  useEffect(() => {
+    if (!signedIn || !token) return;
+    let stop = false;
+    const load = () =>
+      loadNotices({ data: { token } })
+        .then((r) => !stop && setNotices(r.notices))
+        .catch(() => undefined);
+    void load();
+    const t = window.setInterval(load, 60_000);
+    return () => {
+      stop = true;
+      window.clearInterval(t);
+    };
+  }, [signedIn, token, loadNotices]);
+  // opening the tab marks the stored notices as read (reminders stay until acted on)
+  useEffect(() => {
+    if (!noticesSeen || !token) return;
+    void markRead({ data: { token } })
+      .then(() =>
+        setNotices((list) =>
+          list ? list.map((n) => (n.kind === "closing_soon" ? n : { ...n, read: true })) : list,
+        ),
+      )
+      .catch(() => undefined);
+  }, [noticesSeen, token, markRead]);
+  const unread = (notices ?? []).filter((n) => !n.read).length;
 
   if (token === null || (token && !profile))
     return <p className="p-6 text-muted-foreground">Đang tải…</p>;
@@ -121,7 +156,12 @@ export function StudentPortal() {
           Đăng xuất
         </Button>
       </div>
-      <Tabs defaultValue="assigned">
+      <Tabs
+        defaultValue="assigned"
+        onValueChange={(v) => {
+          if (v === "notices") setNoticesSeen((n) => n + 1);
+        }}
+      >
         <TabsList className="flex h-auto flex-wrap">
           <TabsTrigger value="assigned">
             <ClipboardList />
@@ -138,6 +178,11 @@ export function StudentPortal() {
           <TabsTrigger value="notices">
             <Bell />
             Thông báo
+            {unread > 0 && (
+              <span className="ml-1 rounded-full bg-destructive px-1.5 text-xs text-white">
+                {unread}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="me">
             <UserRound />
@@ -154,13 +199,60 @@ export function StudentPortal() {
           <Empty text="Chưa có bài giảng nào được giao cho lớp." />
         </TabsContent>
         <TabsContent value="notices">
-          <Empty text="Không có thông báo mới." />
+          <NoticeList notices={notices} onOpen={setOpenAssignment} />
         </TabsContent>
         <TabsContent value="me">
           <ProfileTab profile={profile} token={token} onExpired={(why) => signOut(why)} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+const NOTICE_TONE: Record<Notice["kind"], string> = {
+  new_assignment: "border-l-blue-500",
+  retake_granted: "border-l-green-600",
+  retake_revoked: "border-l-muted-foreground",
+  closing_soon: "border-l-amber-500",
+};
+const noticeTime = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  hour: "2-digit",
+  minute: "2-digit",
+  day: "2-digit",
+  month: "2-digit",
+});
+
+function NoticeList({
+  notices,
+  onOpen,
+}: {
+  notices: Notice[] | null;
+  onOpen: (assignmentId: string) => void;
+}) {
+  if (notices === null) return <p className="text-sm text-muted-foreground">Đang tải…</p>;
+  if (!notices.length) return <Empty text="Không có thông báo mới." />;
+  return (
+    <ul className="grid gap-2">
+      {notices.map((n) => (
+        <li
+          key={n.id}
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border border-l-4 bg-card p-3 ${NOTICE_TONE[n.kind]}`}
+        >
+          <div>
+            <p className={n.read ? "" : "font-medium"}>{n.body}</p>
+            {n.kind !== "closing_soon" && (
+              <p className="text-xs text-muted-foreground">{noticeTime.format(new Date(n.at))}</p>
+            )}
+          </div>
+          {n.assignmentId && n.kind !== "retake_revoked" && (
+            <Button size="sm" variant="outline" onClick={() => onOpen(n.assignmentId!)}>
+              Mở bài
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

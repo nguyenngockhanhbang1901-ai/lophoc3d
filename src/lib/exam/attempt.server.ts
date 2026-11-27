@@ -229,10 +229,32 @@ export async function beginAttempt(
   if (settings.devices === "computer" && isMobileUserAgent(userAgent))
     throw new Error("Bài này chỉ được làm trên máy tính");
   const state = windowState(assignment.opens_at, assignment.closes_at, now);
-  const retake = retakeState(attempts, assignment.max_attempts, settings.autoRetakes, state);
+  const grant = await activeGrant(assignment.id, studentId, now);
+  const retake = retakeState(
+    attempts,
+    assignment.max_attempts,
+    settings.autoRetakes,
+    state,
+    grant !== null,
+  );
   if (retake.kind === "scheduled") throw new Error("Bài chưa đến giờ mở");
   if (retake.kind === "closed") throw new Error("Bài đã đóng");
   if (retake.kind === "wait_teacher") throw new Error(retake.reason);
+
+  // a teacher's permission is used up by the attempt it opens
+  let usedGrant: string | null = null;
+  if (retake.grant && grant) {
+    const { data: claimed } = await db
+      .from("exam_retake_grants")
+      .update({ used_at: new Date(now).toISOString() })
+      .eq("id", grant.id)
+      .is("used_at", null)
+      .is("revoked_at", null)
+      .select("id")
+      .maybeSingle();
+    if (!claimed) throw new Error("Quyền thi lại không còn hiệu lực, em hãy tải lại trang");
+    usedGrant = grant.id;
+  }
 
   const exam = await drawForStudent(assignment, studentId);
   const { data: created, error } = await db
@@ -253,19 +275,63 @@ export async function beginAttempt(
     })
     .select("id")
     .single();
-  if (error?.code === "23505") {
-    // started twice at the same moment (double click, two tabs): use the one that won
-    const { data: winner } = await db
-      .from("exam_attempts")
-      .select("id")
-      .eq("assignment_id", assignment.id)
-      .eq("student_id", studentId)
-      .eq("status", "in_progress")
-      .maybeSingle();
-    if (winner) return (winner as { id: string }).id;
+  if (error || !created) {
+    if (usedGrant)
+      await db
+        .from("exam_retake_grants")
+        .update({ used_at: null })
+        .eq("id", usedGrant)
+        .is("used_attempt_id", null);
+    if (error?.code === "23505") {
+      // started twice at the same moment (double click, two tabs): use the one that won
+      const { data: winner } = await db
+        .from("exam_attempts")
+        .select("id")
+        .eq("assignment_id", assignment.id)
+        .eq("student_id", studentId)
+        .eq("status", "in_progress")
+        .maybeSingle();
+      if (winner) return (winner as { id: string }).id;
+    }
+    throw new Error("Không bắt đầu được bài làm, hãy thử lại");
   }
-  if (error || !created) throw new Error("Không bắt đầu được bài làm, hãy thử lại");
-  return (created as { id: string }).id;
+  const id = (created as { id: string }).id;
+  if (usedGrant)
+    await db.from("exam_retake_grants").update({ used_attempt_id: id }).eq("id", usedGrant);
+  return id;
+}
+
+export interface GrantRow {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  reason: string;
+  expires_at: string | null;
+  created_at: string;
+  used_at: string | null;
+  used_attempt_id: string | null;
+  revoked_at: string | null;
+}
+
+export function grantActive(g: GrantRow, now: number): boolean {
+  return !g.used_at && !g.revoked_at && (!g.expires_at || new Date(g.expires_at).getTime() > now);
+}
+
+/** The student's oldest usable permission to retake this assignment, if any. */
+export async function activeGrant(
+  assignmentId: string,
+  studentId: string,
+  now = Date.now(),
+): Promise<GrantRow | null> {
+  const { data } = await examDb()
+    .from("exam_retake_grants")
+    .select("*")
+    .eq("assignment_id", assignmentId)
+    .eq("student_id", studentId)
+    .is("used_at", null)
+    .is("revoked_at", null)
+    .order("created_at");
+  return ((data ?? []) as GrantRow[]).find((g) => grantActive(g, now)) ?? null;
 }
 
 /**

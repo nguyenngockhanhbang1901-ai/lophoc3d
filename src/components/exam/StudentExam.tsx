@@ -199,15 +199,23 @@ export function AssignedList({
                 <span className="ml-2 text-muted-foreground">
                   Đã làm {a.attemptsUsed}/{a.maxAttempts} lần
                 </span>
+                {a.grant && !a.inProgressId && (
+                  <span className="ml-2 font-medium text-green-700">
+                    Được giáo viên cho làm lại
+                    {a.grant.expiresAt ? ` đến ${formatTime(a.grant.expiresAt)}` : ""}
+                  </span>
+                )}
               </div>
             </div>
             <Button
               onClick={() => onOpen(a.id)}
-              variant={a.inProgressId || (state === "open" && a.canStart) ? "default" : "outline"}
+              variant={
+                a.inProgressId || (state !== "scheduled" && a.canStart) ? "default" : "outline"
+              }
             >
               {a.inProgressId
                 ? "Làm tiếp"
-                : state === "open" && a.canStart
+                : state !== "scheduled" && a.canStart
                   ? a.attemptsUsed > 0 || a.lastStatus
                     ? "Làm đề mới"
                     : "Vào làm bài"

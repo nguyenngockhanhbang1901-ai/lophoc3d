@@ -12,6 +12,7 @@ import {
   type AttemptStatus,
   type WindowState,
 } from "./assignment";
+import { retakeState } from "./anticheat";
 import { analyzeMatrix, matrixSlotsSchema, type MatrixSlot } from "./matrix";
 
 const uuid = z.string().uuid();
@@ -226,9 +227,21 @@ export const saveAssignment = createServerFn({ method: "POST" })
     const { data: row, error } = await db
       .from("exam_assignments")
       .insert({ ...common, ...exam, class_id: data.classId, owner_id: context.userId })
-      .select("id")
+      .select("id,title,class_id,owner_id,opens_at,closes_at")
       .single();
     if (error || !row) throw new Error("Không giao được bài");
+    const { notifyNewAssignment } = await import("./retakes.server");
+    // a failed notice must not undo the assignment
+    await notifyNewAssignment(
+      row as {
+        id: string;
+        title: string;
+        class_id: string;
+        owner_id: string;
+        opens_at: string;
+        closes_at: string;
+      },
+    ).catch(() => undefined);
     return { id: (row as { id: string }).id };
   });
 
@@ -252,6 +265,12 @@ export interface StudentResult {
   username: string;
   /** the attempt whose score counts (per the assignment's rule), or null */
   score: number | null;
+  /** why the student cannot start again without the teacher, or null */
+  waiting: string | null;
+  /** an unused permission to retake */
+  grant: { id: string; reason: string; expiresAt: string | null } | null;
+  /** permissions given so far (revoked ones excluded) */
+  grantCount: number;
   attempts: {
     id: string;
     attemptNo: number;
@@ -278,12 +297,22 @@ export const assignmentResults = createServerFn({ method: "POST" })
     const db = examDb();
     const { data: a } = await db
       .from("exam_assignments")
-      .select("id,class_id,settings")
+      .select("id,class_id,settings,opens_at,closes_at,max_attempts")
       .eq("id", data.assignmentId)
       .eq("owner_id", context.userId)
       .maybeSingle();
     if (!a) throw new Error("Không tìm thấy bài giao");
-    const assignment = a as { id: string; class_id: string; settings: unknown };
+    const assignment = a as {
+      id: string;
+      class_id: string;
+      settings: unknown;
+      opens_at: string;
+      closes_at: string;
+      max_attempts: number;
+    };
+    const { grantsByStudent } = await import("./retakes.server");
+    const grants = await grantsByStudent(assignment.id);
+    const window = windowState(assignment.opens_at, assignment.closes_at, Date.now());
     const settings = readSettings(assignment.settings);
     const [{ data: students }, { data: attempts }] = await Promise.all([
       db
@@ -340,11 +369,24 @@ export const assignmentResults = createServerFn({ method: "POST" })
             })),
             settings.scoreRule,
           );
+          const g = grants.get(s.id);
+          const retake = retakeState(list, assignment.max_attempts, settings.autoRetakes, window);
           return {
             studentId: s.id,
             fullName: s.full_name,
             username: s.username,
             score: chosen?.score ?? null,
+            waiting: list.some((r) => r.status === "in_progress")
+              ? null
+              : retake.kind === "wait_teacher"
+                ? retake.reason
+                : retake.kind === "closed"
+                  ? "Bài đã đóng, chưa làm"
+                  : null,
+            grant: g?.active
+              ? { id: g.active.id, reason: g.active.reason, expiresAt: g.active.expires_at }
+              : null,
+            grantCount: g?.total ?? 0,
             attempts: list.map((r) => ({
               id: r.id,
               attemptNo: r.attempt_no,
@@ -364,4 +406,33 @@ export const assignmentResults = createServerFn({ method: "POST" })
         },
       ),
     };
+  });
+
+export const grantRetake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      assignmentId: uuid,
+      studentIds: z.array(uuid).min(1).max(200),
+      reason: z.string().max(300),
+      expiresAt: z.string().datetime({ offset: true }).nullable(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { grantRetakes } = await import("./retakes.server");
+    return grantRetakes(
+      context.userId,
+      data.assignmentId,
+      data.studentIds,
+      data.reason,
+      data.expiresAt,
+    );
+  });
+
+export const revokeRetake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ grantId: uuid }))
+  .handler(async ({ data, context }) => {
+    const { revokeGrant } = await import("./retakes.server");
+    return revokeGrant(context.userId, data.grantId);
   });

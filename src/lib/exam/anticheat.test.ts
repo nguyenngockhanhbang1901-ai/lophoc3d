@@ -74,7 +74,7 @@ describe("retakeState", () => {
     counts = true,
   ) => ({ attempt_no, status, counts_toward_attempts: counts });
   it("allows the first attempt and stops at the limit", () => {
-    expect(retakeState([], 1, 2, "open")).toEqual({ kind: "allowed", auto: false });
+    expect(retakeState([], 1, 2, "open")).toEqual({ kind: "allowed", auto: false, grant: false });
     expect(retakeState([a(1, "submitted")], 1, 2, "open").kind).toBe("wait_teacher");
     expect(retakeState([a(1, "submitted")], 2, 2, "open").kind).toBe("allowed");
   });
@@ -82,6 +82,7 @@ describe("retakeState", () => {
     expect(retakeState([a(1, "cancelled_edit")], 1, 2, "open")).toEqual({
       kind: "allowed",
       auto: true,
+      grant: false,
     });
     expect(
       retakeState([a(1, "cancelled_network", false), a(2, "cancelled_edit")], 1, 2, "open").kind,
@@ -99,6 +100,17 @@ describe("retakeState", () => {
     expect(retakeState([a(1, "cancelled_edit")], 1, 2, "closed").kind).toBe("wait_teacher");
     expect(retakeState([a(1, "violation")], 3, 2, "open").kind).toBe("wait_teacher");
     expect(retakeState([], 1, 2, "closed").kind).toBe("closed");
+  });
+  it("lets a teacher's permission open one more attempt", () => {
+    expect(retakeState([a(1, "violation")], 3, 2, "open", true)).toMatchObject({
+      kind: "allowed",
+      grant: true,
+    });
+    expect(retakeState([a(1, "submitted")], 1, 2, "closed", true).kind).toBe("allowed");
+    expect(retakeState([], 1, 2, "closed", true).kind).toBe("allowed");
+    expect(retakeState([], 1, 2, "scheduled", true).kind).toBe("scheduled");
+    // not used up when the student could start anyway
+    expect(retakeState([a(1, "submitted")], 2, 2, "open", true)).toMatchObject({ grant: false });
   });
 });
 

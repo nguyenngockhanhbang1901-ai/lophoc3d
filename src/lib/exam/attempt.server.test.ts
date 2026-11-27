@@ -273,4 +273,33 @@ describe("anti-cheat", () => {
     // a new exam follows automatically
     expect(await beginAttempt(STUDENT, a, "", t + 1000, DEV)).not.toBe(id);
   });
+
+  it("opens one more attempt with a teacher's permission, then uses it up", async () => {
+    const id = await beginAttempt(STUDENT, a, "", T0, DEV);
+    for (let i = 1; i <= 4; i++) await reportViolation(attempt(id), "tab_hidden", null, T0 + i);
+    expect(attempt(id).status).toBe("violation");
+    await expect(beginAttempt(STUDENT, a, "", T0 + 10_000, DEV)).rejects.toThrow("vi phạm");
+    const grant = {
+      id: db.id(),
+      assignment_id: a.id,
+      student_id: STUDENT,
+      owner_id: OWNER,
+      reason: "",
+      expires_at: new Date(T0 + 3600_000).toISOString(),
+      created_at: new Date(T0).toISOString(),
+      used_at: null,
+      used_attempt_id: null,
+      revoked_at: null,
+    };
+    db.rows("exam_retake_grants").push({ ...grant, expires_at: new Date(T0).toISOString() });
+    // an expired permission does nothing
+    await expect(beginAttempt(STUDENT, a, "", T0 + 10_000, DEV)).rejects.toThrow("vi phạm");
+    db.rows("exam_retake_grants").push(grant);
+    const next = await beginAttempt(STUDENT, a, "", T0 + 20_000, DEV);
+    expect(next).not.toBe(id);
+    const used = db.rows("exam_retake_grants").find((g) => g["id"] === grant.id)!;
+    expect(used["used_attempt_id"]).toBe(next);
+    await finishAttempt(attempt(next), "submitted", { now: T0 + 30_000 });
+    await expect(beginAttempt(STUDENT, a, "", T0 + 40_000, DEV)).rejects.toThrow();
+  });
 });
