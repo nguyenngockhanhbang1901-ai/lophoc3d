@@ -211,6 +211,36 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_banks: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          owner_id: string
+          title: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          owner_id?: string
+          title: string
+          topic?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          owner_id?: string
+          title?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exam_classes: {
         Row: {
           archived: boolean
@@ -275,6 +305,56 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_questions: {
+        Row: {
+          bank_id: string
+          body: Json
+          created_at: string
+          hidden: boolean
+          id: string
+          kind: string
+          level: string
+          owner_id: string
+          position: number
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          bank_id: string
+          body: Json
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          kind: string
+          level?: string
+          owner_id?: string
+          position?: number
+          topic?: string
+          updated_at?: string
+        }
+        Update: {
+          bank_id?: string
+          body?: Json
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          kind?: string
+          level?: string
+          owner_id?: string
+          position?: number
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_questions_bank_id_fkey"
+            columns: ["bank_id"]
+            isOneToOne: false
+            referencedRelation: "exam_banks"
             referencedColumns: ["id"]
           },
         ]
