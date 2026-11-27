@@ -10,6 +10,17 @@ import {
   windowState,
   type AttemptStatus,
 } from "./assignment";
+import {
+  DEVICE_TAKEOVER_MS,
+  DROP_THRESHOLD_MS,
+  editVerdict,
+  editedCount,
+  isMobileUserAgent,
+  networkDecision,
+  retakeState,
+  type DropOutcome,
+  type ViolationKind,
+} from "./anticheat";
 import type { StudentAnswer } from "./grading";
 import { drawExam, matrixSlotsSchema, type DrawnItem, type MatrixSlot } from "./matrix";
 import { POOL_COLUMNS, toPool, type PoolRow } from "./pool";
@@ -36,6 +47,12 @@ export interface AttemptRow {
   score: number | null;
   correct_count: number | null;
   results: unknown;
+  violation_count: number;
+  disconnect_count: number;
+  last_heartbeat_at: string | null;
+  session_hash: string | null;
+  edit_warned_at: string | null;
+  edit_count: number;
 }
 
 export interface AssignmentRow {
@@ -124,7 +141,10 @@ export async function loadAnswers(
 export async function finishAttempt(
   attempt: AttemptRow,
   status: Exclude<AttemptStatus, "in_progress">,
+  options: { counts?: boolean; now?: number; extra?: Record<string, unknown> } = {},
 ): Promise<AttemptRow | null> {
+  const now = options.now ?? Date.now();
+  const cancelled = status === "cancelled_network" || status === "cancelled_edit";
   const db = examDb();
   const { data: a } = await db
     .from("exam_assignments")
@@ -141,16 +161,19 @@ export async function finishAttempt(
     settings.scale,
   );
   const finishedAt = new Date(
-    Math.min(Date.now(), new Date(attempt.deadline_at).getTime() + GRACE_MS),
+    Math.min(now, new Date(attempt.deadline_at).getTime() + GRACE_MS),
   ).toISOString();
   const { data, error } = await db
     .from("exam_attempts")
     .update({
+      ...options.extra,
       status,
       finished_at: finishedAt,
-      score: graded.score,
-      correct_count: graded.correctCount,
+      // a cancelled paper keeps its answers for the teacher but has no score
+      score: cancelled ? null : graded.score,
+      correct_count: cancelled ? null : graded.correctCount,
       results: graded.results,
+      ...(options.counts === undefined ? {} : { counts_toward_attempts: options.counts }),
     })
     .eq("id", attempt.id)
     .eq("status", "in_progress")
@@ -179,6 +202,7 @@ export async function beginAttempt(
   assignment: AssignmentRow,
   userAgent: string,
   now = Date.now(),
+  deviceHash: string | null = null,
 ): Promise<string> {
   const db = examDb();
   const { data: rows } = await db
@@ -201,11 +225,14 @@ export async function beginAttempt(
   const open = attempts.find((a) => a.status === "in_progress");
   if (open) return open.id;
 
+  const settings = readSettings(assignment.settings);
+  if (settings.devices === "computer" && isMobileUserAgent(userAgent))
+    throw new Error("Bài này chỉ được làm trên máy tính");
   const state = windowState(assignment.opens_at, assignment.closes_at, now);
-  if (state === "scheduled") throw new Error("Bài chưa đến giờ mở");
-  if (state === "closed") throw new Error("Bài đã đóng");
-  if (attempts.filter((a) => a.counts_toward_attempts).length >= assignment.max_attempts)
-    throw new Error("Em đã dùng hết số lần làm bài");
+  const retake = retakeState(attempts, assignment.max_attempts, settings.autoRetakes, state);
+  if (retake.kind === "scheduled") throw new Error("Bài chưa đến giờ mở");
+  if (retake.kind === "closed") throw new Error("Bài đã đóng");
+  if (retake.kind === "wait_teacher") throw new Error(retake.reason);
 
   const exam = await drawForStudent(assignment, studentId);
   const { data: created, error } = await db
@@ -220,7 +247,9 @@ export async function beginAttempt(
       rules_accepted_at: new Date(now).toISOString(),
       started_at: new Date(now).toISOString(),
       deadline_at: new Date(now + assignment.duration_minutes * 60_000).toISOString(),
-      user_agent: userAgent,
+      last_heartbeat_at: new Date(now).toISOString(),
+      session_hash: deviceHash,
+      user_agent: userAgent.slice(0, 300),
     })
     .select("id")
     .single();
@@ -249,7 +278,7 @@ export async function recordAnswer(
   index: number,
   answer: StudentAnswer,
   now = Date.now(),
-): Promise<{ reachedIndex: number; completedAll: boolean }> {
+): Promise<AnswerOutcome> {
   if (attempt.status !== "in_progress") throw new Error("Bài làm đã kết thúc");
   if (now > new Date(attempt.deadline_at).getTime() + GRACE_MS)
     throw new Error("Đã hết giờ làm bài");
@@ -268,6 +297,9 @@ export async function recordAnswer(
 
   let reached = attempt.reached_index;
   let completedAll = attempt.completed_all_at !== null;
+  // changes after the first full pass are what the edit rule watches
+  if (completedAll)
+    return { reachedIndex: reached, completedAll, ...(await checkEdits(attempt, now)) };
   if (index === reached && answerComplete(answer)) {
     const next = Math.min(reached + 1, attempt.items.length);
     const finishing = next >= attempt.items.length && !completedAll;
@@ -295,5 +327,244 @@ export async function recordAnswer(
       }
     }
   }
-  return { reachedIndex: reached, completedAll };
+  return { reachedIndex: reached, completedAll, editWarning: false, status: "in_progress" };
+}
+
+export interface AnswerOutcome {
+  reachedIndex: number;
+  completedAll: boolean;
+  /** the warning "Bài thi có dấu hiệu gian lận" should be shown now */
+  editWarning: boolean;
+  /** cancelled_edit when this change broke the edit rule */
+  status: AttemptStatus;
+}
+
+async function checkEdits(
+  attempt: AttemptRow,
+  now: number,
+): Promise<{ editWarning: boolean; status: AttemptStatus }> {
+  const db = examDb();
+  const [{ data: a }, { data: rows }] = await Promise.all([
+    db.from("exam_assignments").select("settings").eq("id", attempt.assignment_id).maybeSingle(),
+    db
+      .from("exam_answers")
+      .select("item_index,answer,answer_at_completion")
+      .eq("attempt_id", attempt.id),
+  ]);
+  const settings = readSettings((a as { settings: unknown } | null)?.settings);
+  const count = attempt.items.length;
+  const current: (StudentAnswer | null)[] = Array.from({ length: count }, () => null);
+  const first: (StudentAnswer | null)[] = Array.from({ length: count }, () => null);
+  for (const r of (rows ?? []) as {
+    item_index: number;
+    answer: unknown;
+    answer_at_completion: unknown;
+  }[]) {
+    if (r.item_index >= count) continue;
+    const c = studentAnswerSchema.safeParse(r.answer);
+    const f = studentAnswerSchema.safeParse(r.answer_at_completion);
+    if (c.success) current[r.item_index] = c.data;
+    if (f.success) first[r.item_index] = f.data;
+  }
+  const edited = editedCount(current, first);
+  const started = new Date(attempt.started_at).getTime();
+  const verdict = editVerdict(
+    {
+      total: count,
+      edited,
+      firstPassMs: new Date(attempt.completed_all_at ?? attempt.started_at).getTime() - started,
+      durationMs: new Date(attempt.deadline_at).getTime() - started,
+      warned: attempt.edit_warned_at !== null,
+    },
+    settings.editRule,
+  );
+  const at = new Date(now).toISOString();
+  if (verdict === "cancel") {
+    const closed = await finishAttempt(attempt, "cancelled_edit", {
+      counts: true,
+      now,
+      extra: { edit_count: edited },
+    });
+    return { editWarning: false, status: closed?.status ?? "cancelled_edit" };
+  }
+  if (verdict === "warn") {
+    const { data: warned } = await db
+      .from("exam_attempts")
+      .update({ edit_warned_at: at, edit_count: edited })
+      .eq("id", attempt.id)
+      .eq("status", "in_progress")
+      .is("edit_warned_at", null)
+      .select("id")
+      .maybeSingle();
+    if (warned) {
+      await db.from("exam_violations").insert({
+        attempt_id: attempt.id,
+        owner_id: attempt.owner_id,
+        kind: "edit_warning",
+        counted: false,
+        at,
+      });
+      return { editWarning: true, status: "in_progress" };
+    }
+    return { editWarning: false, status: "in_progress" };
+  }
+  if (edited !== attempt.edit_count)
+    await db.from("exam_attempts").update({ edit_count: edited }).eq("id", attempt.id);
+  return { editWarning: false, status: "in_progress" };
+}
+
+export interface DropReport {
+  durationMs: number;
+  dropNumber: number;
+  outcome: DropOutcome;
+}
+
+/**
+ * Every request from the exam screen passes through here. It keeps the paper on one device
+ * (another may take over only after the first has gone silent), notices a lost connection from
+ * the silence since the last request and applies the network rule. Returns the attempt as it
+ * now stands, and the drop when one was found.
+ */
+export async function touchAttempt(
+  attempt: AttemptRow,
+  deviceHash: string,
+  now = Date.now(),
+): Promise<{ attempt: AttemptRow; drop: DropReport | null }> {
+  if (attempt.status !== "in_progress") return { attempt, drop: null };
+  const db = examDb();
+  const last = attempt.last_heartbeat_at ?? attempt.started_at;
+  const silence = Math.max(0, now - new Date(last).getTime());
+  const otherDevice = attempt.session_hash !== null && attempt.session_hash !== deviceHash;
+  if (otherDevice && silence < DEVICE_TAKEOVER_MS)
+    throw new Error("Bài đang được làm trên một thiết bị khác");
+  if (!otherDevice && attempt.session_hash !== null && silence < 3_000)
+    return { attempt, drop: null };
+
+  const at = new Date(now).toISOString();
+  let claim = db
+    .from("exam_attempts")
+    .update({ last_heartbeat_at: at, session_hash: deviceHash })
+    .eq("id", attempt.id)
+    .eq("status", "in_progress");
+  claim =
+    attempt.last_heartbeat_at === null
+      ? claim.is("last_heartbeat_at", null)
+      : claim.eq("last_heartbeat_at", attempt.last_heartbeat_at);
+  const { data: claimed } = await claim.select("*").maybeSingle();
+  if (!claimed) {
+    // another request from the same screen got here first and did the work
+    const { data } = await db.from("exam_attempts").select("*").eq("id", attempt.id).maybeSingle();
+    const fresh = (data as AttemptRow | null) ?? attempt;
+    if (fresh.session_hash !== null && fresh.session_hash !== deviceHash)
+      throw new Error("Bài đang được làm trên một thiết bị khác");
+    return { attempt: fresh, drop: null };
+  }
+  let row = claimed as AttemptRow;
+  if (otherDevice)
+    await db.from("exam_violations").insert({
+      attempt_id: attempt.id,
+      owner_id: attempt.owner_id,
+      kind: "second_device",
+      counted: false,
+      at,
+    });
+  if (silence <= DROP_THRESHOLD_MS) return { attempt: row, drop: null };
+
+  const [{ data: a }, { count }] = await Promise.all([
+    db.from("exam_assignments").select("settings").eq("id", attempt.assignment_id).maybeSingle(),
+    db
+      .from("exam_connection_events")
+      .select("id", { count: "exact", head: true })
+      .eq("assignment_id", attempt.assignment_id)
+      .eq("student_id", attempt.student_id),
+  ]);
+  const settings = readSettings((a as { settings: unknown } | null)?.settings);
+  const dropNumber = (count ?? 0) + 1;
+  const outcome = networkDecision(silence, dropNumber, settings.network);
+  await db.from("exam_connection_events").insert({
+    attempt_id: attempt.id,
+    assignment_id: attempt.assignment_id,
+    student_id: attempt.student_id,
+    owner_id: attempt.owner_id,
+    started_at: last,
+    ended_at: at,
+    duration_ms: Math.round(silence),
+    drop_number: dropNumber,
+    outcome,
+  });
+  const disconnects = row.disconnect_count + 1;
+  if (outcome === "continue") {
+    await db.from("exam_attempts").update({ disconnect_count: disconnects }).eq("id", row.id);
+    row = { ...row, disconnect_count: disconnects };
+  } else {
+    const closed = await finishAttempt(row, "cancelled_network", {
+      counts: outcome === "new_exam_counted",
+      now,
+      extra: { disconnect_count: disconnects },
+    });
+    if (closed) row = closed;
+  }
+  return { attempt: row, drop: { durationMs: silence, dropNumber, outcome } };
+}
+
+/**
+ * One leaving-the-exam episode (full screen exit, tab switch, window blur). Past the
+ * assignment's warnings the paper is collected with status violation.
+ */
+export async function reportViolation(
+  attempt: AttemptRow,
+  kind: ViolationKind,
+  awayMs: number | null,
+  now = Date.now(),
+): Promise<{ violationCount: number; maxWarnings: number; status: AttemptStatus }> {
+  const db = examDb();
+  const { data: a } = await db
+    .from("exam_assignments")
+    .select("settings")
+    .eq("id", attempt.assignment_id)
+    .maybeSingle();
+  const { maxWarnings } = readSettings((a as { settings: unknown } | null)?.settings);
+  if (attempt.status !== "in_progress")
+    return { violationCount: attempt.violation_count, maxWarnings, status: attempt.status };
+  const at = new Date(now).toISOString();
+  await db.from("exam_violations").insert({
+    attempt_id: attempt.id,
+    owner_id: attempt.owner_id,
+    kind,
+    counted: true,
+    away_ms: awayMs === null ? null : Math.round(Math.min(awayMs, 2_000_000_000)),
+    at,
+  });
+  let row = attempt;
+  for (let tries = 0; tries < 5; tries++) {
+    const { data: moved } = await db
+      .from("exam_attempts")
+      .update({ violation_count: row.violation_count + 1 })
+      .eq("id", row.id)
+      .eq("status", "in_progress")
+      .eq("violation_count", row.violation_count)
+      .select("*")
+      .maybeSingle();
+    if (moved) {
+      row = moved as AttemptRow;
+      break;
+    }
+    const { data } = await db.from("exam_attempts").select("*").eq("id", row.id).maybeSingle();
+    row = data as AttemptRow;
+    if (!row || row.status !== "in_progress")
+      return {
+        violationCount: row?.violation_count ?? attempt.violation_count,
+        maxWarnings,
+        status: row?.status ?? attempt.status,
+      };
+  }
+  if (row.violation_count > maxWarnings) {
+    const closed = await finishAttempt(row, "violation", { now });
+    return {
+      violationCount: row.violation_count,
+      maxWarnings,
+      status: closed?.status ?? "violation",
+    };
+  }
+  return { violationCount: row.violation_count, maxWarnings, status: "in_progress" };
 }

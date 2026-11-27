@@ -263,6 +263,9 @@ export interface StudentResult {
     correctCount: number | null;
     questionCount: number;
     counts: boolean;
+    violationCount: number;
+    disconnectCount: number;
+    editCount: number;
   }[];
 }
 
@@ -292,7 +295,7 @@ export const assignmentResults = createServerFn({ method: "POST" })
       db
         .from("exam_attempts")
         .select(
-          "id,student_id,attempt_no,status,code,started_at,deadline_at,finished_at,score,correct_count,items,counts_toward_attempts",
+          "id,student_id,attempt_no,status,code,started_at,deadline_at,finished_at,score,correct_count,items,counts_toward_attempts,violation_count,disconnect_count,edit_count",
         )
         .eq("assignment_id", assignment.id)
         .order("attempt_no"),
@@ -310,6 +313,9 @@ export const assignmentResults = createServerFn({ method: "POST" })
       correct_count: number | null;
       items: unknown[];
       counts_toward_attempts: boolean;
+      violation_count: number | null;
+      disconnect_count: number | null;
+      edit_count: number | null;
     };
     const rows = (attempts ?? []) as Row[];
     // papers whose time ran out are collected now, so the table never shows a stale "đang làm"
@@ -350,6 +356,9 @@ export const assignmentResults = createServerFn({ method: "POST" })
               correctCount: r.correct_count,
               questionCount: Array.isArray(r.items) ? r.items.length : 0,
               counts: r.counts_toward_attempts,
+              violationCount: r.violation_count ?? 0,
+              disconnectCount: r.disconnect_count ?? 0,
+              editCount: r.edit_count ?? 0,
             })),
           };
         },

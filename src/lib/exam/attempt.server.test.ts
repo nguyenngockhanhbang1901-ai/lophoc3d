@@ -5,8 +5,15 @@ import type { QuestionBody } from "./questions";
 let db: FakeDb;
 vi.mock("./db.server", () => ({ examDb: () => db }));
 
-const { beginAttempt, recordAnswer, finishAttempt, finishIfExpired, GRACE_MS } =
-  await import("./attempt.server");
+const {
+  beginAttempt,
+  recordAnswer,
+  finishAttempt,
+  finishIfExpired,
+  touchAttempt,
+  reportViolation,
+  GRACE_MS,
+} = await import("./attempt.server");
 type AssignmentRow = import("./attempt.server").AssignmentRow;
 type AttemptRow = import("./attempt.server").AttemptRow;
 
@@ -124,7 +131,7 @@ describe("attempt engine", () => {
         .reachedIndex,
     ).toBe(3);
     const last = await recordAnswer(row(), 3, { kind: "short", text: "2.50" }, t);
-    expect(last).toEqual({ reachedIndex: 4, completedAll: true });
+    expect(last).toMatchObject({ reachedIndex: 4, completedAll: true, editWarning: false });
     expect(row().completed_all_at).not.toBeNull();
     expect(db.rows("exam_answers").every((r) => r["answer_at_completion"] !== undefined)).toBe(
       true,
@@ -157,5 +164,113 @@ describe("attempt engine", () => {
     const closed = await finishIfExpired(id);
     expect(closed?.status).toBe("timeout");
     expect(closed?.score).toBe(0);
+  });
+});
+
+describe("anti-cheat", () => {
+  let a: AssignmentRow;
+  const DEV = "device-1";
+  beforeEach(() => {
+    a = seed();
+  });
+
+  async function answerAll(id: string, t: number) {
+    const row = () => attempt(id);
+    await recordAnswer(row(), 0, { kind: "mcq", choice: 0 }, t);
+    await recordAnswer(row(), 1, { kind: "mcq", choice: 0 }, t);
+    await recordAnswer(row(), 2, { kind: "tf", choices: [true, true, true, true] }, t);
+    await recordAnswer(row(), 3, { kind: "short", text: "1" }, t);
+  }
+
+  it("keeps the paper on one device until it falls silent", async () => {
+    const id = await beginAttempt(STUDENT, a, "", T0, DEV);
+    await expect(touchAttempt(attempt(id), "device-2", T0 + 10_000)).rejects.toThrow(
+      "thiết bị khác",
+    );
+    const r = await touchAttempt(attempt(id), DEV, T0 + 10_000);
+    expect(r.drop).toBeNull();
+    // the first device goes quiet for 40 s: the second takes over, and that is a drop
+    const taken = await touchAttempt(attempt(id), "device-2", T0 + 50_000);
+    expect(taken.attempt.session_hash).toBe("device-2");
+    expect(taken.drop?.outcome).toBe("continue");
+    expect(db.rows("exam_violations").map((v) => v["kind"])).toEqual(["second_device"]);
+  });
+
+  it("applies the network rule to lost connections", async () => {
+    const id = await beginAttempt(STUDENT, a, "", T0, DEV);
+    // 1 minute: carry on
+    let r = await touchAttempt(attempt(id), DEV, T0 + 60_000);
+    expect(r.drop).toMatchObject({ dropNumber: 1, outcome: "continue" });
+    expect(r.attempt.disconnect_count).toBe(1);
+    // 4 minutes: new exam, not counted
+    r = await touchAttempt(attempt(id), DEV, T0 + 5 * 60_000);
+    expect(r.drop?.outcome).toBe("new_exam");
+    expect(r.attempt.status).toBe("cancelled_network");
+    expect(r.attempt.counts_toward_attempts).toBe(false);
+    expect(r.attempt.score).toBeNull();
+    // a fresh paper is allowed even though max_attempts is 1
+    const next = await beginAttempt(STUDENT, a, "", T0 + 5 * 60_000 + 1000, DEV);
+    expect(next).not.toBe(id);
+    // 6 minutes: new exam, counted
+    r = await touchAttempt(attempt(next), DEV, T0 + 11 * 60_000 + 2000);
+    expect(r.drop).toMatchObject({ dropNumber: 3, outcome: "new_exam_counted" });
+    expect(r.attempt.counts_toward_attempts).toBe(true);
+    expect(db.rows("exam_connection_events")).toHaveLength(3);
+    // two cancellations so far: the second automatic retake is still allowed
+    await expect(beginAttempt(STUDENT, a, "", T0 + 12 * 60_000, DEV)).resolves.toBeTruthy();
+  });
+
+  it("stops automatic retakes after the limit", async () => {
+    a.settings = { scale: 10, autoRetakes: 1 };
+    db.rows("exam_assignments")[0]!["settings"] = a.settings;
+    const first = await beginAttempt(STUDENT, a, "", T0, DEV);
+    await finishAttempt(attempt(first), "cancelled_edit", { counts: true, now: T0 + 1000 });
+    const second = await beginAttempt(STUDENT, a, "", T0 + 2000, DEV);
+    await finishAttempt(attempt(second), "cancelled_network", { counts: false, now: T0 + 3000 });
+    await expect(beginAttempt(STUDENT, a, "", T0 + 4000, DEV)).rejects.toThrow("giáo viên");
+  });
+
+  it("refuses phones when the exam is for computers only", async () => {
+    a.settings = { scale: 10, devices: "computer" };
+    await expect(
+      beginAttempt(STUDENT, a, "Mozilla/5.0 (Linux; Android 14)", T0 + 1000, DEV),
+    ).rejects.toThrow("máy tính");
+  });
+
+  it("collects the paper after too many violations", async () => {
+    const id = await beginAttempt(STUDENT, a, "", T0, DEV);
+    for (let i = 1; i <= 3; i++) {
+      const r = await reportViolation(attempt(id), "tab_hidden", 2000, T0 + i * 1000);
+      expect(r).toMatchObject({ violationCount: i, maxWarnings: 3, status: "in_progress" });
+    }
+    const r = await reportViolation(attempt(id), "fullscreen_exit", null, T0 + 5000);
+    expect(r.status).toBe("violation");
+    expect(attempt(id).score).not.toBeNull();
+    await expect(beginAttempt(STUDENT, a, "", T0 + 6000, DEV)).rejects.toThrow("vi phạm");
+  });
+
+  it("warns once, then cancels a fast paper whose answers keep changing", async () => {
+    const id = await beginAttempt(STUDENT, a, "", T0, DEV);
+    const t = T0 + 60_000; // 1 of 15 minutes: fast, limit 50% of 4 questions
+    await answerAll(id, t);
+    const row = () => attempt(id);
+    let r = await recordAnswer(row(), 0, { kind: "mcq", choice: 1 }, t);
+    // 1 changed; a second change would reach 50% but not exceed it → still fine
+    expect(r).toMatchObject({ editWarning: false, status: "in_progress" });
+    r = await recordAnswer(row(), 1, { kind: "mcq", choice: 1 }, t);
+    // 2 of 4 changed: one more would cross 50% → warning
+    expect(r.editWarning).toBe(true);
+    expect(row().edit_warned_at).not.toBeNull();
+    // changing back an answer is not an edit
+    r = await recordAnswer(row(), 1, { kind: "mcq", choice: 0 }, t);
+    expect(r.status).toBe("in_progress");
+    r = await recordAnswer(row(), 1, { kind: "mcq", choice: 2 }, t);
+    expect(r).toMatchObject({ editWarning: false, status: "in_progress" });
+    r = await recordAnswer(row(), 3, { kind: "short", text: "2" }, t);
+    expect(r.status).toBe("cancelled_edit");
+    expect(row().counts_toward_attempts).toBe(true);
+    expect(row().edit_count).toBe(3);
+    // a new exam follows automatically
+    expect(await beginAttempt(STUDENT, a, "", t + 1000, DEV)).not.toBe(id);
   });
 });

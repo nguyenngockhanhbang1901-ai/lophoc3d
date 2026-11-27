@@ -653,6 +653,15 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                 <th className="p-2">Nộp</th>
                 <th className="p-2">Thời gian (phút)</th>
                 <th className="p-2">Số câu đúng</th>
+                <th className="p-2" title="Tổng số lần thoát toàn màn hình / chuyển tab, mọi lượt">
+                  Vi phạm
+                </th>
+                <th className="p-2" title="Tổng số lần mất kết nối, mọi lượt">
+                  Mất mạng
+                </th>
+                <th className="p-2" title="Số câu đã sửa sau khi làm hết một lượt (lượt gần nhất)">
+                  Sửa đáp án
+                </th>
                 <th className="p-2">Điểm</th>
               </tr>
             </thead>
@@ -667,6 +676,8 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                       {r.attempts.length > 1 && (
                         <div className="text-xs font-normal text-muted-foreground">
                           {r.attempts.length} lượt
+                          {r.attempts.some((x) => x.status.startsWith("cancelled")) &&
+                            ` (${r.attempts.filter((x) => x.status.startsWith("cancelled")).length} bị hủy)`}
                         </div>
                       )}
                     </td>
@@ -692,6 +703,11 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                         ? `${last.correctCount}/${last.questionCount}`
                         : ""}
                     </td>
+                    <td className="p-2">{sum(r.attempts, "violationCount") || ""}</td>
+                    <td className="p-2">{sum(r.attempts, "disconnectCount") || ""}</td>
+                    <td className="p-2">
+                      {last?.editCount ? `${last.editCount}/${last.questionCount}` : ""}
+                    </td>
                     <td className="p-2 font-semibold">
                       {r.score !== null ? formatPoints(r.score) : ""}
                     </td>
@@ -704,4 +720,8 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
       )}
     </>
   );
+}
+
+function sum<T>(list: T[], key: { [K in keyof T]: T[K] extends number ? K : never }[keyof T]) {
+  return list.reduce((n, x) => n + (x[key] as number), 0);
 }

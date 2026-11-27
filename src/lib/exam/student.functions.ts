@@ -90,6 +90,19 @@ export const studentLogin = createServerFn({ method: "POST" })
     });
     if (!student || !ok) throw new Error("Tên đăng nhập hoặc mật khẩu không đúng");
     if (student.locked) throw new Error("Tài khoản đang bị khóa. Hãy liên hệ giáo viên.");
+    // a paper being taken right now stays on its device: no second login meanwhile
+    const { DEVICE_TAKEOVER_MS } = await import("./anticheat");
+    const { data: busy } = await db
+      .from("exam_attempts")
+      .select("id")
+      .eq("student_id", student.id)
+      .eq("status", "in_progress")
+      .gte("last_heartbeat_at", new Date(Date.now() - DEVICE_TAKEOVER_MS).toISOString())
+      .limit(1);
+    if (busy?.length)
+      throw new Error(
+        "Tài khoản đang làm bài trên một thiết bị khác. Nếu đó là máy của em vừa bị tắt, hãy chờ 30 giây rồi đăng nhập lại.",
+      );
 
     const sessionToken = newSessionToken();
     const { error } = await db.from("exam_student_sessions").insert({

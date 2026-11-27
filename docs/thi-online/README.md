@@ -33,3 +33,9 @@ server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc đ�
 > Hãy tạo migration mới với đúng SQL trong `docs/thi-online/05-giao-bai-va-lam-bai.sql`
 > (bảng exam_assignments, exam_attempts, exam_answers, exam_answer_events, chỉ mục và RLS),
 > rồi cập nhật lại types. Không sửa code khác.
+
+## Giai đoạn 7: chống gian lận
+
+> Hãy tạo migration mới với đúng SQL trong `docs/thi-online/06-chong-gian-lan.sql`
+> (thêm cột last_heartbeat_at, session_hash, edit_warned_at, edit_count cho exam_attempts;
+> bảng exam_violations, exam_connection_events và RLS), rồi cập nhật lại types. Không sửa code khác.
