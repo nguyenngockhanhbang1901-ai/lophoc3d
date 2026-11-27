@@ -5,7 +5,7 @@
 CREATE TABLE public.exam_topics (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
-  parent_id uuid REFERENCES public.exam_topics(id) ON DELETE RESTRICT,
+  parent_id uuid REFERENCES public.exam_topics(id) ON DELETE NO ACTION,
   level text NOT NULL CHECK (level IN ('grade', 'chapter', 'lesson')),
   title text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 150),
   position integer NOT NULL DEFAULT 0,
@@ -37,6 +37,6 @@ CREATE POLICY "Teachers remove their topics" ON public.exam_topics
   FOR DELETE TO authenticated USING (owner_id = (select auth.uid()));
 
 ALTER TABLE public.exam_banks
-  ADD COLUMN topic_id uuid REFERENCES public.exam_topics(id) ON DELETE RESTRICT,
+  ADD COLUMN topic_id uuid REFERENCES public.exam_topics(id) ON DELETE NO ACTION,
   ADD COLUMN position integer NOT NULL DEFAULT 0;
 CREATE INDEX exam_banks_topic_idx ON public.exam_banks (topic_id, position);
