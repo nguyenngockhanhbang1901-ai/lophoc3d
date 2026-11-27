@@ -22,7 +22,11 @@ export interface PoolRow {
 }
 
 /** Questions that can go into an exam: not hidden and nothing missing. */
-export function toPool(rows: PoolRow[]): PoolQuestion[] {
+export function toPool(
+  rows: PoolRow[],
+  /** bank id → the bài, chương, khối above it, so slots can draw from a whole branch */
+  paths?: Map<string, string[]>,
+): PoolQuestion[] {
   const out: PoolQuestion[] = [];
   for (const q of rows) {
     if (q.hidden) continue;
@@ -32,7 +36,14 @@ export function toPool(rows: PoolRow[]): PoolQuestion[] {
       questionGaps({ stem: q.stem ?? "", media: null, explanation: "", data: parsed.data }).length
     )
       continue;
-    out.push({ id: q.id, bankId: q.bank_id, kind: q.kind, level: q.level, position: q.position });
+    out.push({
+      id: q.id,
+      bankId: q.bank_id,
+      kind: q.kind,
+      level: q.level,
+      position: q.position,
+      ...(paths ? { topicPath: paths.get(q.bank_id) ?? [] } : {}),
+    });
   }
   return out;
 }

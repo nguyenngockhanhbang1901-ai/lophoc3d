@@ -12,6 +12,11 @@ export const matrixSlotSchema = z.object({
   points: z.number().min(0).max(100),
   /** a slot pinned to one question (exams made from a Word file): always that question */
   questionId: z.string().uuid().optional(),
+  /**
+   * a slot drawing from a whole khối, chương or bài of the classification tree (every dạng
+   * toán below it); bankId then repeats this id
+   */
+  topicId: z.string().uuid().optional(),
 });
 export const matrixSlotsSchema = z.array(matrixSlotSchema).max(200);
 export type MatrixSlot = z.infer<typeof matrixSlotSchema>;
@@ -27,6 +32,8 @@ export interface PoolQuestion {
   kind: QuestionKind;
   level: QuestionLevel;
   position: number;
+  /** the bài, chương and khối above the question's dạng toán (empty: unclassified) */
+  topicPath?: string[];
 }
 
 export interface MatrixProblem {
@@ -49,12 +56,17 @@ export interface MatrixAnalysis {
   problems: MatrixProblem[];
 }
 
+/** Whether a question lies in the slot's source: its dạng (bank) or a topic above it. */
+export function inSource(slot: Pick<MatrixSlot, "bankId" | "topicId">, q: PoolQuestion): boolean {
+  return slot.topicId ? (q.topicPath ?? []).includes(slot.topicId) : q.bankId === slot.bankId;
+}
+
 export function poolFor(slot: MatrixSlot, questions: PoolQuestion[]): PoolQuestion[] {
   return questions
     .filter((q) =>
       slot.questionId
         ? q.id === slot.questionId && q.kind === slot.kind
-        : q.bankId === slot.bankId &&
+        : inSource(slot, q) &&
           q.kind === slot.kind &&
           (slot.level === null || q.level === slot.level),
     )
@@ -99,11 +111,11 @@ export function analyzeMatrix(
   slots.forEach((s, i) => {
     byKind[s.kind].count += 1;
     byKind[s.kind].points += s.points;
-    if (!bankTitle.has(s.bankId))
+    if (!bankTitle.has(s.topicId ?? s.bankId))
       problems.push({
         slot: i,
         severity: "error",
-        message: `Vị trí ${i + 1}: ngân hàng không còn tồn tại`,
+        message: `Vị trí ${i + 1}: ${s.topicId ? "nhánh" : "ngân hàng / dạng toán"} không còn tồn tại`,
       });
     else if (s.questionId && poolSizes[i] === 0)
       problems.push({
@@ -117,7 +129,7 @@ export function analyzeMatrix(
       problems.push({
         slot: i,
         severity: "error",
-        message: `Vị trí ${i + 1}: ngân hàng “${bankTitle.get(s.bankId)}” không có câu ${KIND_TEXT[s.kind]}${s.level ? ` mức ${LEVEL_TEXT[s.level]}` : ""} nào dùng được`,
+        message: `Vị trí ${i + 1}: “${bankTitle.get(s.topicId ?? s.bankId)}” không có câu ${KIND_TEXT[s.kind]}${s.level ? ` mức ${LEVEL_TEXT[s.level]}` : ""} nào dùng được`,
       });
     else if ((poolSizes[i] ?? 0) < 3)
       problems.push({
@@ -144,14 +156,13 @@ export function analyzeMatrix(
       shared += 1;
       return;
     }
-    const key = `${s.bankId}|${s.kind}`;
+    const key = `${s.topicId ? "t" : "b"}|${s.topicId ?? s.bankId}|${s.kind}`;
     groups.set(key, [...(groups.get(key) ?? []), i]);
   });
   for (const [key, idx] of groups) {
-    const [bankId, kind] = key.split("|") as [string, QuestionKind];
-    const all = questions.filter(
-      (q) => q.bankId === bankId && q.kind === kind && !pinned.has(q.id),
-    );
+    const [source, bankId, kind] = key.split("|") as ["t" | "b", string, QuestionKind];
+    const from = source === "t" ? { bankId, topicId: bankId } : { bankId };
+    const all = questions.filter((q) => inSource(from, q) && q.kind === kind && !pinned.has(q.id));
     const specific = new Map<QuestionLevel, number>();
     let anyLevel = 0;
     for (const i of idx) {
@@ -278,7 +289,9 @@ export function drawExam(
   const picked: (DrawnItem | null)[] = slots.map(() => null);
   // pinned slots first, then level-specific ones, so an "any level" slot never takes a question
   // a later slot needs
-  const rank = (s: MatrixSlot) => (s.questionId ? 0 : s.level === null ? 2 : 1);
+  // (a whole khối/chương/bài comes after single dạng toán, which have fewer questions)
+  const rank = (s: MatrixSlot) =>
+    s.questionId ? 0 : (s.topicId ? 2 : 0) + (s.level === null ? 2 : 1);
   const order = slots.map((s, i) => i).sort((a, b) => rank(slots[a]!) - rank(slots[b]!) || a - b);
   for (const i of order) {
     const slot = slots[i]!;

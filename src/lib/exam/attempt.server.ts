@@ -23,7 +23,6 @@ import {
 } from "./anticheat";
 import type { StudentAnswer } from "./grading";
 import { drawExam, matrixSlotsSchema, type DrawnItem, type MatrixSlot } from "./matrix";
-import { POOL_COLUMNS, toPool, type PoolRow } from "./pool";
 import { questionBodySchema, type QuestionBody } from "./questions";
 
 /** Seconds of network delay tolerated after the deadline for answers already on their way. */
@@ -83,13 +82,8 @@ function cryptoRandom(): () => number {
 export async function drawForStudent(assignment: AssignmentRow, studentId: string) {
   const db = examDb();
   const slots = matrixSlotsSchema.parse(assignment.slots);
-  const bankIds = [...new Set(slots.map((s) => s.bankId))];
-  const { data: rows, error } = await db
-    .from("exam_questions")
-    .select(POOL_COLUMNS)
-    .eq("owner_id", assignment.owner_id)
-    .in("bank_id", bankIds);
-  if (error) throw new Error("Không đọc được ngân hàng đề");
+  const { loadSlotPool } = await import("./pool.server");
+  const { pool } = await loadSlotPool(db, assignment.owner_id, slots);
   const { data: earlier } = await db
     .from("exam_attempts")
     .select("items")
@@ -102,7 +96,7 @@ export async function drawForStudent(assignment: AssignmentRow, studentId: strin
   );
   return drawExam(
     slots,
-    toPool((rows ?? []) as unknown as PoolRow[]),
+    pool,
     cryptoRandom(),
     {
       shuffleOptions: assignment.shuffle_options,

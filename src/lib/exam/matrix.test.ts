@@ -78,7 +78,7 @@ describe("matrix analysis", () => {
     const msgs = a.problems.map((p) => p.message).join("\n");
     expect(msgs).toMatch(/Vị trí 1: chỉ có 2 câu/);
     expect(msgs).toMatch(/Vị trí 2: .*không có câu trắc nghiệm/);
-    expect(msgs).toMatch(/Vị trí 3: ngân hàng không còn tồn tại/);
+    expect(msgs).toMatch(/Vị trí 3: ngân hàng \/ dạng toán không còn tồn tại/);
     expect(msgs).toMatch(/Tổng điểm là 1,5, chưa bằng 10/);
     expect(a.distinctExams).toBe(0);
   });
@@ -241,5 +241,47 @@ describe("pinned slots and statement shuffling", () => {
       10,
     );
     expect(scored.score).toBe(10);
+  });
+});
+
+describe("drawing from a branch of the tree", () => {
+  const LESSON = "33333333-3333-4333-8333-333333333333";
+  const F1 = "44444444-4444-4444-8444-444444444444";
+  const F2 = "55555555-5555-4555-8555-555555555555";
+  const q = (n: number, bankId: string) => ({
+    id: `00000000-0000-4000-8000-0000000000${String(n).padStart(2, "0")}`,
+    bankId,
+    kind: "mcq" as const,
+    level: "nb" as const,
+    position: n,
+    topicPath: [LESSON, "chapter", "grade"],
+  });
+  const pool = [q(1, F1), q(2, F1), q(3, F2), q(4, F2)];
+  it("takes questions from every dạng toán under the bài, without repeats", () => {
+    const slots = [
+      { bankId: F1, kind: "mcq" as const, level: null, points: 1 },
+      { bankId: LESSON, topicId: LESSON, kind: "mcq" as const, level: null, points: 1 },
+      { bankId: LESSON, topicId: LESSON, kind: "mcq" as const, level: null, points: 1 },
+    ];
+    const a = analyzeMatrix(
+      slots,
+      pool,
+      [
+        { id: F1, title: "Dạng 1" },
+        { id: LESSON, title: "Bài 11" },
+      ],
+      3,
+    );
+    expect(a.poolSizes).toEqual([2, 4, 4]);
+    expect(a.problems.filter((p) => p.severity === "error")).toEqual([]);
+    for (let seed = 1; seed < 20; seed++) {
+      const exam = drawExam(slots, pool, seededRandom(seed), {
+        shuffleOptions: false,
+        shuffleOrder: false,
+      });
+      const ids = exam.items.map((i) => i.questionId);
+      expect(new Set(ids).size).toBe(3);
+      expect(pool.find((p) => p.id === ids[0])!.bankId).toBe(F1);
+    }
   });
 });

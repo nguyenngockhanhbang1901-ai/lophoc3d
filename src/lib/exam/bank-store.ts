@@ -29,7 +29,7 @@ function fail(what: string, error: { message?: string } | null): never {
 export async function listBanks(): Promise<BankSummary[]> {
   const { data, error } = await db()
     .from("exam_banks")
-    .select("id,title,topic,description,created_at,updated_at")
+    .select("id,title,topic,description,topic_id,position,created_at,updated_at")
     .eq("purpose", "bank")
     .order("created_at");
   if (error) fail("Không tải được ngân hàng đề", error);
@@ -53,12 +53,17 @@ export async function saveBank(bank: {
   title: string;
   topic: string;
   description: string;
+  /** the bài to put a new dạng toán in */
+  topicId?: string | null;
+  position?: number;
 }): Promise<string> {
   const values = {
     title: bank.title.trim(),
     topic: bank.topic.trim(),
     description: bank.description.trim(),
     updated_at: new Date().toISOString(),
+    ...(bank.topicId !== undefined ? { topic_id: bank.topicId } : {}),
+    ...(bank.position !== undefined ? { position: bank.position } : {}),
   };
   if (!values.title) throw new Error("Hãy đặt tên ngân hàng");
   if (bank.id) {
@@ -69,6 +74,15 @@ export async function saveBank(bank: {
   const { data, error } = await db().from("exam_banks").insert(values).select("id").single();
   if (error || !data) fail("Không tạo được ngân hàng", error);
   return (data as { id: string }).id;
+}
+
+/** Put a dạng toán (bank) into a bài, or back to "Chưa phân loại"; position orders it there. */
+export async function placeBank(id: string, topicId: string | null, position: number) {
+  const { error } = await db()
+    .from("exam_banks")
+    .update({ topic_id: topicId, position })
+    .eq("id", id);
+  if (error) fail("Không chuyển được dạng toán", error);
 }
 
 export async function deleteBank(id: string): Promise<void> {
