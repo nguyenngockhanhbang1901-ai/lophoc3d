@@ -289,6 +289,7 @@ export type Database = {
           settings: Json
           shuffle_options: boolean
           shuffle_order: boolean
+          shuffle_statements: boolean
           slots: Json
           title: string
           updated_at: string
@@ -306,6 +307,7 @@ export type Database = {
           settings?: Json
           shuffle_options?: boolean
           shuffle_order?: boolean
+          shuffle_statements?: boolean
           slots: Json
           title: string
           updated_at?: string
@@ -323,6 +325,7 @@ export type Database = {
           settings?: Json
           shuffle_options?: boolean
           shuffle_order?: boolean
+          shuffle_statements?: boolean
           slots?: Json
           title?: string
           updated_at?: string
@@ -452,6 +455,7 @@ export type Database = {
           description: string
           id: string
           owner_id: string
+          purpose: string
           title: string
           topic: string
           updated_at: string
@@ -461,6 +465,7 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          purpose?: string
           title: string
           topic?: string
           updated_at?: string
@@ -470,6 +475,7 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          purpose?: string
           title?: string
           topic?: string
           updated_at?: string
@@ -688,9 +694,13 @@ export type Database = {
           description: string
           id: string
           owner_id: string
+          purpose: string
           shuffle_options: boolean
           shuffle_order: boolean
+          shuffle_statements: boolean
           slots: Json
+          source_bank_id: string | null
+          source_file: string
           title: string
           updated_at: string
         }
@@ -699,9 +709,13 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          purpose?: string
           shuffle_options?: boolean
           shuffle_order?: boolean
+          shuffle_statements?: boolean
           slots?: Json
+          source_bank_id?: string | null
+          source_file?: string
           title: string
           updated_at?: string
         }
@@ -710,13 +724,25 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          purpose?: string
           shuffle_options?: boolean
           shuffle_order?: boolean
+          shuffle_statements?: boolean
           slots?: Json
+          source_bank_id?: string | null
+          source_file?: string
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "exam_matrices_source_bank_id_fkey"
+            columns: ["source_bank_id"]
+            isOneToOne: false
+            referencedRelation: "exam_banks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       exam_notifications: {
         Row: {

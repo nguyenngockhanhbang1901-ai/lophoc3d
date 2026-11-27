@@ -64,6 +64,13 @@
       "when": 1795772323336,
       "tag": "0008_add_exam_lesson_assignments_and_views",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795778351308,
+      "tag": "0009_add_exam_word_exam_source_and_statement_shuffle",
+      "breakpoints": true
     }
   ]
 }
