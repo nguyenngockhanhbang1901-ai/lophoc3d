@@ -17,20 +17,20 @@ type Results = Awaited<ReturnType<typeof readQuizSoloResults>>;
 type StudentState = Awaited<ReturnType<typeof readQuizSolo>>;
 
 function Intro() {
-  return <div className="quiz-intro"><span className="quiz-intro-icon"><Zap size={30} /></span><div><p className="eyebrow">{QUIZ_TITLE} · Mỗi học sinh tự làm</p><h2>{QUIZ_GAME_NAME}</h2><p>{COUNT} câu trắc nghiệm · mỗi câu {QUIZ_SECONDS} giây · bấm chọn A, B, C hoặc D. Bạn hoàn thành nhanh nhất đứng đầu bảng xếp hạng.</p></div></div>;
+  return <div className="quiz-intro"><span className="quiz-intro-icon"><Zap size={30} /></span><div><p className="eyebrow">{QUIZ_TITLE} · Mỗi học sinh tự làm</p><h2>{QUIZ_GAME_NAME}</h2><p>{COUNT} câu trắc nghiệm · mỗi câu {QUIZ_SECONDS} giây · bấm chọn A, B, C hoặc D. Đúng nhiều câu nhất đứng đầu; bằng số câu đúng thì ai nhanh hơn xếp trên.</p></div></div>;
 }
 
-/** Ranking by fastest time: finished students first (shortest time on top), then those still playing. */
+/** Ranking: most correct answers first, then the shortest answering time. */
 export function SoloRanking({ standings, showCorrect, released }: { standings: readonly SoloStanding[]; showCorrect: boolean; released: boolean }) {
   return <section className="quiz-race solo-ranking" aria-label="Bảng xếp hạng học sinh">
-    <div className="quiz-race-head"><h3><Flag size={16} />Bảng xếp hạng · {QUIZ_GAME_NAME}</h3><span>{released ? 'Hoàn thành nhanh nhất đứng đầu · thời gian thực' : 'Chờ giao bài'}</span></div>
+    <div className="quiz-race-head"><h3><Flag size={16} />Bảng xếp hạng · {QUIZ_GAME_NAME}</h3><span>{released ? 'Đúng nhiều nhất, rồi nhanh nhất · thời gian thực' : 'Chờ giao bài'}</span></div>
     {standings.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có học sinh nào vào lớp.</p> : <table className="solo-table">
-      <thead><tr><th>Hạng</th><th>Họ và tên</th><th>Thời gian</th><th>{showCorrect ? 'Số câu đúng' : 'Tiến độ'}</th></tr></thead>
+      <thead><tr><th>Hạng</th><th>Họ và tên</th><th>Thời gian</th><th>Số câu đúng</th>{!showCorrect && <th>Tiến độ</th>}</tr></thead>
       <tbody>{standings.map((s, rank) => <tr key={s.slot} className={s.finished ? 'finished' : ''}>
-        <td className="solo-rank">{s.finished && rank === 0 ? <Crown size={16} aria-label="Nhanh nhất" /> : rank + 1}</td>
+        <td className="solo-rank">{rank === 0 && s.done > 0 ? <Crown size={16} aria-label="Dẫn đầu" /> : rank + 1}</td>
         <td>{s.name}</td>
-        <td className="solo-time">{s.finished ? soloTimeLabel(s.timeMs) : s.done ? <span className="text-muted-foreground">đang làm</span> : <span className="text-muted-foreground">chưa làm</span>}</td>
-        <td>{showCorrect ? `${s.correct}/${COUNT}` : s.finished ? <><Trophy size={14} className="inline" /> Về đích</> : `${s.done}/${COUNT} câu`}</td>
+        <td className="solo-time">{s.done ? soloTimeLabel(s.timeMs) : <span className="text-muted-foreground">chưa làm</span>}</td>
+        <td className="solo-time">{s.correct}/{COUNT}</td>{!showCorrect && <td>{s.finished ? <><Trophy size={14} className="inline" /> Về đích</> : `${s.done}/${COUNT} câu`}</td>}
       </tr>)}</tbody>
     </table>}
   </section>;
@@ -94,7 +94,7 @@ function TeacherResults({ roomId }: { roomId: string }) {
         {!last && question ? <>
           <QuizQuestion index={index} showCorrect />
           <p className="solo-picks">{QUIZ_LETTERS.map((letter, i) => <span key={letter} className={letter === question.correct ? 'correct' : ''}>{letter}: {counts[i]} HS</span>)}<span>Bỏ trống: {standings.length - counts.reduce((a, b) => a + b, 0)} HS</span></p>
-        </> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{standings[0]?.finished ? `${standings[0].name} hoàn thành nhanh nhất: ${soloTimeLabel(standings[0].timeMs)} · ${standings[0].correct}/${COUNT} câu đúng.` : 'Chưa có học sinh nào hoàn thành.'}</p></div>}
+        </> : <div className="quiz-podium"><Trophy size={28} /><h2>Kết quả {QUIZ_GAME_NAME}</h2><p>{standings[0] && standings[0].done > 0 ? `${standings[0].name} dẫn đầu với ${standings[0].correct}/${COUNT} câu đúng · ${soloTimeLabel(standings[0].timeMs)}.` : 'Chưa có học sinh nào trả lời.'}</p></div>}
         <SoloRanking standings={standings} showCorrect released />
         {error && <p role="alert" className="error-note">{error}</p>}
       </div>

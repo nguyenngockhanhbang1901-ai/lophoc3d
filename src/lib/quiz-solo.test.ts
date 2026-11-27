@@ -28,19 +28,21 @@ describe('Bài 12.1 progress', () => {
   });
 });
 
-describe('Bài 12.1 ranking by fastest time', () => {
-  it('puts finished students first, the fastest on top, then those still playing', () => {
-    const fast = play(all(1000), wrong).progress;
-    const slow = play(all(3000), right).progress;
+describe('Bài 12.1 ranking: correct answers first, then time', () => {
+  it('ranks more correct answers above a faster time, and the faster one wins a tie', () => {
+    const fastWrong = play(all(1000), wrong).progress;
+    const slowRight = play(all(3000), right).progress;
+    const quickRight = play(all(2000), right).progress;
     const half = play([1000, 1000, 1000], right).progress;
     const rows: SoloRow[] = [
-      { slot: 1, name: 'Chậm', progress: slow },
+      { slot: 1, name: 'Đúng hết, chậm', progress: slowRight },
       { slot: 2, name: 'Đang làm', progress: half },
-      { slot: 3, name: 'Nhanh', progress: fast },
+      { slot: 3, name: 'Nhanh nhưng sai', progress: fastWrong },
       { slot: 4, name: 'Chưa làm', progress: readSoloProgress([]) },
+      { slot: 5, name: 'Đúng hết, nhanh', progress: quickRight },
     ];
     const order = soloStandings(rows, release, t0 + 3000 * QUIZ_QUESTIONS.length + 10).map(s => s.name);
-    expect(order).toEqual(['Nhanh', 'Chậm', 'Đang làm', 'Chưa làm']);
+    expect(order).toEqual(['Đúng hết, nhanh', 'Đúng hết, chậm', 'Đang làm', 'Nhanh nhưng sai', 'Chưa làm']);
   });
   it('counts timed-out questions with their full 30 seconds', () => {
     const lazy = readSoloProgress([]);

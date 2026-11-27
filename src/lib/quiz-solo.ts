@@ -41,13 +41,11 @@ export function soloTimeMs(progress: StepProgress): number | null {
 }
 
 /**
- * Ranking by fastest time: students who finished come first, the shortest answering time on top;
- * then those still playing (further along first), then those who have not started, in join order.
+ * Ranking: more correct answers first; with the same number correct, the shorter answering time is ahead;
+ * then the student further along, then join order. Students who have not answered anything have no time and sit last.
  */
 export function compareSolo(a: SoloStanding, b: SoloStanding): number {
-  if (a.finished !== b.finished) return a.finished ? -1 : 1;
-  if (a.finished) return (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity) || b.correct - a.correct || a.slot - b.slot;
-  return b.done - a.done || (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity) || a.slot - b.slot;
+  return b.correct - a.correct || (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity) || b.done - a.done || a.slot - b.slot;
 }
 
 export function soloStandings(rows: readonly SoloRow[], releasedAt: string | null, now: number): SoloStanding[] {
