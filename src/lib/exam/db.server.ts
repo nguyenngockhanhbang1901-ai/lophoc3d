@@ -78,34 +78,51 @@ export interface StudentSession {
 export async function sessionStudent(token: string): Promise<StudentSession> {
   const tokenHash = await hashToken(token);
   const db = examDb();
-  const { data: session } = await db
+  // one round trip: the session together with its student (falls back to two if the join is refused)
+  const joined = await db
     .from("exam_student_sessions")
-    .select("student_id,expires_at,last_seen_at")
+    .select("student_id,expires_at,last_seen_at,student:exam_students(*)")
     .eq("token_hash", tokenHash)
     .maybeSingle();
-  if (!session || new Date(session.expires_at as string).getTime() < Date.now())
-    throw new Error("SESSION_EXPIRED");
-  const { data: student } = await db
-    .from("exam_students")
-    .select("*")
-    .eq("id", session.student_id)
-    .maybeSingle();
-  if (!student) throw new Error("SESSION_EXPIRED");
-  if ((student as ExamStudentRow).locked) {
-    await db
+  let session = joined.data as {
+    student_id: string;
+    expires_at: string;
+    last_seen_at: string;
+    student?: ExamStudentRow | ExamStudentRow[] | null;
+  } | null;
+  if (joined.error) {
+    const plain = await db
       .from("exam_student_sessions")
-      .delete()
-      .eq("student_id", (student as ExamStudentRow).id);
+      .select("student_id,expires_at,last_seen_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+    session = plain.data as typeof session;
+    if (session) {
+      const { data: s } = await db
+        .from("exam_students")
+        .select("*")
+        .eq("id", session.student_id)
+        .maybeSingle();
+      session.student = (s as ExamStudentRow | null) ?? null;
+    }
+  }
+  if (!session || new Date(session.expires_at).getTime() < Date.now())
+    throw new Error("SESSION_EXPIRED");
+  const student = session.student;
+  if (!student || Array.isArray(student)) throw new Error("SESSION_EXPIRED");
+  if (student.locked) {
+    await db.from("exam_student_sessions").delete().eq("student_id", student.id);
     throw new Error("ACCOUNT_LOCKED");
   }
-  // Refresh at most once a minute to keep writes low.
-  if (Date.now() - new Date(session.last_seen_at as string).getTime() > 60_000) {
-    await db
+  // Refresh at most once a minute; not awaited, so it never slows the request down.
+  if (Date.now() - new Date(session.last_seen_at).getTime() > 60_000) {
+    void db
       .from("exam_student_sessions")
       .update({ last_seen_at: new Date().toISOString() })
-      .eq("token_hash", tokenHash);
+      .eq("token_hash", tokenHash)
+      .then(() => undefined);
   }
-  return { tokenHash, student: student as ExamStudentRow };
+  return { tokenHash, student };
 }
 
 /** Server secret the password copies are encrypted with (never stored in the database). */

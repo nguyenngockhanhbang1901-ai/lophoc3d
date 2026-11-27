@@ -75,17 +75,53 @@ export async function deleteBank(id: string): Promise<void> {
   if (error) fail("Không xóa được ngân hàng", error);
 }
 
+// Pictures are stored inside the question (data URLs) and can be large. Lists load the text
+// first and fetch each picture once, keyed by the question's updated_at, so hiding, moving or
+// saving one question never downloads every picture of the bank again.
+const mediaCache = new Map<string, { updatedAt: string; media: QuestionBody["media"] }>();
+
+const LIGHT_COLUMNS =
+  "id,bank_id,position,kind,level,topic,hidden,created_at,updated_at,stem:body->>stem,explanation:body->>explanation,data:body->data,media_kind:body->media->>kind";
+
+interface LightRow extends Omit<QuestionRow, "body"> {
+  stem: string | null;
+  explanation: string | null;
+  data: unknown;
+  media_kind: string | null;
+}
+
 export async function listQuestions(bankId: string): Promise<QuestionRow[]> {
   const { data, error } = await db()
     .from("exam_questions")
-    .select("*")
+    .select(LIGHT_COLUMNS)
     .eq("bank_id", bankId)
     .order("position")
     .order("created_at");
   if (error) fail("Không tải được câu hỏi", error);
-  return ((data ?? []) as QuestionRow[]).map((q) => {
-    const parsed = questionBodySchema.safeParse(q.body);
-    return parsed.success ? { ...q, body: parsed.data } : q;
+  const rows = (data ?? []) as unknown as LightRow[];
+  const missing = rows
+    .filter((r) => r.media_kind && mediaCache.get(r.id)?.updatedAt !== r.updated_at)
+    .map((r) => r.id);
+  if (missing.length) {
+    const { data: media } = await db()
+      .from("exam_questions")
+      .select("id,updated_at,media:body->media")
+      .in("id", missing);
+    for (const m of (media ?? []) as { id: string; updated_at: string; media: unknown }[]) {
+      const parsed = questionBodySchema.shape.media.safeParse(m.media ?? null);
+      mediaCache.set(m.id, { updatedAt: m.updated_at, media: parsed.success ? parsed.data : null });
+    }
+  }
+  return rows.map((r) => {
+    const raw = {
+      stem: r.stem ?? "",
+      explanation: r.explanation ?? "",
+      data: r.data,
+      media: r.media_kind ? (mediaCache.get(r.id)?.media ?? null) : null,
+    };
+    const parsed = questionBodySchema.safeParse(raw);
+    const { stem: _s, explanation: _e, data: _d, media_kind: _m, ...rest } = r;
+    return { ...rest, body: parsed.success ? parsed.data : (raw as QuestionBody) };
   });
 }
 
@@ -121,6 +157,31 @@ export async function saveQuestion(draft: QuestionDraft, position = 0): Promise<
   return (data as { id: string }).id;
 }
 
+/** Many new questions in one request (Word import), positions start, start+1, … */
+export async function saveQuestions(drafts: QuestionDraft[], start: number): Promise<void> {
+  if (!drafts.length) return;
+  const now = new Date().toISOString();
+  const rows = drafts.map((d, i) => {
+    const body = questionBodySchema.parse(d.body);
+    return {
+      bank_id: d.bankId,
+      kind: body.data.kind,
+      level: d.level,
+      topic: d.topic.trim().slice(0, 150),
+      body,
+      position: start + i,
+      updated_at: now,
+    };
+  });
+  // a few pictures can make one request large: send in groups of 20
+  for (let i = 0; i < rows.length; i += 20) {
+    const { error } = await db()
+      .from("exam_questions")
+      .insert(rows.slice(i, i + 20));
+    if (error) fail("Không lưu được câu hỏi", error);
+  }
+}
+
 export async function setQuestionHidden(id: string, hidden: boolean): Promise<void> {
   const { error } = await db().from("exam_questions").update({ hidden }).eq("id", id);
   if (error) fail("Không cập nhật được câu hỏi", error);
@@ -129,6 +190,19 @@ export async function setQuestionHidden(id: string, hidden: boolean): Promise<vo
 export async function deleteQuestion(id: string): Promise<void> {
   const { error } = await db().from("exam_questions").delete().eq("id", id);
   if (error) fail("Không xóa được câu hỏi", error);
+}
+
+/** Swap the stored positions of two questions (two small updates). */
+export async function swapPositions(
+  a: { id: string; position: number },
+  b: { id: string; position: number },
+): Promise<void> {
+  const results = await Promise.all([
+    db().from("exam_questions").update({ position: b.position }).eq("id", a.id),
+    db().from("exam_questions").update({ position: a.position }).eq("id", b.id),
+  ]);
+  const failed = results.find((r) => r.error);
+  if (failed) fail("Không sắp xếp được câu hỏi", failed.error);
 }
 
 /** Store positions 1..n in the given order (used after moving a question up or down). */

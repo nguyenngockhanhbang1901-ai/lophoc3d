@@ -13,6 +13,8 @@ import {
   reorderQuestions,
   saveBank,
   saveQuestion,
+  saveQuestions,
+  swapPositions,
   setQuestionHidden,
   type BankSummary,
 } from "@/lib/exam/bank-store";
@@ -106,8 +108,43 @@ export function QuestionBank({ userId }: { userId: string }) {
     const a = ids.indexOf(id);
     const b = ids.indexOf(other.id);
     [ids[a], ids[b]] = [ids[b]!, ids[a]!];
-    setQuestions(ids.map((x) => questions.find((y) => y.id === x)!));
-    await reorderQuestions(ids);
+    if (q.position !== other.position) {
+      // two small updates instead of renumbering the whole bank
+      setQuestions(
+        ids
+          .map((x) => questions.find((y) => y.id === x)!)
+          .map((y) =>
+            y.id === q.id
+              ? { ...y, position: other.position }
+              : y.id === other.id
+                ? { ...y, position: q.position }
+                : y,
+          ),
+      );
+      await swapPositions(q, other);
+    } else {
+      setQuestions(ids.map((x, i) => ({ ...questions.find((y) => y.id === x)!, position: i + 1 })));
+      await reorderQuestions(ids);
+    }
+  }
+
+  /** Next free position at the end of the bank. */
+  const nextPosition = () => questions.reduce((m, q) => Math.max(m, q.position), 0) + 1;
+
+  /** Keep the side list's counts right without reloading everything. */
+  function adjustCounts(delta: number, hiddenDelta: number) {
+    setBanks(
+      (list) =>
+        list?.map((b) =>
+          b.id === bankId
+            ? {
+                ...b,
+                questionCount: b.questionCount + delta,
+                hiddenCount: b.hiddenCount + hiddenDelta,
+              }
+            : b,
+        ) ?? null,
+    );
   }
 
   const ready = useMemo(
@@ -328,7 +365,12 @@ export function QuestionBank({ userId }: { userId: string }) {
                                       onClick={() =>
                                         run(async () => {
                                           await setQuestionHidden(q.id, !q.hidden);
-                                          await refresh();
+                                          setQuestions((list) =>
+                                            list.map((x) =>
+                                              x.id === q.id ? { ...x, hidden: !q.hidden } : x,
+                                            ),
+                                          );
+                                          adjustCounts(0, q.hidden ? -1 : 1);
                                         })
                                       }
                                       icon={q.hidden ? <Eye /> : <EyeOff />}
@@ -409,10 +451,15 @@ export function QuestionBank({ userId }: { userId: string }) {
                   if (confirmDelete === "bank" && bank) {
                     await deleteBank(bank.id);
                     setBankId("");
-                  } else if (confirmDelete && confirmDelete !== "bank")
-                    await deleteQuestion(confirmDelete.id);
-                  setConfirmDelete(null);
-                  await refresh();
+                    setConfirmDelete(null);
+                    await refresh();
+                  } else if (confirmDelete && confirmDelete !== "bank") {
+                    const gone = confirmDelete;
+                    await deleteQuestion(gone.id);
+                    setQuestions((list) => list.filter((x) => x.id !== gone.id));
+                    adjustCounts(-1, gone.hidden ? -1 : 0);
+                    setConfirmDelete(null);
+                  }
                 })
               }
             >
@@ -456,12 +503,16 @@ export function QuestionBank({ userId }: { userId: string }) {
               onClose={() => setImporting(false)}
               onSave={(list) =>
                 run(async () => {
-                  // one at a time so the order in the file is kept
-                  for (const [i, q] of list.entries())
-                    await saveQuestion(
-                      { bankId: bank.id, level: q.level, topic: q.topic, body: q.body },
-                      questions.length + 1 + i,
-                    );
+                  // one request for the whole file, positions keep the order of the file
+                  await saveQuestions(
+                    list.map((q) => ({
+                      bankId: bank.id,
+                      level: q.level,
+                      topic: q.topic,
+                      body: q.body,
+                    })),
+                    nextPosition(),
+                  );
                   setImporting(false);
                   await refresh();
                   setNotice(`Đã thêm ${list.length} câu từ file Word vào “${bank.title}”.`);
@@ -490,10 +541,12 @@ export function QuestionBank({ userId }: { userId: string }) {
                       topic: e.topic,
                       body: e.body,
                     },
-                    questions.length + 1,
+                    nextPosition(),
                   );
                   setEditing(null);
-                  await refresh();
+                  // an edit only changes this bank's list; a new question also changes the count
+                  if (e.id) await loadQuestions(bankId);
+                  else await refresh();
                 })
               }
             />
