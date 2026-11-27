@@ -355,14 +355,18 @@ export type Database = {
           created_at: string
           deadline_at: string
           disconnect_count: number
+          edit_count: number
+          edit_warned_at: string | null
           finished_at: string | null
           id: string
           items: Json
+          last_heartbeat_at: string | null
           owner_id: string
           reached_index: number
           results: Json | null
           rules_accepted_at: string
           score: number | null
+          session_hash: string | null
           started_at: string
           status: string
           student_id: string
@@ -379,14 +383,18 @@ export type Database = {
           created_at?: string
           deadline_at: string
           disconnect_count?: number
+          edit_count?: number
+          edit_warned_at?: string | null
           finished_at?: string | null
           id?: string
           items: Json
+          last_heartbeat_at?: string | null
           owner_id: string
           reached_index?: number
           results?: Json | null
           rules_accepted_at: string
           score?: number | null
+          session_hash?: string | null
           started_at?: string
           status?: string
           student_id: string
@@ -403,14 +411,18 @@ export type Database = {
           created_at?: string
           deadline_at?: string
           disconnect_count?: number
+          edit_count?: number
+          edit_warned_at?: string | null
           finished_at?: string | null
           id?: string
           items?: Json
+          last_heartbeat_at?: string | null
           owner_id?: string
           reached_index?: number
           results?: Json | null
           rules_accepted_at?: string
           score?: number | null
+          session_hash?: string | null
           started_at?: string
           status?: string
           student_id?: string
@@ -496,6 +508,67 @@ export type Database = {
           subject?: string
         }
         Relationships: []
+      }
+      exam_connection_events: {
+        Row: {
+          assignment_id: string
+          attempt_id: string
+          drop_number: number
+          duration_ms: number
+          ended_at: string
+          id: number
+          outcome: string
+          owner_id: string
+          started_at: string
+          student_id: string
+        }
+        Insert: {
+          assignment_id: string
+          attempt_id: string
+          drop_number: number
+          duration_ms: number
+          ended_at: string
+          id?: never
+          outcome: string
+          owner_id: string
+          started_at: string
+          student_id: string
+        }
+        Update: {
+          assignment_id?: string
+          attempt_id?: string
+          drop_number?: number
+          duration_ms?: number
+          ended_at?: string
+          id?: never
+          outcome?: string
+          owner_id?: string
+          started_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_connection_events_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_connection_events_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_connection_events_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       exam_login_logs: {
         Row: {
@@ -705,6 +778,44 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_violations: {
+        Row: {
+          at: string
+          attempt_id: string
+          away_ms: number | null
+          counted: boolean
+          id: number
+          kind: string
+          owner_id: string
+        }
+        Insert: {
+          at?: string
+          attempt_id: string
+          away_ms?: number | null
+          counted?: boolean
+          id?: never
+          kind: string
+          owner_id: string
+        }
+        Update: {
+          at?: string
+          attempt_id?: string
+          away_ms?: number | null
+          counted?: boolean
+          id?: never
+          kind?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_violations_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
             referencedColumns: ["id"]
           },
         ]
