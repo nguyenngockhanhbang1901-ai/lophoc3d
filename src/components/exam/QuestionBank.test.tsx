@@ -16,6 +16,18 @@ const q = (id: string, kind: QuestionKind, stem: string): QuestionRow => ({
   updated_at: "",
 });
 
+vi.mock("@/lib/exam/topic-store", () => ({
+  listTopics: () =>
+    Promise.resolve([
+      { id: "g", parent_id: null, level: "grade", title: "Khối 11", position: 1 },
+      { id: "c", parent_id: "g", level: "chapter", title: "Chương IV", position: 1 },
+      { id: "L", parent_id: "c", level: "lesson", title: "Bài 11", position: 1 },
+    ]),
+  addTopic: vi.fn(),
+  renameTopic: vi.fn(),
+  deleteTopic: vi.fn(),
+  setTopicPosition: vi.fn(),
+}));
 vi.mock("@/lib/exam/bank-store", () => ({
   listBanks: () =>
     Promise.resolve([
@@ -26,6 +38,8 @@ vi.mock("@/lib/exam/bank-store", () => ({
         description: "",
         created_at: "",
         updated_at: "",
+        topic_id: "L",
+        position: 1,
         questionCount: 4,
         hiddenCount: 0,
       },

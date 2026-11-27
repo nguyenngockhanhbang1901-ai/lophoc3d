@@ -146,7 +146,6 @@ export const saveAssignment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass } = await import("./db.server");
-    const { POOL_COLUMNS, toPool } = await import("./pool");
     const db = examDb();
     await ownedClass(context.userId, data.classId);
     if (new Date(data.closesAt) <= new Date(data.opensAt))
@@ -160,21 +159,9 @@ export const saveAssignment = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!matrix) throw new Error("Không tìm thấy ma trận đề");
     const slots = matrixSlotsSchema.parse((matrix as { slots: unknown }).slots) as MatrixSlot[];
-    const bankIds = [...new Set(slots.map((s) => s.bankId))];
-    const [{ data: qRows }, { data: bankRows }] = await Promise.all([
-      db
-        .from("exam_questions")
-        .select(POOL_COLUMNS)
-        .eq("owner_id", context.userId)
-        .in("bank_id", bankIds),
-      db.from("exam_banks").select("id,title").eq("owner_id", context.userId).in("id", bankIds),
-    ]);
-    const analysis = analyzeMatrix(
-      slots,
-      toPool((qRows ?? []) as never),
-      (bankRows ?? []) as { id: string; title: string }[],
-      data.settings.scale,
-    );
+    const { loadSlotPool } = await import("./pool.server");
+    const { pool, titles } = await loadSlotPool(db, context.userId, slots);
+    const analysis = analyzeMatrix(slots, pool, titles, data.settings.scale);
     const blocking = analysis.problems.find((p) => p.severity === "error");
     if (blocking) throw new Error(`Ma trận chưa dùng được: ${blocking.message}`);
 

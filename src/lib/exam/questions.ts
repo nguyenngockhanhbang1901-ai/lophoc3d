@@ -97,6 +97,9 @@ export interface BankRow {
   title: string;
   topic: string;
   description: string;
+  /** the bài this dạng toán belongs to in the classification tree (null: unclassified) */
+  topic_id: string | null;
+  position: number;
   created_at: string;
   updated_at: string;
 }

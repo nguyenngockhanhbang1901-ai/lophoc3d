@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { listTopics } from "@/lib/exam/topic-store";
+import { pathLabels, type Topic } from "@/lib/exam/topics";
+import { TopicTree } from "./TopicTree";
 import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, FileUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +45,7 @@ const PART_TITLE: Record<QuestionKind, string> = {
 
 export function QuestionBank({ userId }: { userId: string }) {
   const [banks, setBanks] = useState<BankSummary[] | null>(null);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [bankId, setBankId] = useState("");
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [bankDialog, setBankDialog] = useState<{ edit?: BankSummary } | null>(null);
@@ -57,11 +61,18 @@ export function QuestionBank({ userId }: { userId: string }) {
 
   const bank = banks?.find((b) => b.id === bankId) ?? null;
 
-  const loadBanks = useCallback(async () => {
+  const loadBanks = useCallback(async (select?: string) => {
     try {
-      const list = await listBanks();
+      const [list, tree] = await Promise.all([listBanks(), listTopics().catch(() => [])]);
+      setTopics(tree);
       setBanks(list);
-      setBankId((id) => (list.some((b) => b.id === id) ? id : (list[0]?.id ?? "")));
+      setBankId((id) =>
+        select && list.some((b) => b.id === select)
+          ? select
+          : list.some((b) => b.id === id)
+            ? id
+            : (list[0]?.id ?? ""),
+      );
     } catch (e) {
       setBanks([]);
       setError(message(e));
@@ -157,36 +168,13 @@ export function QuestionBank({ userId }: { userId: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       <aside className="rounded-lg border bg-card p-3">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Ngân hàng câu hỏi</h2>
-          <Button size="sm" onClick={() => setBankDialog({})}>
-            <Plus />
-            Tạo
-          </Button>
-        </div>
-        {banks.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Chưa có ngân hàng nào. Mỗi ngân hàng là một nhóm câu tương đương nhau, ví dụ “Đường
-            thẳng song song – nhận biết”.
-          </p>
-        )}
-        <ul className="grid gap-1">
-          {banks.map((b) => (
-            <li key={b.id}>
-              <button
-                type="button"
-                onClick={() => setBankId(b.id)}
-                className={`w-full rounded-md px-3 py-2 text-left text-sm ${b.id === bankId ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-              >
-                <div className="font-medium">{b.title}</div>
-                <div className="text-xs opacity-80">
-                  {b.topic ? `${b.topic} · ` : ""}
-                  {b.questionCount} câu{b.hiddenCount ? ` (${b.hiddenCount} ẩn)` : ""}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <TopicTree
+          topics={topics}
+          banks={banks}
+          selected={bankId}
+          onSelect={setBankId}
+          onChanged={(select) => loadBanks(select)}
+        />
       </aside>
 
       <section className="min-w-0 rounded-lg border bg-card p-4">
@@ -201,11 +189,22 @@ export function QuestionBank({ userId }: { userId: string }) {
           </p>
         )}
         {!bank ? (
-          <p className="text-muted-foreground">Chọn hoặc tạo một ngân hàng để soạn câu hỏi.</p>
+          <p className="text-muted-foreground">
+            Chọn một dạng toán trong cây bên trái để soạn câu hỏi. Chưa có thì thêm khối → chương →
+            bài → dạng toán.
+          </p>
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
               <div>
+                {bank.topic_id && (
+                  <p className="text-xs text-muted-foreground">
+                    {(pathLabels(topics, banks).get(bank.id) ?? "")
+                      .split(" › ")
+                      .slice(0, -1)
+                      .join(" › ")}
+                  </p>
+                )}
                 <h2 className="text-xl font-semibold">{bank.title}</h2>
                 <p className="text-sm text-muted-foreground">
                   {bank.topic ? `${bank.topic} · ` : ""}
@@ -285,7 +284,7 @@ export function QuestionBank({ userId }: { userId: string }) {
                           key={kind}
                           className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground"
                         >
-                          Chưa có câu {KIND_LABEL[kind].toLowerCase()} trong ngân hàng này.
+                          Chưa có câu {KIND_LABEL[kind].toLowerCase()} trong dạng toán này.
                         </p>
                       ) : null;
                     return (
@@ -350,7 +349,7 @@ export function QuestionBank({ userId }: { userId: string }) {
                                       icon={<Pencil />}
                                     />
                                     <IconButton
-                                      title="Nhân bản / chép sang ngân hàng khác"
+                                      title="Nhân bản / chép sang dạng toán khác"
                                       disabled={busy}
                                       onClick={() => setCopying(q)}
                                       icon={<Copy />}
@@ -426,9 +425,9 @@ export function QuestionBank({ userId }: { userId: string }) {
         <DialogContent>
           {confirmDelete === "bank" && bank ? (
             <>
-              <DialogTitle>Xóa ngân hàng “{bank.title}”?</DialogTitle>
+              <DialogTitle>Xóa dạng toán “{bank.title}”?</DialogTitle>
               <DialogDescription>
-                {bank.questionCount} câu hỏi trong ngân hàng sẽ bị xóa và không khôi phục được.
+                {bank.questionCount} câu hỏi của dạng toán này sẽ bị xóa và không khôi phục được.
               </DialogDescription>
             </>
           ) : (
@@ -597,9 +596,9 @@ function BankForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   return (
     <>
-      <DialogTitle>{initial ? "Sửa ngân hàng" : "Tạo ngân hàng câu hỏi"}</DialogTitle>
+      <DialogTitle>{initial ? "Sửa dạng toán" : "Tạo dạng toán"}</DialogTitle>
       <DialogDescription>
-        Các câu trong cùng một ngân hàng nên tương đương nhau về dạng, mức độ và điểm, vì mỗi học
+        Các câu trong cùng một dạng toán nên tương đương nhau về dạng, mức độ và điểm, vì mỗi học
         sinh sẽ được rút ngẫu nhiên một câu.
       </DialogDescription>
       <form
@@ -610,7 +609,7 @@ function BankForm({
         }}
       >
         <label>
-          Tên ngân hàng
+          Tên dạng toán
           <Input
             required
             maxLength={150}
@@ -659,7 +658,7 @@ function CopyForm({
     <>
       <DialogTitle>Nhân bản câu hỏi</DialogTitle>
       <DialogDescription>
-        Bản sao được thêm vào cuối ngân hàng bạn chọn; sửa bản sao không ảnh hưởng câu gốc.
+        Bản sao được thêm vào cuối dạng toán bạn chọn; sửa bản sao không ảnh hưởng câu gốc.
       </DialogDescription>
       <form
         className="form-stack"
@@ -678,7 +677,7 @@ function CopyForm({
             {banks.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.title}
-                {b.id === currentId ? " (ngân hàng này)" : ""}
+                {b.id === currentId ? " (dạng toán này)" : ""}
               </option>
             ))}
           </select>

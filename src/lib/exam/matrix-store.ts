@@ -73,10 +73,10 @@ export async function deleteMatrix(id: string): Promise<void> {
 }
 
 /** Usable questions (not hidden, nothing missing) of all the teacher's banks, without pictures. */
-export async function listPoolQuestions(): Promise<PoolQuestion[]> {
+export async function listPoolQuestions(paths?: Map<string, string[]>): Promise<PoolQuestion[]> {
   const { data, error } = await db().from("exam_questions").select(POOL_COLUMNS);
   if (error) throw new Error("Không tải được câu hỏi");
-  return toPool((data ?? []) as unknown as PoolRow[]);
+  return toPool((data ?? []) as unknown as PoolRow[], paths);
 }
 
 /** Full bodies of the drawn questions, for the preview. */

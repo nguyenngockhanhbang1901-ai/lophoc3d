@@ -17,6 +17,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { listBanks, type BankSummary } from "@/lib/exam/bank-store";
+import { listTopics } from "@/lib/exam/topic-store";
+import {
+  LEVEL_NAME,
+  bankPaths,
+  buildTree,
+  flatten,
+  unclassified,
+  type BankRef,
+  type Topic,
+  type TopicLevel,
+} from "@/lib/exam/topics";
 import {
   deleteMatrix,
   getQuestionBodies,
@@ -29,6 +40,7 @@ import {
   KIND_ORDER,
   THPT_POINTS,
   analyzeMatrix,
+  inSource,
   drawExam,
   formatExamCount,
   formatPoints,
@@ -72,6 +84,7 @@ const blank = (): Draft => ({
 export function ExamMatrices() {
   const [matrices, setMatrices] = useState<MatrixRow[] | null>(null);
   const [banks, setBanks] = useState<BankSummary[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [pool, setPool] = useState<PoolQuestion[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -83,9 +96,15 @@ export function ExamMatrices() {
 
   const load = useCallback(async () => {
     try {
-      const [m, b, p] = await Promise.all([listMatrices(), listBanks(), listPoolQuestions()]);
+      const [m, b, t] = await Promise.all([
+        listMatrices(),
+        listBanks(),
+        listTopics().catch(() => [] as Topic[]),
+      ]);
+      const p = await listPoolQuestions(bankPaths(t, b));
       setMatrices(m.filter((x) => x.purpose !== "word_exam"));
       setBanks(b);
+      setTopics(t);
       setPool(p);
       return m;
     } catch (e) {
@@ -100,9 +119,17 @@ export function ExamMatrices() {
     });
   }, [load]);
 
+  const titles = useMemo(
+    () => [...banks, ...topics].map((x) => ({ id: x.id, title: x.title })),
+    [banks, topics],
+  );
+  const sources = useMemo(() => {
+    const tree = buildTree(topics, banks);
+    return { list: flatten(tree), loose: unclassified(topics, banks) };
+  }, [topics, banks]);
   const analysis = useMemo(
-    () => (draft ? analyzeMatrix(draft.slots, pool, banks) : null),
-    [draft, pool, banks],
+    () => (draft ? analyzeMatrix(draft.slots, pool, titles) : null),
+    [draft, pool, titles],
   );
 
   function edit(patch: Partial<Draft>) {
@@ -297,7 +324,7 @@ export function ExamMatrices() {
 
             <SlotTable
               slots={draft.slots}
-              banks={banks}
+              sources={sources}
               pool={pool}
               poolSizes={analysis.poolSizes}
               errorSlots={
@@ -318,7 +345,7 @@ export function ExamMatrices() {
               onRemove={(i) => edit({ slots: draft.slots.filter((_, j) => j !== i) })}
             />
             <AddSlots
-              banks={banks}
+              sources={sources}
               pool={pool}
               onAdd={(added) => edit({ slots: [...draft.slots, ...added] })}
             />
@@ -411,7 +438,7 @@ function Stats({ analysis }: { analysis: ReturnType<typeof analyzeMatrix> }) {
 
 function SlotTable({
   slots,
-  banks,
+  sources,
   pool,
   poolSizes,
   errorSlots,
@@ -420,7 +447,7 @@ function SlotTable({
   onRemove,
 }: {
   slots: MatrixSlot[];
-  banks: BankSummary[];
+  sources: Sources;
   pool: PoolQuestion[];
   poolSizes: number[];
   errorSlots: Set<number>;
@@ -440,7 +467,7 @@ function SlotTable({
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
             <th className="p-2">Vị trí</th>
-            <th className="p-2">Ngân hàng</th>
+            <th className="p-2">Lấy từ (khối / chương / bài / dạng)</th>
             <th className="p-2">Dạng câu</th>
             <th className="p-2">Mức độ</th>
             <th className="p-2">Điểm</th>
@@ -456,21 +483,12 @@ function SlotTable({
             >
               <td className="p-2 font-semibold">{i + 1}</td>
               <td className="p-2">
-                <select
-                  className="entry-select max-w-64"
-                  aria-label={`Ngân hàng vị trí ${i + 1}`}
-                  value={s.bankId}
-                  onChange={(e) => onChange(i, { bankId: e.target.value })}
-                >
-                  {!banks.some((b) => b.id === s.bankId) && (
-                    <option value={s.bankId}>(đã xóa)</option>
-                  )}
-                  {banks.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.title}
-                    </option>
-                  ))}
-                </select>
+                <SourceSelect
+                  label={`Nguồn vị trí ${i + 1}`}
+                  sources={sources}
+                  value={sourceValue(s)}
+                  onChange={(v) => onChange(i, fromSourceValue(v))}
+                />
               </td>
               <td className="p-2">
                 <select
@@ -487,8 +505,7 @@ function SlotTable({
                 >
                   {KIND_ORDER.map((k) => (
                     <option key={k} value={k}>
-                      {KIND_LABEL[k]} (
-                      {pool.filter((q) => q.bankId === s.bankId && q.kind === k).length})
+                      {KIND_LABEL[k]} ({pool.filter((q) => inSource(s, q) && q.kind === k).length})
                     </option>
                   ))}
                 </select>
@@ -588,118 +605,197 @@ function PointsInput({
   );
 }
 
-function AddSlots({
-  banks,
-  pool,
-  onAdd,
+type Sources = { list: ReturnType<typeof flatten>; loose: BankRef[] };
+
+const SOURCE_PREFIX: Record<TopicLevel | "form", string> = {
+  grade: "",
+  chapter: "",
+  lesson: "",
+  form: "▸ ",
+};
+
+/** "t:<id>" for a khối/chương/bài (every dạng below it), "<id>" for one dạng toán (bank). */
+function sourceValue(s: Pick<MatrixSlot, "bankId" | "topicId">): string {
+  return s.topicId ? `t:${s.topicId}` : s.bankId;
+}
+function fromSourceValue(v: string): Partial<MatrixSlot> {
+  return v.startsWith("t:")
+    ? { bankId: v.slice(2), topicId: v.slice(2) }
+    : { bankId: v, topicId: undefined };
+}
+
+function SourceSelect({
+  label,
+  sources,
+  value,
+  onChange,
 }: {
-  banks: BankSummary[];
-  pool: PoolQuestion[];
-  onAdd: (slots: MatrixSlot[]) => void;
+  label: string;
+  sources: Sources;
+  value: string;
+  onChange: (v: string) => void;
 }) {
-  const [bankId, setBankId] = useState(banks[0]?.id ?? "");
-  const [kind, setKind] = useState<QuestionKind>("mcq");
-  const [level, setLevel] = useState<QuestionLevel | "">("");
-  const [count, setCount] = useState(1);
-  useEffect(() => {
-    if (!bankId && banks[0]) setBankId(banks[0].id);
-  }, [banks, bankId]);
-  // choose the kind the bank actually has when the bank changes
-  useEffect(() => {
-    const has = (k: QuestionKind) => pool.some((q) => q.bankId === bankId && q.kind === k);
-    if (!has(kind)) {
-      const first = KIND_ORDER.find(has);
-      if (first) setKind(first);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bankId]);
-  if (!banks.length)
-    return (
-      <p className="text-sm text-muted-foreground">
-        Hãy tạo ngân hàng câu hỏi trước (thẻ Ngân hàng đề).
-      </p>
-    );
-  const available = pool.filter(
-    (q) => q.bankId === bankId && q.kind === kind && (!level || q.level === level),
-  ).length;
+  const known =
+    sources.list.some((x) => (x.kind === "form" ? x.id : `t:${x.id}`) === value) ||
+    sources.loose.some((b) => b.id === value);
   return (
-    <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3 text-sm">
-      <span className="w-full font-medium">Thêm vị trí</span>
-      <label className="grid gap-1">
-        Ngân hàng
-        <select
-          className="entry-select max-w-64"
-          value={bankId}
-          onChange={(e) => setBankId(e.target.value)}
-        >
-          {banks.map((b) => (
+    <select
+      className="entry-select max-w-72"
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {!known && <option value={value}>(đã xóa)</option>}
+      {sources.list.map((x) => (
+        <option key={x.id} value={x.kind === "form" ? x.id : `t:${x.id}`}>
+          {"\u00a0\u00a0\u00a0".repeat(x.depth)}
+          {SOURCE_PREFIX[x.kind]}
+          {x.title}
+          {x.kind !== "form" ? ` (cả ${LEVEL_NAME[x.kind].toLowerCase()})` : ""}
+        </option>
+      ))}
+      {sources.loose.length > 0 && (
+        <optgroup label="Chưa phân loại">
+          {sources.loose.map((b) => (
             <option key={b.id} value={b.id}>
               {b.title}
             </option>
           ))}
-        </select>
-      </label>
-      <label className="grid gap-1">
-        Dạng câu
-        <select
-          className="entry-select"
-          value={kind}
-          onChange={(e) => setKind(e.target.value as QuestionKind)}
-        >
-          {KIND_ORDER.map((k) => (
-            <option key={k} value={k}>
-              {KIND_LABEL[k]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1">
-        Mức độ
-        <select
-          className="entry-select"
-          value={level}
-          onChange={(e) => setLevel(e.target.value as QuestionLevel | "")}
-        >
-          <option value="">Bất kỳ</option>
-          {(Object.keys(LEVEL_LABEL) as QuestionLevel[]).map((l) => (
-            <option key={l} value={l}>
-              {LEVEL_LABEL[l]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1">
-        Số vị trí
-        <Input
-          className="w-20"
-          type="number"
-          min={1}
-          max={50}
-          value={count}
-          onChange={(e) => setCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
+const GRID_LEVELS: (QuestionLevel | "")[] = ["nb", "th", "vd", "vdc", ""];
+
+/** OLM-style: pick a branch, fill a count per kind × level, add them all as slots. */
+function AddSlots({
+  sources,
+  pool,
+  onAdd,
+}: {
+  sources: Sources;
+  pool: PoolQuestion[];
+  onAdd: (slots: MatrixSlot[]) => void;
+}) {
+  const first =
+    sources.list.find((x) => x.kind === "form")?.id ??
+    (sources.list[0] ? `t:${sources.list[0].id}` : (sources.loose[0]?.id ?? ""));
+  const [source, setSource] = useState(first);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!source && first) setSource(first);
+  }, [first, source]);
+  if (!sources.list.length && !sources.loose.length)
+    return (
+      <p className="text-sm text-muted-foreground">
+        Hãy dựng cây câu hỏi trước (thẻ Ngân hàng đề: thêm khối → chương → bài → dạng toán).
+      </p>
+    );
+  const from = fromSourceValue(source) as Pick<MatrixSlot, "bankId" | "topicId">;
+  const available = (k: QuestionKind, l: QuestionLevel | "") =>
+    pool.filter((q) => inSource(from, q) && q.kind === k && (!l || q.level === l)).length;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  return (
+    <div className="grid gap-2 rounded-md border border-dashed p-3 text-sm">
+      <div className="flex flex-wrap items-end gap-2">
+        <span className="font-medium">Thêm câu từ</span>
+        <SourceSelect
+          label="Nguồn câu hỏi"
+          sources={sources}
+          value={source}
+          onChange={(v) => {
+            setSource(v);
+            setCounts({});
+          }}
         />
-      </label>
-      <Button
-        disabled={!bankId}
-        onClick={() =>
-          onAdd(
-            Array.from({ length: count }, () => ({
-              bankId,
-              kind,
-              level: level || null,
-              points: THPT_POINTS[kind],
-            })),
-          )
-        }
-      >
-        <Plus />
-        Thêm {count} vị trí
-      </Button>
-      <span className={available < count ? "text-amber-800" : "text-muted-foreground"}>
-        {available} câu dùng được
-      </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted-foreground">
+              <th className="p-1" />
+              {GRID_LEVELS.map((l) => (
+                <th key={l} className="p-1">
+                  {l ? LEVEL_LABEL[l] : "Bất kỳ"}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {KIND_ORDER.map((k) => (
+              <tr key={k}>
+                <td className="p-1 font-medium">{KIND_LABEL[k]}</td>
+                {GRID_LEVELS.map((l) => {
+                  const key = `${k}|${l}`;
+                  const have = available(k, l);
+                  const want = counts[key] ?? 0;
+                  return (
+                    <td key={l} className="p-1">
+                      <span className="flex items-center gap-1">
+                        <Input
+                          aria-label={`Số câu ${KIND_LABEL[k]} ${l ? LEVEL_LABEL[l] : "bất kỳ"}`}
+                          className={`h-8 w-14 ${want > have ? "border-amber-500" : ""}`}
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={want || ""}
+                          placeholder="0"
+                          onChange={(e) =>
+                            setCounts((c) => ({
+                              ...c,
+                              [key]: Math.max(0, Math.min(50, Number(e.target.value) || 0)),
+                            }))
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground" title="Câu dùng được">
+                          /{have}
+                        </span>
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={!source || total === 0}
+          onClick={() => {
+            const added: MatrixSlot[] = [];
+            for (const k of KIND_ORDER)
+              for (const l of GRID_LEVELS)
+                for (let n = 0; n < (counts[`${k}|${l}`] ?? 0); n++)
+                  added.push({
+                    ...from,
+                    ...(from.topicId ? {} : { topicId: undefined }),
+                    kind: k,
+                    level: l || null,
+                    points: THPT_POINTS[k],
+                  } as MatrixSlot);
+            onAdd(added.map(clean));
+            setCounts({});
+          }}
+        >
+          <Plus />
+          Thêm {total || ""} câu vào ma trận
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Số sau dấu / là số câu đang có. Chọn cả một bài (hoặc chương, khối) thì rút ngẫu nhiên từ
+          mọi dạng toán bên trong.
+        </span>
+      </div>
     </div>
   );
+}
+
+/** Drop an undefined topicId so stored slots stay clean. */
+function clean(s: MatrixSlot): MatrixSlot {
+  const { topicId, ...rest } = s;
+  return topicId ? { ...rest, topicId } : rest;
 }
 
 function Preview({ draft, pool }: { draft: Draft; pool: PoolQuestion[] }) {
