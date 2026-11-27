@@ -71,6 +71,13 @@
       "when": 1795778351308,
       "tag": "0009_add_exam_word_exam_source_and_statement_shuffle",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795781924665,
+      "tag": "0010_create_exam_topics_tree",
+      "breakpoints": true
     }
   ]
 }
