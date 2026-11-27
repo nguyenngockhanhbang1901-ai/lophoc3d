@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { BarChart3, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { BarChart3, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +8,8 @@ import { listExamClasses, type ExamClassSummary } from "@/lib/exam/classes.funct
 import {
   assignmentResults,
   deleteAssignment,
+  grantRetake,
+  revokeRetake,
   listAssignments,
   saveAssignment,
   type AssignmentSummary,
@@ -626,6 +628,18 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
     const t = window.setInterval(refresh, 15_000);
     return () => window.clearInterval(t);
   }, [refresh]);
+  const grantFn = useServerFn(grantRetake);
+  const revokeFn = useServerFn(revokeRetake);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [granting, setGranting] = useState(false);
+  const toggle = (id: string) =>
+    setSelected((x) => {
+      const n = new Set(x);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const waiting = (rows ?? []).filter((r) => r.waiting && !r.grant);
   const scale = assignment.settings.scale;
   const done = (rows ?? []).filter((r) => r.score !== null);
   const avg = done.length ? done.reduce((s, r) => s + (r.score ?? 0), 0) / done.length : null;
@@ -638,6 +652,33 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
           ` Đã có điểm: ${done.length} em · trung bình ${formatPoints(Math.round(avg * 100) / 100)} / ${scale}.`}
       </DialogDescription>
       {error && <p className="error-note">{error}</p>}
+      {rows !== null && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            disabled={!selected.size}
+            onClick={() => setGranting(true)}
+            title="Cho các em đã chọn làm thêm một lượt với đề mới"
+          >
+            <KeyRound />
+            Cấp quyền thi lại{selected.size ? ` (${selected.size})` : ""}
+          </Button>
+          {waiting.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelected(new Set(waiting.map((r) => r.studentId)))}
+            >
+              Chọn {waiting.length} em đang chờ cấp quyền
+            </Button>
+          )}
+          {selected.size > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              Bỏ chọn
+            </Button>
+          )}
+        </div>
+      )}
       {rows === null ? (
         <p>Đang tải…</p>
       ) : (
@@ -645,6 +686,18 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="p-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Chọn tất cả"
+                    checked={!!rows.length && selected.size === rows.length}
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked ? new Set(rows.map((r) => r.studentId)) : new Set(),
+                      )
+                    }
+                  />
+                </th>
                 <th className="p-2">STT</th>
                 <th className="p-2">Họ và tên</th>
                 <th className="p-2">Trạng thái</th>
@@ -670,6 +723,14 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                 const last = r.attempts[r.attempts.length - 1];
                 return (
                   <tr key={r.studentId} className="border-b last:border-0">
+                    <td className="p-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Chọn ${r.fullName}`}
+                        checked={selected.has(r.studentId)}
+                        onChange={() => toggle(r.studentId)}
+                      />
+                    </td>
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2 font-medium">
                       {r.fullName}
@@ -686,6 +747,28 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                         ATTEMPT_LABEL[last.status]
                       ) : (
                         <span className="text-muted-foreground">Chưa làm</span>
+                      )}
+                      {r.grant ? (
+                        <div className="text-xs text-green-700">
+                          Được thi lại
+                          {r.grant.expiresAt ? ` đến ${formatTime(r.grant.expiresAt)}` : ""}
+                          <button
+                            type="button"
+                            className="ml-1 inline-flex items-center gap-0.5 underline"
+                            onClick={() =>
+                              revokeFn({ data: { grantId: r.grant!.id } })
+                                .then(refresh)
+                                .catch((e) => setError(message(e)))
+                            }
+                          >
+                            <Undo2 size={12} />
+                            Thu hồi
+                          </button>
+                        </div>
+                      ) : (
+                        r.waiting && (
+                          <div className="text-xs text-amber-700">Chờ cấp quyền: {r.waiting}</div>
+                        )
                       )}
                     </td>
                     <td className="p-2 font-mono text-xs">{last?.code ?? ""}</td>
@@ -718,7 +801,112 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
           </table>
         </div>
       )}
+      <Dialog open={granting} onOpenChange={setGranting}>
+        <DialogContent>
+          <GrantForm
+            count={selected.size}
+            onCancel={() => setGranting(false)}
+            onGrant={async (reason, expiresAt) => {
+              await grantFn({
+                data: {
+                  assignmentId: assignment.id,
+                  studentIds: [...selected],
+                  reason,
+                  expiresAt,
+                },
+              });
+              setGranting(false);
+              setSelected(new Set());
+              refresh();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+const GRANT_REASONS = [
+  "Lỗi kỹ thuật",
+  "Vắng có phép",
+  "Bị thu bài do vi phạm",
+  "Mất mạng nhiều lần",
+];
+
+function GrantForm({
+  count,
+  onCancel,
+  onGrant,
+}: {
+  count: number;
+  onCancel: () => void;
+  onGrant: (reason: string, expiresAt: string | null) => Promise<void>;
+}) {
+  const [reason, setReason] = useState("");
+  const [limit, setLimit] = useState(true);
+  // default: 22:00 tonight (Việt Nam time), or tomorrow 22:00 if that has passed
+  const [until, setUntil] = useState(() => {
+    const day = toLocalInput(new Date().toISOString()).slice(0, 10);
+    const tonight = fromLocalInput(`${day}T22:00`);
+    return toLocalInput(
+      new Date(tonight).getTime() > Date.now() + 15 * 60_000
+        ? tonight
+        : new Date(new Date(tonight).getTime() + 24 * 3600_000).toISOString(),
+    );
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <form
+      className="form-stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError("");
+        onGrant(reason, limit ? fromLocalInput(until) : null)
+          .catch((err) => setError(message(err)))
+          .finally(() => setBusy(false));
+      }}
+    >
+      <DialogTitle>Cấp quyền thi lại cho {count} học sinh</DialogTitle>
+      <DialogDescription>
+        Mỗi em được làm thêm một lượt với đề mới, đủ thời gian, kể cả khi bài đã đóng hoặc đã hết
+        lượt. Học sinh nhận thông báo trong trang của mình.
+      </DialogDescription>
+      <label>
+        Lý do (học sinh thấy được)
+        <Input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
+      </label>
+      <div className="flex flex-wrap gap-1">
+        {GRANT_REASONS.map((r) => (
+          <Button key={r} type="button" size="sm" variant="outline" onClick={() => setReason(r)}>
+            {r}
+          </Button>
+        ))}
+      </div>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={limit} onChange={(e) => setLimit(e.target.checked)} />
+        Có hạn dùng
+      </label>
+      {limit && (
+        <label>
+          Dùng được đến (giờ Việt Nam)
+          <Input
+            type="datetime-local"
+            required
+            value={until}
+            onChange={(e) => setUntil(e.target.value)}
+          />
+        </label>
+      )}
+      {error && <p className="error-note">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Hủy
+        </Button>
+        <Button disabled={busy || !count}>{busy ? "Đang cấp…" : "Cấp quyền"}</Button>
+      </div>
+    </form>
   );
 }
 

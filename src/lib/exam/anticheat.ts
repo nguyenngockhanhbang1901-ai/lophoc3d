@@ -106,7 +106,7 @@ export function isCancelled(status: AttemptStatus): boolean {
 }
 
 export type RetakeState =
-  | { kind: "allowed"; auto: boolean }
+  | { kind: "allowed"; auto: boolean; grant: boolean }
   | { kind: "wait_teacher"; reason: string }
   | { kind: "closed" }
   | { kind: "scheduled" };
@@ -122,8 +122,22 @@ export function retakeState(
   maxAttempts: number,
   autoRetakes: number,
   window: "scheduled" | "open" | "closed",
+  /** the teacher has given an unused, unexpired permission to try again */
+  hasGrant = false,
 ): RetakeState {
   if (window === "scheduled") return { kind: "scheduled" };
+  const base = baseRetake(attempts, maxAttempts, autoRetakes, window);
+  // a teacher's permission opens one more attempt whatever stopped the student
+  if (base.kind !== "allowed" && hasGrant) return { kind: "allowed", auto: false, grant: true };
+  return base;
+}
+
+function baseRetake(
+  attempts: { status: AttemptStatus; counts_toward_attempts: boolean; attempt_no: number }[],
+  maxAttempts: number,
+  autoRetakes: number,
+  window: "open" | "closed",
+): RetakeState {
   const finished = attempts.filter((a) => a.status !== "in_progress");
   const last = finished.reduce<(typeof finished)[number] | null>(
     (m, a) => (!m || a.attempt_no > m.attempt_no ? a : m),
@@ -138,14 +152,14 @@ export function retakeState(
         kind: "wait_teacher",
         reason: `Em đã được làm lại tự động ${autoRetakes} lần, hãy chờ giáo viên cấp quyền`,
       };
-    return { kind: "allowed", auto: true };
+    return { kind: "allowed", auto: true, grant: false };
   }
   if (window === "closed") return { kind: "closed" };
   if (last?.status === "violation")
     return { kind: "wait_teacher", reason: "Bài đã bị thu do vi phạm, em chờ giáo viên cấp quyền" };
   if (finished.filter((a) => a.counts_toward_attempts).length >= maxAttempts)
     return { kind: "wait_teacher", reason: "Em đã dùng hết số lần làm bài" };
-  return { kind: "allowed", auto: false };
+  return { kind: "allowed", auto: false, grant: false };
 }
 
 /** A leaving-the-exam episode becomes one violation, whichever events signalled it. */

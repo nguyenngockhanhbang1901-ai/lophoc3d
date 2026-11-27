@@ -39,6 +39,8 @@ export interface MyAssignment {
   scale: number;
   /** a new attempt may be started now (first, next, or automatic retake) */
   canStart: boolean;
+  /** the teacher allowed one more attempt (expiry, or null for no limit) */
+  grant: { expiresAt: string | null } | null;
 }
 
 export interface AssignmentRules {
@@ -148,11 +150,13 @@ async function retakeFor(studentId: string, assignmentId: string) {
     "opens_at" | "closes_at" | "max_attempts" | "settings"
   > | null;
   if (!assignment) return { allowed: false, reason: "Không tìm thấy bài được giao" };
+  const { activeGrant } = await import("./attempt.server");
   const state = retakeState(
     (rows ?? []) as Parameters<typeof retakeState>[0],
     assignment.max_attempts,
     readSettings(assignment.settings).autoRetakes,
     windowState(assignment.opens_at, assignment.closes_at, Date.now()),
+    (await activeGrant(assignmentId, studentId)) !== null,
   );
   if (state.kind === "allowed") return { allowed: true, reason: null };
   return {
@@ -197,6 +201,22 @@ export const myAssignments = createServerFn({ method: "POST" })
           )
       : { data: [] };
     const now = Date.now();
+    const { data: grantRows } = list.length
+      ? await db
+          .from("exam_retake_grants")
+          .select("assignment_id,expires_at,used_at,revoked_at")
+          .eq("student_id", student.id)
+          .is("used_at", null)
+          .is("revoked_at", null)
+          .in(
+            "assignment_id",
+            list.map((a) => a.id),
+          )
+      : { data: [] };
+    const grantOf = new Map<string, { expiresAt: string | null }>();
+    for (const g of (grantRows ?? []) as { assignment_id: string; expires_at: string | null }[])
+      if (!g.expires_at || new Date(g.expires_at).getTime() > now)
+        grantOf.set(g.assignment_id, { expiresAt: g.expires_at });
     type A = {
       id: string;
       assignment_id: string;
@@ -242,7 +262,9 @@ export const myAssignments = createServerFn({ method: "POST" })
               a.max_attempts,
               readSettings(a.settings).autoRetakes,
               windowState(a.opens_at, a.closes_at, now),
+              grantOf.has(a.id),
             ).kind === "allowed",
+          grant: grantOf.get(a.id) ?? null,
         };
       }),
     };
@@ -281,7 +303,14 @@ export const assignmentRules = createServerFn({ method: "POST" })
     const settings = readSettings(assignment.settings);
     let blocked: string | null = null;
     if (!open) {
-      const retake = retakeState(rows, assignment.max_attempts, settings.autoRetakes, state);
+      const { activeGrant } = await import("./attempt.server");
+      const retake = retakeState(
+        rows,
+        assignment.max_attempts,
+        settings.autoRetakes,
+        state,
+        (await activeGrant(assignment.id, student.id)) !== null,
+      );
       if (retake.kind === "scheduled") blocked = "Bài chưa đến giờ mở";
       else if (retake.kind === "closed") blocked = "Bài đã đóng";
       else if (retake.kind === "wait_teacher") blocked = retake.reason;
@@ -477,3 +506,22 @@ export const submitAttempt = createServerFn({ method: "POST" })
       };
     },
   );
+
+export const myNotices = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ token }))
+  .handler(async ({ data }) => {
+    const { sessionStudent } = await import("./db.server");
+    const { studentNotices } = await import("./retakes.server");
+    const { student } = await sessionStudent(data.token);
+    return { notices: await studentNotices(student.id, student.class_id) };
+  });
+
+export const readNotices = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ token }))
+  .handler(async ({ data }) => {
+    const { sessionStudent } = await import("./db.server");
+    const { markNoticesRead } = await import("./retakes.server");
+    const { student } = await sessionStudent(data.token);
+    await markNoticesRead(student.id);
+    return { ok: true };
+  });
