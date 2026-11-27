@@ -455,9 +455,11 @@ export type Database = {
           description: string
           id: string
           owner_id: string
+          position: number
           purpose: string
           title: string
           topic: string
+          topic_id: string | null
           updated_at: string
         }
         Insert: {
@@ -465,9 +467,11 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          position?: number
           purpose?: string
           title: string
           topic?: string
+          topic_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -475,12 +479,22 @@ export type Database = {
           description?: string
           id?: string
           owner_id?: string
+          position?: number
           purpose?: string
           title?: string
           topic?: string
+          topic_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "exam_banks_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "exam_topics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       exam_classes: {
         Row: {
@@ -1000,6 +1014,47 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_topics: {
+        Row: {
+          created_at: string
+          id: string
+          level: string
+          owner_id: string
+          parent_id: string | null
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level: string
+          owner_id?: string
+          parent_id?: string | null
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: string
+          owner_id?: string
+          parent_id?: string | null
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_topics_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "exam_topics"
             referencedColumns: ["id"]
           },
         ]
