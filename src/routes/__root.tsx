@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from '@/integrations/supabase/client';
+import { TAB_ALIVE_KEY, TEMP_SESSION_KEY } from '@/lib/session-keys';
 
 function NotFoundComponent() {
   return (
@@ -82,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Hình học 3D" },
+      { title: "Lớp Học Số" },
       { name: "description", content: "Lớp học hình học không gian tương tác" },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Hình học 3D" },
@@ -123,6 +124,17 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  useEffect(() => {
+    // "Ghi nhớ đăng nhập" left unticked: a teacher session lasts only while that browser tab stays open.
+    try {
+      if (window.localStorage.getItem(TEMP_SESSION_KEY) && !window.sessionStorage.getItem(TAB_ALIVE_KEY)) {
+        window.localStorage.removeItem(TEMP_SESSION_KEY);
+        void supabase.auth.signOut();
+      }
+    } catch {
+      // storage unavailable: keep the session
+    }
+  }, []);
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange(event => {
       if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;

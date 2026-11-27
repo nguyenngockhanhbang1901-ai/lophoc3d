@@ -76,3 +76,4 @@ use the editor.
 
 <!-- AGENT-MEMORY:BEGIN -->
 <!-- AGENT-MEMORY:END -->
+- Site chrome (Lớp Học Số style) lives in src/components/site: the public home (HomeLanding) and the teacher dashboard (TeacherDashboard) are Classroom's not-entered views, teacher pages share TeacherShell's sidebar, sign-in for both roles is LoginScreen (/auth, and /hoc-sinh when signed out); lesson parts and their components are not restyled by it.

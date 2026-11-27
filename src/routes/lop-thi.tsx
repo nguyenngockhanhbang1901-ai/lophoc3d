@@ -3,7 +3,7 @@ import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeacher } from "@/components/slides/use-teacher";
 import { TeacherClasses } from "@/components/exam/TeacherClasses";
-import { ExamNav } from "@/components/exam/ExamNav";
+import { TeacherShell } from "@/components/site/TeacherShell";
 
 export const Route = createFileRoute("/lop-thi")({
   ssr: false,
@@ -29,8 +29,7 @@ export const Route = createFileRoute("/lop-thi")({
 function TeacherClassesPage() {
   const user = useTeacher();
   return (
-    <main className="mx-auto min-h-screen max-w-[1400px] px-4 py-4">
-      <ExamNav current="/lop-thi" />
+    <TeacherShell current="accounts" title="Lớp và tài khoản học sinh">
       {user === undefined ? (
         <p className="text-muted-foreground">Đang tải…</p>
       ) : user === null ? (
@@ -48,6 +47,6 @@ function TeacherClassesPage() {
       ) : (
         <TeacherClasses />
       )}
-    </main>
+    </TeacherShell>
   );
 }
