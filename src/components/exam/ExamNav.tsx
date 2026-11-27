@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 const PAGES = [
   { to: "/lop-thi", label: "Lớp và tài khoản" },
   { to: "/ngan-hang-de", label: "Ngân hàng đề" },
+  { to: "/ma-tran-de", label: "Ma trận đề" },
 ] as const;
 
 /** Header shared by the teacher's online-exam pages. */

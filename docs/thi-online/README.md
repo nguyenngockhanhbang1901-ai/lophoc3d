@@ -22,3 +22,8 @@ server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc đ�
 
 > Hãy tạo migration mới với đúng SQL trong `docs/thi-online/03-ngan-hang-de.sql`
 > (bảng exam_banks, exam_questions và chính sách RLS), rồi cập nhật lại types. Không sửa code khác.
+
+## Giai đoạn 4: ma trận đề
+
+> Hãy tạo migration mới với đúng SQL trong `docs/thi-online/04-ma-tran-de.sql`
+> (bảng exam_matrices và chính sách RLS), rồi cập nhật lại types. Không sửa code khác.

@@ -17,8 +17,26 @@ const q = (id: string, kind: QuestionKind, stem: string): QuestionRow => ({
 });
 
 vi.mock("@/lib/exam/bank-store", () => ({
-  listBanks: () => Promise.resolve([{ id: "b1", title: "Bài 11", topic: "", description: "", created_at: "", updated_at: "", questionCount: 4, hiddenCount: 0 }]),
-  listQuestions: () => Promise.resolve([q("1", "mcq", "Câu TN 1"), q("2", "tf", "Câu ĐS 1"), q("3", "short", "Câu TLN 1"), q("4", "mcq", "Câu TN 2")]),
+  listBanks: () =>
+    Promise.resolve([
+      {
+        id: "b1",
+        title: "Bài 11",
+        topic: "",
+        description: "",
+        created_at: "",
+        updated_at: "",
+        questionCount: 4,
+        hiddenCount: 0,
+      },
+    ]),
+  listQuestions: () =>
+    Promise.resolve([
+      q("1", "mcq", "Câu TN 1"),
+      q("2", "tf", "Câu ĐS 1"),
+      q("3", "short", "Câu TLN 1"),
+      q("4", "mcq", "Câu TN 2"),
+    ]),
   saveBank: vi.fn(),
   deleteBank: vi.fn(),
   saveQuestion: vi.fn(),
