@@ -17,6 +17,11 @@ export interface MatrixRow {
   slots: MatrixSlot[];
   shuffle_options: boolean;
   shuffle_order: boolean;
+  /** also shuffle the four statements of đúng/sai questions */
+  shuffle_statements: boolean;
+  /** "word_exam": an exam made from a Word file (every slot pinned to one question) */
+  purpose: "bank" | "word_exam";
+  source_file: string;
   updated_at: string;
 }
 
@@ -29,7 +34,9 @@ function fail(what: string, error: { message?: string } | null): never {
 export async function listMatrices(): Promise<MatrixRow[]> {
   const { data, error } = await db()
     .from("exam_matrices")
-    .select("id,title,description,slots,shuffle_options,shuffle_order,updated_at")
+    .select(
+      "id,title,description,slots,shuffle_options,shuffle_order,shuffle_statements,purpose,source_file,updated_at",
+    )
     .order("created_at");
   if (error) fail("Không tải được ma trận đề", error);
   return ((data ?? []) as MatrixRow[]).map((m) => {
@@ -39,7 +46,7 @@ export async function listMatrices(): Promise<MatrixRow[]> {
 }
 
 export async function saveMatrix(
-  m: Omit<MatrixRow, "id" | "updated_at"> & { id?: string },
+  m: Omit<MatrixRow, "id" | "updated_at" | "purpose" | "source_file"> & { id?: string },
 ): Promise<string> {
   const values = {
     title: m.title.trim() || "Ma trận chưa đặt tên",
@@ -47,6 +54,7 @@ export async function saveMatrix(
     slots: matrixSlotsSchema.parse(m.slots),
     shuffle_options: m.shuffle_options,
     shuffle_order: m.shuffle_order,
+    shuffle_statements: m.shuffle_statements,
     updated_at: new Date().toISOString(),
   };
   if (m.id) {

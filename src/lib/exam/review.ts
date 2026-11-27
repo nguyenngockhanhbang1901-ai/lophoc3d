@@ -36,7 +36,7 @@ export interface ReviewQuestion {
 }
 
 export function reviewQuestion(
-  item: Pick<DrawnItem, "kind" | "points" | "optionOrder">,
+  item: Pick<DrawnItem, "kind" | "points" | "optionOrder" | "statementOrder">,
   body: QuestionBody | null,
   answer: StudentAnswer | null,
   result: ItemResult | null,
@@ -63,12 +63,14 @@ export function reviewQuestion(
       correct: { kind: "mcq", choice: shown >= 0 ? shown : null },
     };
   }
-  if (d?.kind === "tf")
+  if (d?.kind === "tf") {
+    const order = item.statementOrder ?? [0, 1, 2, 3];
     return {
       ...base,
-      statements: [...d.statements],
-      correct: { kind: "tf", values: [...d.correct] },
+      statements: order.map((i) => d.statements[i] ?? ""),
+      correct: { kind: "tf", values: order.map((i) => d.correct[i] ?? null) },
     };
+  }
   if (d?.kind === "short") return { ...base, correct: { kind: "short", answers: [...d.answers] } };
   return {
     ...base,

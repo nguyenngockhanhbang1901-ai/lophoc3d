@@ -9,7 +9,8 @@ import {
   type MatrixSlot,
   type PoolQuestion,
 } from "./matrix";
-import { emptyBody, type QuestionKind, type QuestionLevel } from "./questions";
+import { emptyBody, type QuestionBody, type QuestionKind, type QuestionLevel } from "./questions";
+import { scoreAttempt } from "./assignment";
 
 const B1 = "11111111-1111-4111-8111-111111111111";
 const B2 = "22222222-2222-4222-8222-222222222222";
@@ -185,5 +186,60 @@ describe("drawing exams", () => {
       options: ["d", "c", "b", "a"],
       correct: 2,
     });
+  });
+});
+
+describe("pinned slots and statement shuffling", () => {
+  const B = "bbbbbbbb-0000-4000-8000-000000000000";
+  const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+  const pool = [1, 2, 3].map((n) => ({
+    id: id(n),
+    bankId: B,
+    kind: n === 3 ? ("tf" as const) : ("mcq" as const),
+    level: "nb" as const,
+    position: n,
+  }));
+  const slots = pool.map((q) => ({
+    bankId: B,
+    kind: q.kind,
+    level: q.level,
+    points: q.kind === "tf" ? 1 : 0.25,
+    questionId: q.id,
+  }));
+  it("counts a fully pinned exam as one set shared by everyone", () => {
+    const a = analyzeMatrix(slots, pool, [{ id: B, title: "Đề" }], 1.5);
+    expect(a.distinctExams).toBe(1);
+    expect(a.expectedShared).toBe(3);
+    expect(a.problems.filter((p) => p.severity === "error")).toEqual([]);
+    const missing = analyzeMatrix(slots, pool.slice(0, 2), [{ id: B, title: "Đề" }], 1.5);
+    expect(missing.problems.some((p) => p.severity === "error")).toBe(true);
+  });
+  it("draws exactly the pinned questions and can shuffle the four statements", () => {
+    const exam = drawExam(slots, pool, seededRandom(7), {
+      shuffleOptions: true,
+      shuffleOrder: true,
+      shuffleStatements: true,
+    });
+    expect(exam.items.map((i) => i.questionId).sort()).toEqual(pool.map((q) => q.id).sort());
+    expect(exam.items.at(-1)!.kind).toBe("tf");
+    expect([...exam.items.at(-1)!.statementOrder!].sort()).toEqual([0, 1, 2, 3]);
+    const tf: QuestionBody = {
+      stem: "",
+      media: null,
+      explanation: "",
+      data: { kind: "tf", statements: ["a", "b", "c", "d"], correct: [true, false, false, true] },
+    };
+    const shown = withOptionOrder(tf, null, [3, 0, 2, 1]);
+    expect(shown.data).toMatchObject({
+      statements: ["d", "a", "c", "b"],
+      correct: [true, true, false, false],
+    });
+    const scored = scoreAttempt(
+      [{ points: 1, optionOrder: null, statementOrder: [3, 0, 2, 1] }],
+      [tf],
+      [{ kind: "tf", choices: [true, true, false, false] }],
+      10,
+    );
+    expect(scored.score).toBe(10);
   });
 });

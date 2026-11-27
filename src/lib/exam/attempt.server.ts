@@ -63,6 +63,7 @@ export interface AssignmentRow {
   slots: MatrixSlot[];
   shuffle_options: boolean;
   shuffle_order: boolean;
+  shuffle_statements?: boolean;
   opens_at: string;
   closes_at: string;
   duration_minutes: number;
@@ -103,7 +104,11 @@ export async function drawForStudent(assignment: AssignmentRow, studentId: strin
     slots,
     toPool((rows ?? []) as unknown as PoolRow[]),
     cryptoRandom(),
-    { shuffleOptions: assignment.shuffle_options, shuffleOrder: assignment.shuffle_order },
+    {
+      shuffleOptions: assignment.shuffle_options,
+      shuffleOrder: assignment.shuffle_order,
+      shuffleStatements: !!assignment.shuffle_statements,
+    },
     avoid,
   );
 }

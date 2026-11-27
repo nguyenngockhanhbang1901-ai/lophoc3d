@@ -10,6 +10,8 @@ export const matrixSlotSchema = z.object({
   /** null = any level in the bank */
   level: z.enum(["nb", "th", "vd", "vdc"]).nullable(),
   points: z.number().min(0).max(100),
+  /** a slot pinned to one question (exams made from a Word file): always that question */
+  questionId: z.string().uuid().optional(),
 });
 export const matrixSlotsSchema = z.array(matrixSlotSchema).max(200);
 export type MatrixSlot = z.infer<typeof matrixSlotSchema>;
@@ -49,11 +51,12 @@ export interface MatrixAnalysis {
 
 export function poolFor(slot: MatrixSlot, questions: PoolQuestion[]): PoolQuestion[] {
   return questions
-    .filter(
-      (q) =>
-        q.bankId === slot.bankId &&
-        q.kind === slot.kind &&
-        (slot.level === null || q.level === slot.level),
+    .filter((q) =>
+      slot.questionId
+        ? q.id === slot.questionId && q.kind === slot.kind
+        : q.bankId === slot.bankId &&
+          q.kind === slot.kind &&
+          (slot.level === null || q.level === slot.level),
     )
     .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
 }
@@ -102,7 +105,15 @@ export function analyzeMatrix(
         severity: "error",
         message: `Vị trí ${i + 1}: ngân hàng không còn tồn tại`,
       });
-    else if (poolSizes[i] === 0)
+    else if (s.questionId && poolSizes[i] === 0)
+      problems.push({
+        slot: i,
+        severity: "error",
+        message: `Câu ${i + 1}: câu hỏi đã bị xóa hoặc còn thiếu nội dung/đáp án`,
+      });
+    else if (s.questionId) {
+      // pinned: nothing to draw from
+    } else if (poolSizes[i] === 0)
       problems.push({
         slot: i,
         severity: "error",
@@ -123,13 +134,24 @@ export function analyzeMatrix(
   let distinct = slots.length ? 1 : 0;
   let shared = 0;
   const groups = new Map<string, number[]>();
+  const pinned = new Set<string>();
   slots.forEach((s, i) => {
+    if (s.questionId) {
+      // always the same question: one way to fill it, and every student shares it
+      if (pinned.has(s.questionId))
+        problems.push({ slot: i, severity: "error", message: `Câu ${i + 1} bị lặp lại trong đề` });
+      pinned.add(s.questionId);
+      shared += 1;
+      return;
+    }
     const key = `${s.bankId}|${s.kind}`;
     groups.set(key, [...(groups.get(key) ?? []), i]);
   });
   for (const [key, idx] of groups) {
     const [bankId, kind] = key.split("|") as [string, QuestionKind];
-    const all = questions.filter((q) => q.bankId === bankId && q.kind === kind);
+    const all = questions.filter(
+      (q) => q.bankId === bankId && q.kind === kind && !pinned.has(q.id),
+    );
     const specific = new Map<QuestionLevel, number>();
     let anyLevel = 0;
     for (const i of idx) {
@@ -233,6 +255,8 @@ export interface DrawnItem {
   poolNumber: number;
   /** order the four options are shown in (original indices), mcq only */
   optionOrder: number[] | null;
+  /** order the four statements are shown in (original indices), tf only; absent = a, b, c, d */
+  statementOrder?: number[] | null;
 }
 
 export interface DrawnExam {
@@ -246,16 +270,16 @@ export function drawExam(
   slots: MatrixSlot[],
   questions: PoolQuestion[],
   random: () => number,
-  options: { shuffleOptions: boolean; shuffleOrder: boolean },
+  options: { shuffleOptions: boolean; shuffleOrder: boolean; shuffleStatements?: boolean },
   /** questions to steer away from when the pool allows (e.g. a retake after a cancelled attempt) */
   avoid: ReadonlySet<string> = new Set(),
 ): DrawnExam {
   const used = new Set<string>();
   const picked: (DrawnItem | null)[] = slots.map(() => null);
-  // level-specific slots first, so an "any level" slot never takes a question a later slot needs
-  const order = slots
-    .map((s, i) => i)
-    .sort((a, b) => Number(slots[a]!.level === null) - Number(slots[b]!.level === null) || a - b);
+  // pinned slots first, then level-specific ones, so an "any level" slot never takes a question
+  // a later slot needs
+  const rank = (s: MatrixSlot) => (s.questionId ? 0 : s.level === null ? 2 : 1);
+  const order = slots.map((s, i) => i).sort((a, b) => rank(slots[a]!) - rank(slots[b]!) || a - b);
   for (const i of order) {
     const slot = slots[i]!;
     const pool = poolFor(slot, questions);
@@ -277,19 +301,47 @@ export function drawExam(
             ? shuffle([0, 1, 2, 3], random)
             : [0, 1, 2, 3]
           : null,
+      ...(slot.kind === "tf" && options.shuffleStatements
+        ? { statementOrder: shuffle([0, 1, 2, 3], random) }
+        : {}),
     };
   }
-  const code = picked.map((p) => p!.poolNumber).join("-");
+  const allPinned = slots.length > 0 && slots.every((s) => s.questionId);
   const items: DrawnItem[] = [];
   for (const kind of KIND_ORDER) {
     const part = picked.filter((p): p is DrawnItem => p !== null && p.kind === kind);
     items.push(...(options.shuffleOrder ? shuffle(part, random) : part));
   }
+  // a Word exam has one question per slot: its code tells the shuffles apart instead
+  const code = allPinned ? shuffleCode(items) : picked.map((p) => p!.poolNumber).join("-");
   return { items, code };
 }
 
+/** A short number naming one arrangement of a fixed exam, like the "mã đề" of a paper test. */
+function shuffleCode(items: DrawnItem[]): string {
+  const text = JSON.stringify(items.map((i) => [i.slot, i.optionOrder, i.statementOrder]));
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return String(1000 + ((h >>> 0) % 9000));
+}
+
 /** The question as this student sees it: options in their drawn order, answer moved with them. */
-export function withOptionOrder(body: QuestionBody, order: number[] | null): QuestionBody {
+export function withOptionOrder(
+  body: QuestionBody,
+  order: number[] | null,
+  statementOrder?: number[] | null,
+): QuestionBody {
+  if (body.data.kind === "tf" && statementOrder) {
+    const d = body.data;
+    return {
+      ...body,
+      data: {
+        ...d,
+        statements: statementOrder.map((i) => d.statements[i] ?? "") as typeof d.statements,
+        correct: statementOrder.map((i) => d.correct[i] ?? null) as typeof d.correct,
+      },
+    };
+  }
   if (!order || body.data.kind !== "mcq") return body;
   const d = body.data;
   const options = order.map((i) => d.options[i] ?? "") as [string, string, string, string];

@@ -74,7 +74,7 @@ export type StudentQuestion =
 /** The question without anything that reveals the answer; options in this student's order. */
 export function studentQuestion(
   body: QuestionBody,
-  item: Pick<DrawnItem, "optionOrder">,
+  item: Pick<DrawnItem, "optionOrder" | "statementOrder">,
 ): StudentQuestion {
   const d = body.data;
   if (d.kind === "mcq") {
@@ -86,8 +86,15 @@ export function studentQuestion(
       options: order.map((i) => d.options[i] ?? ""),
     };
   }
-  if (d.kind === "tf")
-    return { kind: "tf", stem: body.stem, media: body.media, statements: [...d.statements] };
+  if (d.kind === "tf") {
+    const order = item.statementOrder ?? [0, 1, 2, 3];
+    return {
+      kind: "tf",
+      stem: body.stem,
+      media: body.media,
+      statements: order.map((i) => d.statements[i] ?? ""),
+    };
+  }
   return { kind: "short", stem: body.stem, media: body.media };
 }
 
@@ -133,7 +140,7 @@ export interface AttemptScore {
  * option order undone; points are scaled so the full matrix equals the assignment scale.
  */
 export function scoreAttempt(
-  items: Pick<DrawnItem, "points" | "optionOrder">[],
+  items: Pick<DrawnItem, "points" | "optionOrder" | "statementOrder">[],
   bodies: (QuestionBody | null)[],
   answers: (StudentAnswer | null)[],
   scale: number,
@@ -143,6 +150,14 @@ export function scoreAttempt(
     let answer = answers[i] ?? null;
     if (body && answer?.kind === "mcq" && answer.choice !== null && item.optionOrder)
       answer = { kind: "mcq", choice: item.optionOrder[answer.choice] ?? null };
+    if (answer?.kind === "tf" && item.statementOrder) {
+      // the student answered statements in their shown order: put each back in its place
+      const choices: (boolean | null)[] = [null, null, null, null];
+      item.statementOrder.forEach((original, shown) => {
+        choices[original] = answer?.kind === "tf" ? (answer.choices[shown] ?? null) : null;
+      });
+      answer = { kind: "tf", choices };
+    }
     const share = body ? scoreShare(body.data, answer, TF_SHARES_THPT) : 0;
     return { share, points: item.points, earned: share * item.points };
   });

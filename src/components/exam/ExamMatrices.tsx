@@ -48,7 +48,7 @@ import {
 } from "@/lib/exam/questions";
 import { QuestionView } from "./ExamMath";
 
-type Draft = Omit<MatrixRow, "updated_at" | "id"> & { id?: string };
+type Draft = Omit<MatrixRow, "updated_at" | "id" | "purpose" | "source_file"> & { id?: string };
 
 const PART_TITLE: Record<QuestionKind, string> = {
   mcq: "PHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn",
@@ -66,6 +66,7 @@ const blank = (): Draft => ({
   slots: [],
   shuffle_options: true,
   shuffle_order: false,
+  shuffle_statements: false,
 });
 
 export function ExamMatrices() {
@@ -83,7 +84,7 @@ export function ExamMatrices() {
   const load = useCallback(async () => {
     try {
       const [m, b, p] = await Promise.all([listMatrices(), listBanks(), listPoolQuestions()]);
-      setMatrices(m);
+      setMatrices(m.filter((x) => x.purpose !== "word_exam"));
       setBanks(b);
       setPool(p);
       return m;
@@ -235,6 +236,7 @@ export function ExamMatrices() {
                           slots: draft.slots,
                           shuffle_options: draft.shuffle_options,
                           shuffle_order: draft.shuffle_order,
+                          shuffle_statements: draft.shuffle_statements,
                         })
                       }
                       title="Nhân bản ma trận"
@@ -271,6 +273,14 @@ export function ExamMatrices() {
                   onChange={(e) => edit({ shuffle_order: e.target.checked })}
                 />
                 Đảo thứ tự câu (trong từng phần)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={draft.shuffle_statements}
+                  onChange={(e) => edit({ shuffle_statements: e.target.checked })}
+                />
+                Đảo thứ tự 4 ý a–d (câu đúng/sai)
               </label>
               <Button
                 size="sm"
@@ -703,6 +713,7 @@ function Preview({ draft, pool }: { draft: Draft; pool: PoolQuestion[] }) {
       const e = drawExam(draft.slots, pool, seededRandom(seed), {
         shuffleOptions: draft.shuffle_options,
         shuffleOrder: draft.shuffle_order,
+        shuffleStatements: draft.shuffle_statements,
       });
       setExam(e);
       setError("");
@@ -761,7 +772,7 @@ function Preview({ draft, pool }: { draft: Draft; pool: PoolQuestion[] }) {
                     </div>
                     {body ? (
                       <QuestionView
-                        body={withOptionOrder(body, it.optionOrder)}
+                        body={withOptionOrder(body, it.optionOrder, it.statementOrder)}
                         showAnswer={showAnswers}
                       />
                     ) : (

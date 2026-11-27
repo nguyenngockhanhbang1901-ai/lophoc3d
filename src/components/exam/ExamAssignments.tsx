@@ -11,6 +11,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { ReviewQuestionCard } from "./ExamReview";
+import { WordExams } from "./WordExams";
 import type { AttemptDetail } from "@/lib/exam/review.server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ const STATE_CLASS: Record<AssignmentSummary["state"], string> = {
   closed: "bg-muted text-muted-foreground",
 };
 
-export function ExamAssignments() {
+export function ExamAssignments({ userId }: { userId: string }) {
   const list = useServerFn(listAssignments);
   const save = useServerFn(saveAssignment);
   const remove = useServerFn(deleteAssignment);
@@ -85,6 +86,8 @@ export function ExamAssignments() {
   const [classes, setClasses] = useState<ExamClassSummary[]>([]);
   const [matrices, setMatrices] = useState<MatrixRow[]>([]);
   const [editing, setEditing] = useState<AssignmentSummary | "new" | null>(null);
+  /** exam to preselect in a new assignment (after making one from a Word file) */
+  const [preset, setPreset] = useState<string | null>(null);
   const [results, setResults] = useState<AssignmentSummary | null>(null);
   const [deleting, setDeleting] = useState<AssignmentSummary | null>(null);
   const [error, setError] = useState("");
@@ -130,7 +133,13 @@ export function ExamAssignments() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={!classes.length || !matrices.length} onClick={() => setEditing("new")}>
+        <Button
+          disabled={!classes.length || !matrices.length}
+          onClick={() => {
+            setPreset(null);
+            setEditing("new");
+          }}
+        >
           <Plus />
           Giao bài mới
         </Button>
@@ -145,7 +154,7 @@ export function ExamAssignments() {
         )}
         {classes.length > 0 && !matrices.length && (
           <span className="text-sm text-muted-foreground">
-            Hãy tạo ma trận đề trước (thẻ Ma trận đề).
+            Hãy tạo ma trận đề (thẻ Ma trận đề) hoặc tạo đề từ file Word bên dưới.
           </span>
         )}
       </div>
@@ -154,6 +163,19 @@ export function ExamAssignments() {
           {error}
         </p>
       )}
+      <WordExams
+        userId={userId}
+        exams={matrices.filter((m) => m.purpose === "word_exam")}
+        onChanged={load}
+        onAssign={(id) => {
+          if (!classes.length) {
+            setError("Hãy tạo lớp trước (thẻ Lớp và tài khoản) rồi bấm Giao bài ở đề này.");
+            return;
+          }
+          setPreset(id);
+          setEditing("new");
+        }}
+      />
       {assignments.length === 0 ? (
         <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
           Chưa giao bài nào.
@@ -220,6 +242,7 @@ export function ExamAssignments() {
           {editing && (
             <AssignmentForm
               initial={editing === "new" ? null : editing}
+              preset={editing === "new" ? preset : null}
               classes={classes}
               matrices={matrices}
               busy={busy}
@@ -323,6 +346,7 @@ function NumberField({
 
 function AssignmentForm({
   initial,
+  preset,
   classes,
   matrices,
   busy,
@@ -330,6 +354,7 @@ function AssignmentForm({
   onSubmit,
 }: {
   initial: AssignmentSummary | null;
+  preset: string | null;
   classes: ExamClassSummary[];
   matrices: MatrixRow[];
   busy: boolean;
@@ -338,10 +363,11 @@ function AssignmentForm({
 }) {
   const now = Date.now();
   const roundedNow = new Date(Math.ceil(now / 300_000) * 300_000).toISOString();
+  const first = matrices.find((m) => m.id === preset) ?? matrices[0];
   const [v, setV] = useState<FormValues>(() => ({
     classId: initial?.classId ?? classes[0]?.id ?? "",
-    matrixId: initial?.matrixId ?? matrices[0]?.id ?? "",
-    title: initial?.title ?? matrices[0]?.title ?? "",
+    matrixId: initial?.matrixId ?? first?.id ?? "",
+    title: initial?.title ?? first?.title ?? "",
     opensAt: initial?.opensAt ?? roundedNow,
     closesAt:
       initial?.closesAt ?? new Date(new Date(roundedNow).getTime() + 60 * 60_000).toISOString(),
@@ -359,7 +385,7 @@ function AssignmentForm({
       <DialogTitle>{initial ? "Sửa bài giao" : "Giao bài mới"}</DialogTitle>
       <DialogDescription>
         Mọi mốc giờ tính theo giờ Việt Nam (GMT+7) trên máy chủ. Mỗi học sinh nhận một đề rút ngẫu
-        nhiên theo ma trận.
+        nhiên theo ma trận, hoặc với đề từ file Word: cùng các câu nhưng thứ tự đảo riêng.
       </DialogDescription>
       <form
         className="grid gap-3"
@@ -385,7 +411,7 @@ function AssignmentForm({
             </select>
           </label>
           <label className="grid gap-1 text-sm">
-            Ma trận đề
+            Đề (ma trận hoặc đề từ file Word)
             <select
               className="entry-select"
               disabled={locked}
@@ -400,11 +426,21 @@ function AssignmentForm({
                 });
               }}
             >
-              {matrices.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.title} ({m.slots.length} câu)
-                </option>
-              ))}
+              {(["bank", "word_exam"] as const).map((purpose) => {
+                const group = matrices.filter((m) => (m.purpose ?? "bank") === purpose);
+                return group.length ? (
+                  <optgroup
+                    key={purpose}
+                    label={purpose === "bank" ? "Ma trận đề" : "Đề từ file Word"}
+                  >
+                    {group.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title} ({m.slots.length} câu)
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
             </select>
           </label>
         </div>
