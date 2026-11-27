@@ -3,14 +3,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { matrixSlotsSchema, type MatrixSlot, type PoolQuestion } from "./matrix";
-import {
-  questionBodySchema,
-  questionDataSchema,
-  questionGaps,
-  type QuestionBody,
-  type QuestionKind,
-  type QuestionLevel,
-} from "./questions";
+import { questionBodySchema, type QuestionBody } from "./questions";
+import { POOL_COLUMNS, toPool, type PoolRow } from "./pool";
 
 function db(): SupabaseClient {
   return supabase as unknown as SupabaseClient;
@@ -72,34 +66,9 @@ export async function deleteMatrix(id: string): Promise<void> {
 
 /** Usable questions (not hidden, nothing missing) of all the teacher's banks, without pictures. */
 export async function listPoolQuestions(): Promise<PoolQuestion[]> {
-  const { data, error } = await db()
-    .from("exam_questions")
-    .select("id,bank_id,kind,level,position,hidden,stem:body->>stem,data:body->data");
+  const { data, error } = await db().from("exam_questions").select(POOL_COLUMNS);
   if (error) throw new Error("Không tải được câu hỏi");
-  const out: PoolQuestion[] = [];
-  for (const q of (data ?? []) as {
-    id: string;
-    bank_id: string;
-    kind: QuestionKind;
-    level: QuestionLevel;
-    position: number;
-    hidden: boolean;
-    stem: string | null;
-    data: unknown;
-  }[]) {
-    if (q.hidden) continue;
-    const parsed = questionDataSchema.safeParse(q.data);
-    if (!parsed.success) continue;
-    const body: QuestionBody = {
-      stem: q.stem ?? "",
-      media: null,
-      explanation: "",
-      data: parsed.data,
-    };
-    if (questionGaps(body).length) continue;
-    out.push({ id: q.id, bankId: q.bank_id, kind: q.kind, level: q.level, position: q.position });
-  }
-  return out;
+  return toPool((data ?? []) as unknown as PoolRow[]);
 }
 
 /** Full bodies of the drawn questions, for the preview. */

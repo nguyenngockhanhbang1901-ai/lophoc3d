@@ -28,5 +28,6 @@ describe("App routing", () => {
     expect(router.matchRoutes("/hoc-sinh").at(-1)?.routeId).toBe("/hoc-sinh");
     expect(router.matchRoutes("/ngan-hang-de").at(-1)?.routeId).toBe("/ngan-hang-de");
     expect(router.matchRoutes("/ma-tran-de").at(-1)?.routeId).toBe("/ma-tran-de");
+    expect(router.matchRoutes("/giao-bai").at(-1)?.routeId).toBe("/giao-bai");
   });
 });

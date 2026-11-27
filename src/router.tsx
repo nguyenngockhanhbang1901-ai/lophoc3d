@@ -12,6 +12,8 @@ export const getRouter = () => {
     scrollRestoration: true,
     // Lets Query own freshness; set caching defaults on the QueryClient, not the router.
     defaultPreloadStaleTime: 0,
+    // Hovering or touching a link starts loading that page's code, so opening it feels instant.
+    defaultPreload: "intent",
   });
 
   return router;

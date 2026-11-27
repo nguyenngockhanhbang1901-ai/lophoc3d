@@ -82,7 +82,20 @@ export const SESSION_DAYS = 30;
 
 // Reversible copy of a password so the teacher can read it back. AES-GCM with a key derived
 // (HKDF) from a server secret, so the database alone never reveals passwords.
-async function aesKey(secret: string): Promise<CryptoKey> {
+// Deriving the key costs a little each time; a list of 40 students reuses one key.
+const aesKeys = new Map<string, Promise<CryptoKey>>();
+
+function aesKey(secret: string): Promise<CryptoKey> {
+  let key = aesKeys.get(secret);
+  if (!key) {
+    key = deriveAesKey(secret);
+    aesKeys.set(secret, key);
+    key.catch(() => aesKeys.delete(secret));
+  }
+  return key;
+}
+
+async function deriveAesKey(secret: string): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey("raw", encoder.encode(secret), "HKDF", false, [
     "deriveKey",
   ]);

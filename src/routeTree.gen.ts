@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Activity1RouteImport } from './routes/activity-1'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as GiaoBaiRouteImport } from './routes/giao-bai'
 import { Route as HocSinhRouteImport } from './routes/hoc-sinh'
 import { Route as LopThiRouteImport } from './routes/lop-thi'
 import { Route as MaTranDeRouteImport } from './routes/ma-tran-de'
@@ -33,6 +34,11 @@ const Activity1Route = Activity1RouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GiaoBaiRoute = GiaoBaiRouteImport.update({
+  id: '/giao-bai',
+  path: '/giao-bai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HocSinhRoute = HocSinhRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/giao-bai': typeof GiaoBaiRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
   '/ma-tran-de': typeof MaTranDeRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/giao-bai': typeof GiaoBaiRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
   '/ma-tran-de': typeof MaTranDeRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/activity-1': typeof Activity1Route
   '/auth': typeof AuthRoute
+  '/giao-bai': typeof GiaoBaiRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
   '/ma-tran-de': typeof MaTranDeRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity-1'
     | '/auth'
+    | '/giao-bai'
     | '/hoc-sinh'
     | '/lop-thi'
     | '/ma-tran-de'
@@ -126,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity-1'
     | '/auth'
+    | '/giao-bai'
     | '/hoc-sinh'
     | '/lop-thi'
     | '/ma-tran-de'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity-1'
     | '/auth'
+    | '/giao-bai'
     | '/hoc-sinh'
     | '/lop-thi'
     | '/ma-tran-de'
@@ -151,6 +163,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Activity1Route: typeof Activity1Route
   AuthRoute: typeof AuthRoute
+  GiaoBaiRoute: typeof GiaoBaiRoute
   HocSinhRoute: typeof HocSinhRoute
   LopThiRoute: typeof LopThiRoute
   MaTranDeRoute: typeof MaTranDeRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/giao-bai': {
+      id: '/giao-bai'
+      path: '/giao-bai'
+      fullPath: '/giao-bai'
+      preLoaderRoute: typeof GiaoBaiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hoc-sinh': {
@@ -239,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Activity1Route: Activity1Route,
   AuthRoute: AuthRoute,
+  GiaoBaiRoute: GiaoBaiRoute,
   HocSinhRoute: HocSinhRoute,
   LopThiRoute: LopThiRoute,
   MaTranDeRoute: MaTranDeRoute,

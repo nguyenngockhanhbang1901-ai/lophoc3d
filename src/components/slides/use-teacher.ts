@@ -7,6 +7,11 @@ export function useTeacher(): User | null | undefined {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   useEffect(() => {
     const refresh = () => {
+      // Show the page at once from the stored session, then confirm with the server.
+      // Data stays protected by RLS and server checks either way; this only decides what to render.
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user) setUser((u) => u ?? data.session!.user);
+      });
       void supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
     };
     refresh();

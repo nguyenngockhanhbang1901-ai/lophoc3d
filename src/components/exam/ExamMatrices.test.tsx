@@ -4,17 +4,40 @@ import { emptyBody, type QuestionBody } from "@/lib/exam/questions";
 import { ExamMatrices } from "./ExamMatrices";
 
 const B1 = "11111111-1111-4111-8111-111111111111";
-const pool = Array.from({ length: 5 }, (_, i) => ({ id: `q${i + 1}`, bankId: B1, kind: "mcq" as const, level: "nb" as const, position: i + 1 }));
-const body = (i: number): QuestionBody => ({ ...emptyBody("mcq"), stem: `Đề câu q${i}`, data: { kind: "mcq", options: ["A1", "B1", "C1", "D1"], correct: 0 } });
+const pool = Array.from({ length: 5 }, (_, i) => ({
+  id: `q${i + 1}`,
+  bankId: B1,
+  kind: "mcq" as const,
+  level: "nb" as const,
+  position: i + 1,
+}));
+const body = (i: number): QuestionBody => ({
+  ...emptyBody("mcq"),
+  stem: `Đề câu q${i}`,
+  data: { kind: "mcq", options: ["A1", "B1", "C1", "D1"], correct: 0 },
+});
 const saveMatrix = vi.fn(() => Promise.resolve("m1"));
 
 vi.mock("@/lib/exam/bank-store", () => ({
-  listBanks: () => Promise.resolve([{ id: B1, title: "Song song", topic: "", description: "", created_at: "", updated_at: "", questionCount: 5, hiddenCount: 0 }]),
+  listBanks: () =>
+    Promise.resolve([
+      {
+        id: B1,
+        title: "Song song",
+        topic: "",
+        description: "",
+        created_at: "",
+        updated_at: "",
+        questionCount: 5,
+        hiddenCount: 0,
+      },
+    ]),
 }));
 vi.mock("@/lib/exam/matrix-store", () => ({
   listMatrices: () => Promise.resolve([]),
   listPoolQuestions: () => Promise.resolve(pool),
-  getQuestionBodies: (ids: string[]) => Promise.resolve(new Map(ids.map((id) => [id, body(Number(id.slice(1)))]))),
+  getQuestionBodies: (ids: string[]) =>
+    Promise.resolve(new Map(ids.map((id) => [id, body(Number(id.slice(1)))]))),
   saveMatrix: (...a: unknown[]) => saveMatrix(...(a as [])),
   deleteMatrix: vi.fn(),
 }));

@@ -12,6 +12,7 @@ import {
   type StudentProfile,
 } from "@/lib/exam/student.functions";
 import { displayDate } from "@/lib/exam/roster";
+import { AssignedList, ExamFlow } from "./StudentExam";
 import { passwordProblem } from "@/lib/exam/accounts";
 
 const TOKEN_KEY = "exam-student-token";
@@ -45,6 +46,7 @@ export function StudentPortal() {
   const loadProfile = useServerFn(studentProfile);
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [openAssignment, setOpenAssignment] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
 
   const signOut = useCallback((why = "") => {
@@ -80,6 +82,17 @@ export function StudentPortal() {
       />
     );
   }
+
+  if (openAssignment)
+    return (
+      <ExamFlow
+        token={token}
+        assignmentId={openAssignment}
+        studentName={profile.fullName}
+        studentUsername={profile.username}
+        onExit={() => setOpenAssignment(null)}
+      />
+    );
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -132,7 +145,7 @@ export function StudentPortal() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="assigned">
-          <Empty text="Chưa có bài nào được giao. Khi giáo viên giao bài, bài sẽ hiện ở đây." />
+          <AssignedList token={token} onOpen={setOpenAssignment} />
         </TabsContent>
         <TabsContent value="history">
           <Empty text="Chưa có bài làm nào." />
