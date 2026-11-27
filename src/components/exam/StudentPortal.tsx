@@ -15,6 +15,7 @@ import { displayDate } from "@/lib/exam/roster";
 import { AssignedList, ExamFlow } from "./StudentExam";
 import { myNotices, readNotices } from "@/lib/exam/attempt.functions";
 import { HistoryList } from "./StudentHistory";
+import { LessonList } from "./StudentLessons";
 import type { Notice } from "@/lib/exam/retakes.server";
 import { passwordProblem } from "@/lib/exam/accounts";
 
@@ -55,6 +56,8 @@ export function StudentPortal() {
   const markRead = useServerFn(readNotices);
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [noticesSeen, setNoticesSeen] = useState(0);
+  const [tab, setTab] = useState("assigned");
+  const [lessonToOpen, setLessonToOpen] = useState<string | null>(null);
 
   const signOut = useCallback((why = "") => {
     writeToken("");
@@ -158,8 +161,9 @@ export function StudentPortal() {
         </Button>
       </div>
       <Tabs
-        defaultValue="assigned"
+        value={tab}
         onValueChange={(v) => {
+          setTab(v);
           if (v === "notices") setNoticesSeen((n) => n + 1);
         }}
       >
@@ -197,10 +201,17 @@ export function StudentPortal() {
           <HistoryList token={token} />
         </TabsContent>
         <TabsContent value="lessons">
-          <Empty text="Chưa có bài giảng nào được giao cho lớp." />
+          <LessonList token={token} openId={lessonToOpen} onOpen={setLessonToOpen} />
         </TabsContent>
         <TabsContent value="notices">
-          <NoticeList notices={notices} onOpen={setOpenAssignment} />
+          <NoticeList
+            notices={notices}
+            onOpen={setOpenAssignment}
+            onOpenLesson={(id) => {
+              setLessonToOpen(id);
+              setTab("lessons");
+            }}
+          />
         </TabsContent>
         <TabsContent value="me">
           <ProfileTab profile={profile} token={token} onExpired={(why) => signOut(why)} />
@@ -214,6 +225,7 @@ const NOTICE_TONE: Record<Notice["kind"], string> = {
   new_assignment: "border-l-blue-500",
   retake_granted: "border-l-green-600",
   retake_revoked: "border-l-muted-foreground",
+  new_lesson: "border-l-violet-500",
   closing_soon: "border-l-amber-500",
 };
 const noticeTime = new Intl.DateTimeFormat("vi-VN", {
@@ -227,9 +239,11 @@ const noticeTime = new Intl.DateTimeFormat("vi-VN", {
 function NoticeList({
   notices,
   onOpen,
+  onOpenLesson,
 }: {
   notices: Notice[] | null;
   onOpen: (assignmentId: string) => void;
+  onOpenLesson: (lessonId: string) => void;
 }) {
   if (notices === null) return <p className="text-sm text-muted-foreground">Đang tải…</p>;
   if (!notices.length) return <Empty text="Không có thông báo mới." />;
@@ -249,6 +263,11 @@ function NoticeList({
           {n.assignmentId && n.kind !== "retake_revoked" && (
             <Button size="sm" variant="outline" onClick={() => onOpen(n.assignmentId!)}>
               Mở bài
+            </Button>
+          )}
+          {n.lessonId && (
+            <Button size="sm" variant="outline" onClick={() => onOpenLesson(n.lessonId!)}>
+              Mở bài giảng
             </Button>
           )}
         </li>

@@ -48,7 +48,7 @@ import {
 import type { StudentAnswer } from "@/lib/exam/grading";
 import { OPTION_LETTERS, STATEMENT_LETTERS } from "@/lib/exam/questions";
 import { formatPoints } from "@/lib/exam/matrix";
-import { ExamMath, QuestionMediaView } from "./ExamMath";
+import { ProtectedMath, QuestionMediaView } from "./ExamMath";
 
 const TZ = "Asia/Ho_Chi_Minh";
 function formatTime(iso: string): string {
@@ -536,6 +536,7 @@ function ExamRunner({
   const left = view ? new Date(view.deadlineAt).getTime() - now : 0;
   const total = view?.kinds.length ?? 0;
   const numbers = useMemo(() => kindNumbering(view?.kinds ?? []), [view?.kinds]);
+  const highCopy = view?.settings.antiCopy === "high";
 
   // the question on screen, and the next one as soon as it opens, each fetched once
   const requested = useRef(new Set<number>());
@@ -944,7 +945,7 @@ function ExamRunner({
           <p className="text-muted-foreground">Đang tải câu hỏi…</p>
         ) : (
           <div className="grid gap-3">
-            <ExamMath text={q.stem} />
+            <ProtectedMath text={q.stem} protect={highCopy} />
             <QuestionMediaView media={q.media} />
             {q.kind === "mcq" && (
               <div className="grid gap-2" role="radiogroup">
@@ -964,7 +965,7 @@ function ExamRunner({
                       >
                         {OPTION_LETTERS[i]}
                       </span>
-                      <ExamMath text={o} />
+                      <ProtectedMath text={o} protect={highCopy} className="min-w-0 flex-1" />
                     </button>
                   );
                 })}
@@ -978,7 +979,7 @@ function ExamRunner({
                   return (
                     <div key={i} className="flex flex-wrap items-start gap-2 rounded-md border p-2">
                       <span className="font-semibold">{STATEMENT_LETTERS[i]})</span>
-                      <ExamMath text={st} className="min-w-0 flex-1" />
+                      <ProtectedMath text={st} protect={highCopy} className="min-w-0 flex-1" />
                       <div className="flex gap-1">
                         {[true, false].map((v) => (
                           <button

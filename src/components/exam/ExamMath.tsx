@@ -1,6 +1,6 @@
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { Fragment, lazy, Suspense, useMemo, useRef } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { mathLines, insertSnippet } from "@/lib/exam/math-text";
 import {
   OPTION_LETTERS,
@@ -234,6 +234,101 @@ export function MathField({
       {preview && value.includes("$") && (
         <div className="rounded border border-dashed bg-muted/30 px-2 py-1 text-sm">
           <ExamMath text={value} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Embedded font CSS per set of font families, so each set is fetched and encoded once. */
+const fontCss = new Map<string, Promise<string>>();
+
+function familiesOf(node: HTMLElement): string {
+  const set = new Set<string>();
+  try {
+    for (const el of [node, ...Array.from(node.querySelectorAll<HTMLElement>("*"))])
+      for (const f of getComputedStyle(el).fontFamily.split(","))
+        set.add(f.trim().replace(/^["']|["']$/g, ""));
+  } catch {
+    // a browser that cannot report styles shares one font set
+  }
+  return [...set].sort().join("|");
+}
+
+/** Keep one source per @font-face (the first, woff2 for KaTeX): a third of the size. */
+function firstSourceOnly(css: string): string {
+  return (css.match(/@font-face\s*{[^}]*}/g) ?? [])
+    .map((rule) => {
+      const first = rule.match(/url\([^)]*\)/);
+      return first
+        ? rule.replace(/src:[\s\S]*?(?=;\s*[a-z-]+\s*:|;?\s*})/, `src: ${first[0]}`)
+        : rule;
+    })
+    .join("\n");
+}
+
+/**
+ * High anti-copy mode: the text is typeset as usual, then drawn into a picture (fonts
+ * embedded, twice the screen resolution) and only the picture stays on the page, so it cannot
+ * be selected, searched or copied. If drawing fails the typeset text stays, still unselectable.
+ */
+export function ProtectedMath({
+  text,
+  className,
+  protect,
+}: {
+  text: string;
+  className?: string;
+  protect: boolean;
+}) {
+  const source = useRef<HTMLDivElement>(null);
+  const [picture, setPicture] = useState<{ text: string; src: string; width: number } | null>(null);
+  useEffect(() => {
+    if (!protect) return;
+    const node = source.current;
+    if (!node) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { toPng, getFontEmbedCSS } = await import("html-to-image");
+        const key = familiesOf(node);
+        let css = fontCss.get(key);
+        if (!css) {
+          css = getFontEmbedCSS(node).then(firstSourceOnly, () => "");
+          fontCss.set(key, css);
+        }
+        const width = node.offsetWidth;
+        const src = await toPng(node, {
+          fontEmbedCSS: await css,
+          width,
+          height: node.offsetHeight,
+          pixelRatio: Math.max(2, window.devicePixelRatio || 1),
+          style: { opacity: "1" },
+        });
+        if (!cancelled) setPicture({ text, src, width });
+      } catch {
+        // keep the typeset text (unselectable)
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [protect, text]);
+  if (!protect) return <ExamMath text={text} {...(className ? { className } : {})} />;
+  const ready = picture?.text === text;
+  return (
+    <div className={`relative select-none ${className ?? ""}`}>
+      {ready ? (
+        <img
+          src={picture.src}
+          alt=""
+          draggable={false}
+          className="pointer-events-none max-w-full"
+          style={{ width: picture.width }}
+        />
+      ) : (
+        <div ref={source} style={{ opacity: picture ? 0 : 1 }} aria-hidden={false}>
+          <ExamMath text={text} />
         </div>
       )}
     </div>

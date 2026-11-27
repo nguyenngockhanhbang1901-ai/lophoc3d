@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useTeacher } from "@/components/slides/use-teacher";
 import { ExamNav } from "@/components/exam/ExamNav";
 import { ExamAssignments } from "@/components/exam/ExamAssignments";
+import { LessonAssignments } from "@/components/exam/LessonAssignments";
 
 export const Route = createFileRoute("/giao-bai")({
   ssr: false,
@@ -41,7 +42,10 @@ function AssignPage() {
           </Button>
         </div>
       ) : (
-        <ExamAssignments />
+        <>
+          <ExamAssignments />
+          <LessonAssignments ownerId={user.id} />
+        </>
       )}
     </main>
   );
