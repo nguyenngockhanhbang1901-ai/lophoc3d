@@ -7,24 +7,36 @@ import {
   Clock,
   Maximize,
   MonitorCheck,
+  RotateCcw,
   Send,
+  ShieldAlert,
   Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   assignmentRules,
+  attemptPulse,
   attemptQuestion,
   attemptView,
   myAssignments,
+  reportLeave,
   saveAnswer,
   startAttempt,
   submitAttempt,
   type AssignmentRules,
   type AttemptView,
+  type DropInfo,
   type MyAssignment,
 } from "@/lib/exam/attempt.functions";
+import {
+  DROP_OUTCOME_LABEL,
+  HEARTBEAT_MS,
+  isMobileUserAgent,
+  type ViolationKind,
+} from "@/lib/exam/anticheat";
 import {
   ATTEMPT_LABEL,
   WINDOW_LABEL,
@@ -56,6 +68,52 @@ function clock(ms: number): string {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   return `${h ? `${h}:` : ""}${String(m).padStart(h ? 2 : 1, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+/** A random key for this browser tab; the server keeps a paper on the tab that started it. */
+let memoryDeviceKey = "";
+function examDeviceKey(): string {
+  const make = () => {
+    const a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
+  };
+  try {
+    let key = sessionStorage.getItem("exam-device") ?? "";
+    if (!/^[0-9a-f]{32}$/.test(key)) {
+      key = make();
+      sessionStorage.setItem("exam-device", key);
+    }
+    return key;
+  } catch {
+    memoryDeviceKey ||= make();
+    return memoryDeviceKey;
+  }
+}
+
+function fullscreenSupported(): boolean {
+  return (
+    typeof document !== "undefined" &&
+    !!document.documentElement.requestFullscreen &&
+    document.fullscreenEnabled !== false
+  );
+}
+function enterFullscreen() {
+  if (fullscreenSupported() && !document.fullscreenElement)
+    void document.documentElement.requestFullscreen().catch(() => undefined);
+}
+/** Phones and tablets, including iPads that present themselves as a Mac. */
+function onMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    isMobileUserAgent(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+  );
+}
+
+function seconds(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s} giây` : `${Math.floor(s / 60)} phút ${s % 60} giây`;
 }
 
 /** Milliseconds to add to Date.now() to get the server's clock. */
@@ -145,18 +203,14 @@ export function AssignedList({
             </div>
             <Button
               onClick={() => onOpen(a.id)}
-              variant={
-                a.inProgressId
-                  ? "default"
-                  : state === "open" && a.attemptsUsed < a.maxAttempts
-                    ? "default"
-                    : "outline"
-              }
+              variant={a.inProgressId || (state === "open" && a.canStart) ? "default" : "outline"}
             >
               {a.inProgressId
                 ? "Làm tiếp"
-                : state === "open" && a.attemptsUsed < a.maxAttempts
-                  ? "Vào làm bài"
+                : state === "open" && a.canStart
+                  ? a.attemptsUsed > 0 || a.lastStatus
+                    ? "Làm đề mới"
+                    : "Vào làm bài"
                   : "Xem"}
               <ArrowRight />
             </Button>
@@ -186,8 +240,11 @@ export function ExamFlow({
   if (attemptId)
     return (
       <ExamRunner
+        key={attemptId}
         token={token}
+        assignmentId={assignmentId}
         attemptId={attemptId}
+        onRestart={setAttemptId}
         studentName={studentName}
         studentUsername={studentUsername}
         onExit={onExit}
@@ -248,7 +305,11 @@ function RulesScreen({
   const n = s.network;
   const e = s.editRule;
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const mobileBlocked = s.devices === "computer" && onMobileDevice();
   const ruleList = [
+    ...(s.devices === "computer"
+      ? ["Bài này chỉ được làm trên máy tính (không làm trên điện thoại, máy tính bảng)."]
+      : []),
     "Phải làm bài ở chế độ toàn màn hình; thoát toàn màn hình là một lần cảnh báo.",
     `Không chuyển tab, không mở ứng dụng khác; mỗi lần là một cảnh báo. Quá ${s.maxWarnings} lần cảnh báo thì bị tự động thu bài.`,
     "Làm lần lượt từng câu, không được bỏ qua câu. Câu đã làm quay lại sửa được, câu chưa tới không xem trước được.",
@@ -262,6 +323,7 @@ function RulesScreen({
     "Hết giờ hệ thống tự nộp bài.",
     "Không sao chép, không chụp đề; tên và mã học sinh hiện chìm trên đề.",
     "Bị thu bài do vi phạm thì chỉ được thi lại khi giáo viên cấp quyền.",
+    "Mỗi lượt làm chỉ trên một thiết bị; đang làm thì không đăng nhập được ở máy khác.",
     "Toàn bộ quá trình làm bài được ghi lại để giáo viên xem.",
     s.review === "none"
       ? "Sau khi nộp, em thấy điểm; giáo viên không mở phần xem lại đáp án."
@@ -314,12 +376,7 @@ function RulesScreen({
             variant="outline"
             size="sm"
             onClick={() =>
-              setCheck({
-                fullscreen:
-                  !!document.documentElement.requestFullscreen &&
-                  document.fullscreenEnabled !== false,
-                online: navigator.onLine,
-              })
+              setCheck({ fullscreen: fullscreenSupported(), online: navigator.onLine })
             }
           >
             <MonitorCheck />
@@ -353,15 +410,22 @@ function RulesScreen({
         {rules.blocked && !resume && (
           <p className="text-sm text-muted-foreground">{rules.blocked}.</p>
         )}
+        {mobileBlocked && (
+          <p className="error-note">
+            Bài này chỉ làm trên máy tính. Em hãy đăng nhập bằng máy tính để làm bài.
+          </p>
+        )}
         <Button
           size="lg"
-          disabled={busy || (!resume && (!agreed || !rules.canStart || opensIn > 0))}
+          disabled={
+            busy || mobileBlocked || (!resume && (!agreed || !rules.canStart || opensIn > 0))
+          }
           onClick={() => {
             setBusy(true);
             setError("");
             // full screen must be asked for inside the click
-            void document.documentElement.requestFullscreen?.().catch(() => undefined);
-            start({ data: { token, assignmentId, acceptRules: true } })
+            enterFullscreen();
+            start({ data: { token, assignmentId, acceptRules: true, device: examDeviceKey() } })
               .then((r) => onStart(r.attemptId))
               .catch((err) => {
                 setError(message(err));
@@ -381,13 +445,17 @@ function RulesScreen({
 
 function ExamRunner({
   token,
+  assignmentId,
   attemptId,
+  onRestart,
   studentName,
   studentUsername,
   onExit,
 }: {
   token: string;
+  assignmentId: string;
   attemptId: string;
+  onRestart: (attemptId: string) => void;
   studentName: string;
   studentUsername: string;
   onExit: () => void;
@@ -396,6 +464,19 @@ function ExamRunner({
   const questionFn = useServerFn(attemptQuestion);
   const saveFn = useServerFn(saveAnswer);
   const submitFn = useServerFn(submitAttempt);
+  const pulseFn = useServerFn(attemptPulse);
+  const leaveFn = useServerFn(reportLeave);
+  const startFn = useServerFn(startAttempt);
+  const device = useMemo(() => examDeviceKey(), []);
+  const [offlineSince, setOfflineSince] = useState<number | null>(null);
+  const [dropNotice, setDropNotice] = useState<DropInfo | null>(null);
+  const [editWarning, setEditWarning] = useState(false);
+  const [violations, setViolations] = useState(0);
+  /** the student left the exam (tab, window or full screen) and has not come back yet */
+  const [away, setAway] = useState<{ kind: ViolationKind; count: number | null } | null>(null);
+  /** full screen is required but not on, without it being a violation (start, after reload) */
+  const [needFullscreen, setNeedFullscreen] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const [view, setView] = useState<AttemptView | null>(null);
   const [index, setIndex] = useState(0);
   const [questions, setQuestions] = useState<Map<number, StudentQuestion>>(new Map());
@@ -414,18 +495,32 @@ function ExamRunner({
   const pending = useRef(new Map<number, StudentAnswer>());
   const submitting = useRef(false);
 
+  const loadView = useCallback(
+    (first: boolean) =>
+      viewFn({ data: { token, attemptId, device } })
+        .then((v) => {
+          setView(v);
+          setViolations(v.violationCount);
+          if (v.drop) setDropNotice(v.drop);
+          if (first) {
+            setReached(v.reachedIndex);
+            setAnswers(v.answers.length ? v.answers : v.kinds.map(() => null));
+            setIndex(Math.min(v.reachedIndex, v.kinds.length - 1));
+          }
+          if (v.status !== "in_progress")
+            setResult({ status: v.status, score: v.score, correctCount: v.correctCount });
+        })
+        .catch((e) => setError(message(e))),
+    [viewFn, token, attemptId, device],
+  );
   useEffect(() => {
-    viewFn({ data: { token, attemptId } })
-      .then((v) => {
-        setView(v);
-        setReached(v.reachedIndex);
-        setAnswers(v.answers.length ? v.answers : v.kinds.map(() => null));
-        setIndex(Math.min(v.reachedIndex, v.kinds.length - 1));
-        if (v.status !== "in_progress")
-          setResult({ status: v.status, score: v.score, correctCount: v.correctCount });
-      })
-      .catch((e) => setError(message(e)));
-  }, [viewFn, token, attemptId]);
+    void loadView(true);
+  }, [loadView]);
+  /** the server closed the paper (connection rule, edit rule, violations): show why */
+  const closedByServer = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    void loadView(false);
+  }, [loadView]);
 
   const now = useServerClock(view?.serverNow);
   const left = view ? new Date(view.deadlineAt).getTime() - now : 0;
@@ -439,14 +534,14 @@ function ExamRunner({
     for (const i of [index, reached]) {
       if (i > reached || i >= view.kinds.length || requested.current.has(i)) continue;
       requested.current.add(i);
-      questionFn({ data: { token, attemptId, index: i } })
+      questionFn({ data: { token, attemptId, index: i, device } })
         .then((q) => setQuestions((m) => new Map(m).set(i, q)))
         .catch((e) => {
           requested.current.delete(i);
           if (i === index) setError(message(e));
         });
     }
-  }, [view, index, reached, questionFn, token, attemptId, result]);
+  }, [view, index, reached, questionFn, token, attemptId, result, device]);
 
   useEffect(() => {
     const a = answers[index];
@@ -459,15 +554,19 @@ function ExamRunner({
     try {
       // last answers still waiting for the network go first
       for (const [i, a] of pending.current)
-        await saveFn({ data: { token, attemptId, index: i, answer: a } }).catch(() => undefined);
-      const r = await submitFn({ data: { token, attemptId } });
-      setResult(r);
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+        await saveFn({ data: { token, attemptId, index: i, answer: a, device } }).catch(
+          () => undefined,
+        );
+      const r = await submitFn({ data: { token, attemptId, device } });
+      if (r.status === "submitted" || r.status === "timeout") {
+        setResult(r);
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+      } else closedByServer();
     } catch (e) {
       setError(message(e));
       submitting.current = false;
     }
-  }, [saveFn, submitFn, token, attemptId]);
+  }, [saveFn, submitFn, token, attemptId, device, closedByServer]);
 
   // time up: hand in automatically
   useEffect(() => {
@@ -479,15 +578,25 @@ function ExamRunner({
       pending.current.set(i, a);
       setSaving((n) => n + 1);
       try {
-        const r = await saveFn({ data: { token, attemptId, index: i, answer: a } });
+        const r = await saveFn({ data: { token, attemptId, index: i, answer: a, device } });
         if (pending.current.get(i) === a) pending.current.delete(i);
-        setReached((x) => Math.max(x, r.reachedIndex));
         setOffline(false);
+        setOfflineSince(null);
+        if (r.drop) setDropNotice(r.drop);
+        if (r.status !== "in_progress") {
+          pending.current.clear();
+          closedByServer();
+          return;
+        }
+        setReached((x) => Math.max(x, r.reachedIndex));
+        if (r.editWarning) setEditWarning(true);
       } catch (e) {
         const text = message(e);
         if (/hết giờ|kết thúc/i.test(text)) void finish();
+        else if (/thiết bị khác/i.test(text)) setError(text);
         else {
           setOffline(true);
+          setOfflineSince((x) => x ?? Date.now());
           // keep it and try again shortly
           window.setTimeout(() => {
             const latest = pending.current.get(i);
@@ -498,8 +607,125 @@ function ExamRunner({
         setSaving((n) => n - 1);
       }
     },
-    [saveFn, token, attemptId, finish],
+    [saveFn, token, attemptId, finish, device, closedByServer],
   );
+
+  // heartbeat: tells the server the screen is still here; a gap is a lost connection
+  const active = !!view && !result;
+  useEffect(() => {
+    if (!active) return;
+    let stopped = false;
+    const beat = () => {
+      pulseFn({ data: { token, attemptId, device } })
+        .then((r) => {
+          if (stopped) return;
+          setOffline(false);
+          setOfflineSince(null);
+          if (r.drop) setDropNotice(r.drop);
+          if (r.status !== "in_progress") closedByServer();
+        })
+        .catch((e) => {
+          if (stopped) return;
+          const text = message(e);
+          if (/thiết bị khác/i.test(text)) setError(text);
+          else {
+            setOffline(true);
+            setOfflineSince((x) => x ?? Date.now());
+          }
+        });
+    };
+    const t = window.setInterval(beat, HEARTBEAT_MS);
+    const goneOffline = () => {
+      setOffline(true);
+      setOfflineSince((x) => x ?? Date.now());
+    };
+    window.addEventListener("offline", goneOffline);
+    window.addEventListener("online", beat);
+    return () => {
+      stopped = true;
+      window.clearInterval(t);
+      window.removeEventListener("offline", goneOffline);
+      window.removeEventListener("online", beat);
+    };
+  }, [active, pulseFn, token, attemptId, device, closedByServer]);
+
+  // leaving the exam: one violation per episode, whichever events signal it
+  const awayRef = useRef(false);
+  const fullscreenArmed = useRef(false);
+  const leave = useCallback(
+    (kind: ViolationKind) => {
+      if (awayRef.current) return;
+      awayRef.current = true;
+      setAway({ kind, count: null });
+      leaveFn({ data: { token, attemptId, device, kind, awayMs: null } })
+        .then((r) => {
+          setViolations(r.violationCount);
+          setAway((x) => (x ? { ...x, count: r.violationCount } : x));
+          if (r.status !== "in_progress") closedByServer();
+        })
+        .catch(() => undefined);
+    },
+    [leaveFn, token, attemptId, device, closedByServer],
+  );
+  useEffect(() => {
+    if (!active) return;
+    const fs = fullscreenSupported();
+    if (fs && !document.fullscreenElement) setNeedFullscreen(true);
+    else if (fs) fullscreenArmed.current = true;
+    const onVisibility = () => {
+      if (document.hidden) leave("tab_hidden");
+    };
+    const onBlur = () => leave("window_blur");
+    const onFullscreen = () => {
+      if (document.fullscreenElement) {
+        fullscreenArmed.current = true;
+        setNeedFullscreen(false);
+      } else if (fullscreenArmed.current) leave("fullscreen_exit");
+      else setNeedFullscreen(true);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("fullscreenchange", onFullscreen);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("fullscreenchange", onFullscreen);
+    };
+  }, [active, leave]);
+  function comeBack() {
+    enterFullscreen();
+    awayRef.current = false;
+    setAway(null);
+  }
+
+  // no copying, saving, printing or viewing source while the paper is open
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && ["c", "x", "a", "p", "s", "u"].includes(k))
+        e.preventDefault();
+      if (k === "f12" || ((e.ctrlKey || e.metaKey) && e.shiftKey && ["i", "j", "c"].includes(k)))
+        e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active]);
+
+  async function newExam() {
+    setRestarting(true);
+    setError("");
+    enterFullscreen();
+    try {
+      const r = await startFn({
+        data: { token, assignmentId, acceptRules: true, device: examDeviceKey() },
+      });
+      onRestart(r.attemptId);
+    } catch (e) {
+      setError(message(e));
+      setRestarting(false);
+    }
+  }
 
   function answer(a: StudentAnswer) {
     setAnswers((list) => {
@@ -520,6 +746,23 @@ function ExamRunner({
       </div>
     );
   if (!view) return <p className="p-4 text-muted-foreground">Đang tải bài làm…</p>;
+
+  if (result && result.status !== "submitted" && result.status !== "timeout")
+    return (
+      <ClosedScreen
+        status={result.status}
+        score={
+          result.score === null ? null : `${formatPoints(result.score)}/${view.settings.scale}`
+        }
+        title={view.title}
+        drop={dropNotice}
+        retake={view.retake}
+        restarting={restarting}
+        error={error}
+        onNewExam={() => void newExam()}
+        onExit={onExit}
+      />
+    );
 
   if (result)
     return (
@@ -560,8 +803,57 @@ function ExamRunner({
     <div
       className="exam-sheet relative mx-auto grid max-w-4xl select-none gap-3"
       onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
     >
+      <style>{"@media print { body { display: none !important; } }"}</style>
+      {offline && (
+        <Cover>
+          <WifiOff className="mx-auto text-destructive" size={44} />
+          <h2 className="text-xl font-semibold">Mất kết nối mạng</h2>
+          <p>
+            Đã mất {seconds(offlineSince ? Date.now() - offlineSince : 0)}. Đề được ẩn cho đến khi
+            có mạng lại; câu trả lời đã chọn được lưu khi kết nối trở lại.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Mất dưới {formatPoints(view.settings.network.shortMinutes)} phút thì được làm tiếp; lâu
+            hơn sẽ phải làm đề mới.
+          </p>
+        </Cover>
+      )}
+      {!offline && away && (
+        <Cover>
+          <ShieldAlert className="mx-auto text-destructive" size={44} />
+          <h2 className="text-xl font-semibold">Em đã rời khỏi bài thi</h2>
+          <p>
+            {away.kind === "fullscreen_exit"
+              ? "Em đã thoát chế độ toàn màn hình."
+              : away.kind === "tab_hidden"
+                ? "Em đã chuyển sang tab hoặc ứng dụng khác."
+                : "Em đã rời khỏi cửa sổ bài thi."}{" "}
+            Đây là lần cảnh báo thứ {away.count ?? violations + 1}
+            {` / ${view.settings.maxWarnings}`}. Quá {view.settings.maxWarnings} lần, bài sẽ bị thu.
+          </p>
+          <Button size="lg" onClick={comeBack}>
+            Tiếp tục làm bài
+          </Button>
+        </Cover>
+      )}
+      {!offline && !away && needFullscreen && (
+        <Cover>
+          <Maximize className="mx-auto" size={44} />
+          <h2 className="text-xl font-semibold">Bật toàn màn hình để làm bài</h2>
+          <p className="text-sm text-muted-foreground">
+            Bài thi phải làm ở chế độ toàn màn hình. Thoát toàn màn hình khi đang làm là một lần
+            cảnh báo.
+          </p>
+          <Button size="lg" onClick={enterFullscreen}>
+            <Maximize />
+            Vào toàn màn hình
+          </Button>
+        </Cover>
+      )}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.07]"
@@ -580,6 +872,12 @@ function ExamRunner({
           <div className="text-xs text-muted-foreground">
             {studentName} · đã làm {answers.filter((a) => answerComplete(a)).length}/{total} câu
             {saving > 0 && " · đang lưu…"}
+            {violations > 0 && (
+              <span className="text-destructive">
+                {" "}
+                · cảnh báo {violations}/{view.settings.maxWarnings}
+              </span>
+            )}
             {offline && <span className="text-destructive"> · mất kết nối, đang thử lưu lại</span>}
           </div>
         </div>
@@ -744,6 +1042,41 @@ function ExamRunner({
       </div>
       {error && <p className="error-note">{error}</p>}
 
+      <Dialog open={editWarning} onOpenChange={setEditWarning}>
+        <DialogContent>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <ShieldAlert />
+            Bài thi có dấu hiệu gian lận
+          </DialogTitle>
+          <DialogDescription>
+            Em đã sửa đáp án của nhiều câu sau khi làm xong. Nếu tiếp tục sửa, lượt làm này sẽ bị
+            hủy và em phải làm lại một đề mới từ đầu.
+          </DialogDescription>
+          <div className="flex justify-end">
+            <Button onClick={() => setEditWarning(false)}>Tôi đã hiểu</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!dropNotice && dropNotice.outcome === "continue"}
+        onOpenChange={(o) => !o && setDropNotice(null)}
+      >
+        <DialogContent>
+          <DialogTitle className="flex items-center gap-2">
+            <Wifi />
+            Đã kết nối lại
+          </DialogTitle>
+          <DialogDescription>
+            {dropNotice &&
+              `Em bị mất kết nối ${seconds(dropNotice.durationMs)} (lần thứ ${dropNotice.dropNumber}). Em được làm tiếp bài; thời gian làm bài vẫn chạy trong lúc mất mạng.`}
+          </DialogDescription>
+          <div className="flex justify-end">
+            <Button onClick={() => setDropNotice(null)}>Làm tiếp</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>
         <DialogContent>
           <DialogTitle>Nộp bài?</DialogTitle>
@@ -766,6 +1099,92 @@ function ExamRunner({
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function Cover({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      role="alertdialog"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4"
+    >
+      <div className="grid max-w-md gap-3 rounded-lg border bg-card p-6 text-center shadow-lg">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const CLOSED_TITLE: Partial<Record<AttemptView["status"], string>> = {
+  violation: "Bài đã bị thu do vi phạm",
+  cancelled_network: "Lượt làm bị hủy do mất kết nối",
+  cancelled_edit: "Lượt làm bị hủy do sửa đáp án",
+};
+
+function ClosedScreen({
+  status,
+  score,
+  title,
+  drop,
+  retake,
+  restarting,
+  error,
+  onNewExam,
+  onExit,
+}: {
+  status: AttemptView["status"];
+  score: string | null;
+  title: string;
+  drop: DropInfo | null;
+  retake: AttemptView["retake"];
+  restarting: boolean;
+  error: string;
+  onNewExam: () => void;
+  onExit: () => void;
+}) {
+  return (
+    <div className="mx-auto grid max-w-md gap-4 py-8 text-center">
+      <ShieldAlert className="mx-auto text-destructive" size={48} />
+      <h1 className="text-xl font-semibold">{CLOSED_TITLE[status] ?? "Bài làm đã kết thúc"}</h1>
+      <p className="text-muted-foreground">{title}</p>
+      <div className="rounded-lg border bg-card p-4 text-sm">
+        {status === "cancelled_network" && drop && (
+          <p>
+            Em mất kết nối {seconds(drop.durationMs)} (lần thứ {drop.dropNumber}):{" "}
+            {DROP_OUTCOME_LABEL[drop.outcome].toLowerCase()}.
+          </p>
+        )}
+        {status === "cancelled_network" && !drop && (
+          <p>Em mất kết nối quá lâu hoặc quá nhiều lần.</p>
+        )}
+        {status === "cancelled_edit" && (
+          <p>
+            Em đã sửa đáp án quá nhiều câu sau khi làm xong. Lượt này bị hủy và tính vào số lần làm.
+          </p>
+        )}
+        {status === "violation" && (
+          <p>
+            Em đã rời khỏi bài thi quá số lần cho phép. Bài đã được thu và chấm điểm
+            {score && `: ${score} điểm`}.
+          </p>
+        )}
+        {retake?.allowed ? (
+          <p className="mt-2 font-medium">Em được làm lại một đề mới, đủ thời gian làm bài.</p>
+        ) : (
+          retake?.reason && <p className="mt-2 font-medium">{retake.reason}.</p>
+        )}
+      </div>
+      {error && <p className="error-note">{error}</p>}
+      {retake?.allowed && (
+        <Button size="lg" disabled={restarting} onClick={onNewExam}>
+          <RotateCcw />
+          {restarting ? "Đang chuẩn bị đề…" : "Làm đề mới"}
+        </Button>
+      )}
+      <Button variant="outline" onClick={onExit}>
+        Về trang bài được giao
+      </Button>
     </div>
   );
 }

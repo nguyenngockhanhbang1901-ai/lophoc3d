@@ -94,6 +94,10 @@ class Query implements PromiseLike<{
     this.filters.push((r) => r[c] === v);
     return this;
   }
+  is(c: string, v: null) {
+    this.filters.push((r) => (r[c] ?? null) === v);
+    return this;
+  }
   neq(c: string, v: unknown) {
     this.filters.push((r) => r[c] !== v);
     return this;
@@ -161,6 +165,12 @@ class Query implements PromiseLike<{
           score: null,
           correct_count: null,
           counts_toward_attempts: true,
+          violation_count: 0,
+          disconnect_count: 0,
+          edit_count: 0,
+          edit_warned_at: null,
+          last_heartbeat_at: null,
+          session_hash: null,
           ...p,
         };
         if (this.violates(row))
