@@ -641,6 +641,54 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_notifications: {
+        Row: {
+          assignment_id: string | null
+          body: string
+          created_at: string
+          id: number
+          kind: string
+          owner_id: string
+          read_at: string | null
+          student_id: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          body?: string
+          created_at?: string
+          id?: never
+          kind: string
+          owner_id: string
+          read_at?: string | null
+          student_id: string
+        }
+        Update: {
+          assignment_id?: string | null
+          body?: string
+          created_at?: string
+          id?: never
+          kind?: string
+          owner_id?: string
+          read_at?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_notifications_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_notifications_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_questions: {
         Row: {
           bank_id: string
@@ -687,6 +735,67 @@ export type Database = {
             columns: ["bank_id"]
             isOneToOne: false
             referencedRelation: "exam_banks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_retake_grants: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          owner_id: string
+          reason: string
+          revoked_at: string | null
+          student_id: string
+          used_at: string | null
+          used_attempt_id: string | null
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          owner_id: string
+          reason?: string
+          revoked_at?: string | null
+          student_id: string
+          used_at?: string | null
+          used_attempt_id?: string | null
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          owner_id?: string
+          reason?: string
+          revoked_at?: string | null
+          student_id?: string
+          used_at?: string | null
+          used_attempt_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_retake_grants_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_retake_grants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_retake_grants_used_attempt_id_fkey"
+            columns: ["used_attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
             referencedColumns: ["id"]
           },
         ]
