@@ -57,6 +57,13 @@
       "when": 1795769133021,
       "tag": "0007_add_exam_retake_grants_and_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795772323336,
+      "tag": "0008_add_exam_lesson_assignments_and_views",
+      "breakpoints": true
     }
   ]
 }

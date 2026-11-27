@@ -570,6 +570,83 @@ export type Database = {
           },
         ]
       }
+      exam_lesson_assignments: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          lesson_key: string
+          opens_at: string
+          owner_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          lesson_key: string
+          opens_at?: string
+          owner_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          lesson_key?: string
+          opens_at?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_lesson_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_lesson_views: {
+        Row: {
+          first_opened_at: string
+          last_opened_at: string
+          lesson_assignment_id: string
+          open_count: number
+          owner_id: string
+          student_id: string
+        }
+        Insert: {
+          first_opened_at?: string
+          last_opened_at?: string
+          lesson_assignment_id: string
+          open_count?: number
+          owner_id: string
+          student_id: string
+        }
+        Update: {
+          first_opened_at?: string
+          last_opened_at?: string
+          lesson_assignment_id?: string
+          open_count?: number
+          owner_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_lesson_views_lesson_assignment_id_fkey"
+            columns: ["lesson_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_lesson_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_lesson_views_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_login_logs: {
         Row: {
           at: string
@@ -648,6 +725,7 @@ export type Database = {
           created_at: string
           id: number
           kind: string
+          lesson_assignment_id: string | null
           owner_id: string
           read_at: string | null
           student_id: string
@@ -658,6 +736,7 @@ export type Database = {
           created_at?: string
           id?: never
           kind: string
+          lesson_assignment_id?: string | null
           owner_id: string
           read_at?: string | null
           student_id: string
@@ -668,6 +747,7 @@ export type Database = {
           created_at?: string
           id?: never
           kind?: string
+          lesson_assignment_id?: string | null
           owner_id?: string
           read_at?: string | null
           student_id?: string
@@ -678,6 +758,13 @@ export type Database = {
             columns: ["assignment_id"]
             isOneToOne: false
             referencedRelation: "exam_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_notifications_lesson_assignment_id_fkey"
+            columns: ["lesson_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_lesson_assignments"
             referencedColumns: ["id"]
           },
           {
