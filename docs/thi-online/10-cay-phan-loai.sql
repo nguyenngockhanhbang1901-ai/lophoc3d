@@ -24,14 +24,14 @@ CREATE POLICY "Teachers add their topics" ON public.exam_topics
   FOR INSERT TO authenticated WITH CHECK (
     owner_id = (select auth.uid())
     AND (parent_id IS NULL OR EXISTS (
-      SELECT 1 FROM public.exam_topics p WHERE p.id = parent_id AND p.owner_id = (select auth.uid())))
+      SELECT 1 FROM public.exam_topics p WHERE p.id = exam_topics.parent_id AND p.owner_id = (select auth.uid())))
   );
 CREATE POLICY "Teachers change their topics" ON public.exam_topics
   FOR UPDATE TO authenticated USING (owner_id = (select auth.uid()))
   WITH CHECK (
     owner_id = (select auth.uid())
     AND (parent_id IS NULL OR EXISTS (
-      SELECT 1 FROM public.exam_topics p WHERE p.id = parent_id AND p.owner_id = (select auth.uid())))
+      SELECT 1 FROM public.exam_topics p WHERE p.id = exam_topics.parent_id AND p.owner_id = (select auth.uid())))
   );
 CREATE POLICY "Teachers remove their topics" ON public.exam_topics
   FOR DELETE TO authenticated USING (owner_id = (select auth.uid()));
