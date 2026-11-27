@@ -309,6 +309,42 @@ export type Database = {
           },
         ]
       }
+      exam_matrices: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          owner_id: string
+          shuffle_options: boolean
+          shuffle_order: boolean
+          slots: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          owner_id?: string
+          shuffle_options?: boolean
+          shuffle_order?: boolean
+          slots?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          owner_id?: string
+          shuffle_options?: boolean
+          shuffle_order?: boolean
+          slots?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exam_questions: {
         Row: {
           bank_id: string
