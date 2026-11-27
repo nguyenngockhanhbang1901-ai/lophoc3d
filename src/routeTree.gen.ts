@@ -14,6 +14,7 @@ import { Route as Activity1RouteImport } from './routes/activity-1'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HocSinhRouteImport } from './routes/hoc-sinh'
 import { Route as LopThiRouteImport } from './routes/lop-thi'
+import { Route as MaTranDeRouteImport } from './routes/ma-tran-de'
 import { Route as NganHangDeRouteImport } from './routes/ngan-hang-de'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SoanBaiRouteImport } from './routes/soan-bai'
@@ -44,6 +45,11 @@ const LopThiRoute = LopThiRouteImport.update({
   path: '/lop-thi',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MaTranDeRoute = MaTranDeRouteImport.update({
+  id: '/ma-tran-de',
+  path: '/ma-tran-de',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NganHangDeRoute = NganHangDeRouteImport.update({
   id: '/ngan-hang-de',
   path: '/ngan-hang-de',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
+  '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
+  '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/hoc-sinh': typeof HocSinhRoute
   '/lop-thi': typeof LopThiRoute
+  '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hoc-sinh'
     | '/lop-thi'
+    | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
     | '/soan-bai'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hoc-sinh'
     | '/lop-thi'
+    | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
     | '/soan-bai'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hoc-sinh'
     | '/lop-thi'
+    | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
     | '/soan-bai'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   HocSinhRoute: typeof HocSinhRoute
   LopThiRoute: typeof LopThiRoute
+  MaTranDeRoute: typeof MaTranDeRoute
   NganHangDeRoute: typeof NganHangDeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SoanBaiRoute: typeof SoanBaiRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LopThiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ma-tran-de': {
+      id: '/ma-tran-de'
+      path: '/ma-tran-de'
+      fullPath: '/ma-tran-de'
+      preLoaderRoute: typeof MaTranDeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ngan-hang-de': {
       id: '/ngan-hang-de'
       path: '/ngan-hang-de'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   HocSinhRoute: HocSinhRoute,
   LopThiRoute: LopThiRoute,
+  MaTranDeRoute: MaTranDeRoute,
   NganHangDeRoute: NganHangDeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SoanBaiRoute: SoanBaiRoute,
