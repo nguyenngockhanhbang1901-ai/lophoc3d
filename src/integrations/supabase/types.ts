@@ -211,6 +211,229 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_answer_events: {
+        Row: {
+          answer: Json
+          at: string
+          attempt_id: string
+          id: number
+          item_index: number
+        }
+        Insert: {
+          answer: Json
+          at?: string
+          attempt_id: string
+          id?: never
+          item_index: number
+        }
+        Update: {
+          answer?: Json
+          at?: string
+          attempt_id?: string
+          id?: never
+          item_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_answer_events_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_answers: {
+        Row: {
+          answer: Json
+          answer_at_completion: Json | null
+          attempt_id: string
+          item_index: number
+          updated_at: string
+        }
+        Insert: {
+          answer: Json
+          answer_at_completion?: Json | null
+          attempt_id: string
+          item_index: number
+          updated_at?: string
+        }
+        Update: {
+          answer?: Json
+          answer_at_completion?: Json | null
+          attempt_id?: string
+          item_index?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_assignments: {
+        Row: {
+          class_id: string
+          closes_at: string
+          created_at: string
+          duration_minutes: number
+          id: string
+          matrix_id: string | null
+          max_attempts: number
+          opens_at: string
+          owner_id: string
+          settings: Json
+          shuffle_options: boolean
+          shuffle_order: boolean
+          slots: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          closes_at: string
+          created_at?: string
+          duration_minutes: number
+          id?: string
+          matrix_id?: string | null
+          max_attempts?: number
+          opens_at: string
+          owner_id?: string
+          settings?: Json
+          shuffle_options?: boolean
+          shuffle_order?: boolean
+          slots: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          closes_at?: string
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          matrix_id?: string | null
+          max_attempts?: number
+          opens_at?: string
+          owner_id?: string
+          settings?: Json
+          shuffle_options?: boolean
+          shuffle_order?: boolean
+          slots?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_assignments_matrix_id_fkey"
+            columns: ["matrix_id"]
+            isOneToOne: false
+            referencedRelation: "exam_matrices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_attempts: {
+        Row: {
+          assignment_id: string
+          attempt_no: number
+          code: string
+          completed_all_at: string | null
+          correct_count: number | null
+          counts_toward_attempts: boolean
+          created_at: string
+          deadline_at: string
+          disconnect_count: number
+          finished_at: string | null
+          id: string
+          items: Json
+          owner_id: string
+          reached_index: number
+          results: Json | null
+          rules_accepted_at: string
+          score: number | null
+          started_at: string
+          status: string
+          student_id: string
+          user_agent: string
+          violation_count: number
+        }
+        Insert: {
+          assignment_id: string
+          attempt_no: number
+          code: string
+          completed_all_at?: string | null
+          correct_count?: number | null
+          counts_toward_attempts?: boolean
+          created_at?: string
+          deadline_at: string
+          disconnect_count?: number
+          finished_at?: string | null
+          id?: string
+          items: Json
+          owner_id: string
+          reached_index?: number
+          results?: Json | null
+          rules_accepted_at: string
+          score?: number | null
+          started_at?: string
+          status?: string
+          student_id: string
+          user_agent?: string
+          violation_count?: number
+        }
+        Update: {
+          assignment_id?: string
+          attempt_no?: number
+          code?: string
+          completed_all_at?: string | null
+          correct_count?: number | null
+          counts_toward_attempts?: boolean
+          created_at?: string
+          deadline_at?: string
+          disconnect_count?: number
+          finished_at?: string | null
+          id?: string
+          items?: Json
+          owner_id?: string
+          reached_index?: number
+          results?: Json | null
+          rules_accepted_at?: string
+          score?: number | null
+          started_at?: string
+          status?: string
+          student_id?: string
+          user_agent?: string
+          violation_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_attempts_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "exam_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_banks: {
         Row: {
           created_at: string

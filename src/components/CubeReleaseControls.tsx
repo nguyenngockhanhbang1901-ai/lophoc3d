@@ -11,18 +11,18 @@ function localInput(time: number) { const d = new Date(time); return `${d.getFul
 const hourMinute = (iso: string) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 function remaining(ms: number) { const s = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(s / 3600); return h ? `${h}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}` : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
 
-/** Bài 11.1 only: release now, or schedule the release for a set time. */
-export function CubeReleaseControls({ startedAt, closed, busy, onReleaseNow, onSchedule }: { startedAt: string | null; closed: boolean; busy: boolean; onReleaseNow: () => void; onSchedule: (at: string | null) => Promise<void> }) {
+/** Bài 11.1 and Bài 12.1: release now, or schedule the release for a set time. */
+export function CubeReleaseControls({ startedAt, closed, busy, onReleaseNow, onSchedule, partName = 'Luyện tập 1' }: { startedAt: string | null; closed: boolean; busy: boolean; onReleaseNow: () => void; onSchedule: (at: string | null) => Promise<void>; partName?: string }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const released = assignmentStarted(startedAt, now);
   const scheduled = Boolean(startedAt && !released);
   useEffect(() => { if (!scheduled) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [scheduled]);
-  if (released) return <Button size="sm" disabled><Play />Đã giao bài Luyện tập 1</Button>;
+  if (released) return <Button size="sm" disabled><Play />Đã giao bài {partName}</Button>;
   const openPicker = (next: boolean) => { if (next) setValue(startedAt ? localInput(Date.parse(startedAt)) : localInput(Math.ceil((Date.now() + 60_000) / 300_000) * 300_000)); setOpen(next); };
   return <>
-    <Button size="sm" disabled={busy || closed} onClick={onReleaseNow}><Play />Bắt đầu giao bài Luyện tập 1</Button>
+    <Button size="sm" disabled={busy || closed} onClick={onReleaseNow}><Play />Bắt đầu giao bài {partName}</Button>
     <Popover open={open} onOpenChange={openPicker}>
       <PopoverTrigger asChild><Button size="sm" variant="outline" disabled={busy || closed}><AlarmClock />{scheduled && startedAt ? `Hẹn giao ${hourMinute(startedAt)} · còn ${remaining(Date.parse(startedAt) - now)}` : 'Hẹn giờ giao bài'}</Button></PopoverTrigger>
       <PopoverContent className="w-72">
