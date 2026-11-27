@@ -285,6 +285,10 @@ export interface StudentResult {
     violationCount: number;
     disconnectCount: number;
     editCount: number;
+    /** live view of a paper being taken */
+    reachedIndex: number;
+    deadlineAt: string;
+    lastSeenAt: string | null;
   }[];
 }
 
@@ -324,7 +328,7 @@ export const assignmentResults = createServerFn({ method: "POST" })
       db
         .from("exam_attempts")
         .select(
-          "id,student_id,attempt_no,status,code,started_at,deadline_at,finished_at,score,correct_count,items,counts_toward_attempts,violation_count,disconnect_count,edit_count",
+          "id,student_id,attempt_no,status,code,started_at,deadline_at,finished_at,score,correct_count,items,counts_toward_attempts,violation_count,disconnect_count,edit_count,reached_index,last_heartbeat_at",
         )
         .eq("assignment_id", assignment.id)
         .order("attempt_no"),
@@ -345,6 +349,8 @@ export const assignmentResults = createServerFn({ method: "POST" })
       violation_count: number | null;
       disconnect_count: number | null;
       edit_count: number | null;
+      reached_index: number;
+      last_heartbeat_at: string | null;
     };
     const rows = (attempts ?? []) as Row[];
     // papers whose time ran out are collected now, so the table never shows a stale "đang làm"
@@ -401,6 +407,9 @@ export const assignmentResults = createServerFn({ method: "POST" })
               violationCount: r.violation_count ?? 0,
               disconnectCount: r.disconnect_count ?? 0,
               editCount: r.edit_count ?? 0,
+              reachedIndex: r.reached_index,
+              deadlineAt: r.deadline_at,
+              lastSeenAt: r.last_heartbeat_at,
             })),
           };
         },
@@ -435,4 +444,20 @@ export const revokeRetake = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { revokeGrant } = await import("./retakes.server");
     return revokeGrant(context.userId, data.grantId);
+  });
+
+export const attemptDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ attemptId: uuid }))
+  .handler(async ({ data, context }) => {
+    const { teacherAttemptDetail } = await import("./review.server");
+    return teacherAttemptDetail(context.userId, data.attemptId);
+  });
+
+export const assignmentReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ assignmentId: uuid }))
+  .handler(async ({ data, context }) => {
+    const { teacherAssignmentReport } = await import("./review.server");
+    return teacherAssignmentReport(context.userId, data.assignmentId);
   });

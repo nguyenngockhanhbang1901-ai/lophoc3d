@@ -525,3 +525,21 @@ export const readNotices = createServerFn({ method: "POST" })
     await markNoticesRead(student.id);
     return { ok: true };
   });
+
+export const myHistory = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ token }))
+  .handler(async ({ data }) => {
+    const { sessionStudent } = await import("./db.server");
+    const { studentHistory } = await import("./review.server");
+    const { student } = await sessionStudent(data.token);
+    return { history: await studentHistory(student.id) };
+  });
+
+export const reviewAttempt = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ token, attemptId: uuid }))
+  .handler(async ({ data }) => {
+    const { sessionStudent } = await import("./db.server");
+    const { studentReview } = await import("./review.server");
+    const { student } = await sessionStudent(data.token);
+    return studentReview(student.id, data.attemptId);
+  });

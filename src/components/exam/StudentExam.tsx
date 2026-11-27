@@ -31,6 +31,7 @@ import {
   type DropInfo,
   type MyAssignment,
 } from "@/lib/exam/attempt.functions";
+import { ReviewView } from "./StudentHistory";
 import {
   DROP_OUTCOME_LABEL,
   HEARTBEAT_MS,
@@ -485,6 +486,7 @@ function ExamRunner({
   /** full screen is required but not on, without it being a violation (start, after reload) */
   const [needFullscreen, setNeedFullscreen] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [view, setView] = useState<AttemptView | null>(null);
   const [index, setIndex] = useState(0);
   const [questions, setQuestions] = useState<Map<number, StudentQuestion>>(new Map());
@@ -797,7 +799,22 @@ function ExamRunner({
             <div className="mt-1 text-xs text-muted-foreground">{ATTEMPT_LABEL[result.status]}</div>
           </div>
         )}
+        {view.settings.review === "immediate" && (
+          <Button variant="outline" onClick={() => setReviewing(true)}>
+            Xem lại bài làm và đáp án
+          </Button>
+        )}
+        {view.settings.review === "after_close" && (
+          <p className="text-sm text-muted-foreground">
+            Em xem lại đáp án được sau giờ đóng bài, trong mục Lịch sử làm bài.
+          </p>
+        )}
         <Button onClick={onExit}>Về trang bài được giao</Button>
+        <Dialog open={reviewing} onOpenChange={setReviewing}>
+          <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto text-left">
+            {reviewing && <ReviewView token={token} attemptId={attemptId} />}
+          </DialogContent>
+        </Dialog>
       </div>
     );
 
