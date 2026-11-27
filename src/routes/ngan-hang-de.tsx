@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeacher } from "@/components/slides/use-teacher";
-import { ExamNav } from "@/components/exam/ExamNav";
+import { TeacherShell } from "@/components/site/TeacherShell";
 import { QuestionBank } from "@/components/exam/QuestionBank";
 
 export const Route = createFileRoute("/ngan-hang-de")({
@@ -27,8 +27,7 @@ export const Route = createFileRoute("/ngan-hang-de")({
 function QuestionBankPage() {
   const user = useTeacher();
   return (
-    <main className="mx-auto min-h-screen max-w-[1400px] px-4 py-4">
-      <ExamNav current="/ngan-hang-de" />
+    <TeacherShell current="bank" title="Ngân hàng đề">
       {user === undefined ? (
         <p className="text-muted-foreground">Đang tải…</p>
       ) : user === null ? (
@@ -44,6 +43,6 @@ function QuestionBankPage() {
       ) : (
         <QuestionBank userId={user.id} />
       )}
-    </main>
+    </TeacherShell>
   );
 }

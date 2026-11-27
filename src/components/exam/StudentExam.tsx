@@ -3,8 +3,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   CheckCircle2,
   Clock,
+  LockKeyhole,
   Maximize,
   MonitorCheck,
   RotateCcw,
@@ -827,7 +829,7 @@ function ExamRunner({
 
   return (
     <div
-      className="exam-sheet relative mx-auto grid max-w-4xl select-none gap-3"
+      className="exam-sheet relative mx-auto grid max-w-6xl select-none gap-4"
       onCopy={(e) => e.preventDefault()}
       onCut={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
@@ -892,171 +894,209 @@ function ExamRunner({
           ))}
         </div>
       </div>
-      <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+      <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 rounded-[14px] border bg-card px-4 py-3 shadow-sm">
+        <BookOpen size={18} className="shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{view.title}</div>
+          <div className="truncate font-semibold text-[color:var(--site-navy)]">{view.title}</div>
           <div className="text-xs text-muted-foreground">
             {studentName} · đã làm {answers.filter((a) => answerComplete(a)).length}/{total} câu
-            {saving > 0 && " · đang lưu…"}
             {violations > 0 && (
               <span className="text-destructive">
                 {" "}
                 · cảnh báo {violations}/{view.settings.maxWarnings}
               </span>
             )}
-            {offline && <span className="text-destructive"> · mất kết nối, đang thử lưu lại</span>}
           </div>
         </div>
+        <span
+          className={`hidden items-center gap-1.5 text-xs font-medium sm:flex ${offline ? "text-destructive" : "text-emerald-700"}`}
+        >
+          {offline ? <WifiOff size={14} /> : <Wifi size={14} />}
+          {offline
+            ? "Mất kết nối, đang thử lưu lại"
+            : saving > 0
+              ? "Đang lưu…"
+              : "Đã lưu · kết nối ổn định"}
+        </span>
         <div
-          className={`flex items-center gap-1 rounded-md px-3 py-1 font-mono text-xl font-semibold ${lowTime ? "bg-red-100 text-red-800" : "bg-muted"}`}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1 font-mono text-lg font-semibold ${lowTime ? "border-red-200 bg-red-50 text-red-700" : "border-primary/30 text-primary"}`}
           aria-live="polite"
         >
-          <Clock size={18} />
+          <Clock size={17} />
           {clock(left)}
         </div>
       </header>
 
-      <nav aria-label="Các câu" className="flex flex-wrap gap-1">
-        {view.kinds.map((k, i) => {
-          const locked = i > reached;
-          return (
-            <button
-              key={i}
-              type="button"
-              disabled={locked}
-              onClick={() => setIndex(i)}
-              title={`${PART[k]} · câu ${numbers[i]}${locked ? " (chưa mở)" : ""}`}
-              className={`h-9 w-9 rounded-md border text-sm ${i === index ? "border-primary bg-primary text-primary-foreground" : done(i) ? "bg-green-100 text-green-900" : locked ? "cursor-not-allowed bg-muted text-muted-foreground opacity-50" : "bg-background"}`}
-            >
-              {i + 1}
-            </button>
-          );
-        })}
-      </nav>
-
-      <article className="relative rounded-lg border bg-card p-4">
-        <div className="mb-2 text-sm font-semibold">
-          {PART[view.kinds[index] ?? "mcq"]} · Câu {numbers[index]}{" "}
-          <span className="font-normal text-muted-foreground">
-            ({formatPoints(view.points[index] ?? 0)} điểm)
-          </span>
-        </div>
-        {!q ? (
-          <p className="text-muted-foreground">Đang tải câu hỏi…</p>
-        ) : (
-          <div className="grid gap-3">
-            <ProtectedMath text={q.stem} protect={highCopy} />
-            <QuestionMediaView media={q.media} />
-            {q.kind === "mcq" && (
-              <div className="grid gap-2" role="radiogroup">
-                {q.options.map((o, i) => {
-                  const chosen = current?.kind === "mcq" && current.choice === i;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      role="radio"
-                      aria-checked={chosen}
-                      onClick={() => answer({ kind: "mcq", choice: i })}
-                      className={`flex items-start gap-2 rounded-md border p-2 text-left ${chosen ? "border-primary bg-primary/10" : "hover:bg-muted"}`}
-                    >
-                      <span
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${chosen ? "border-primary bg-primary text-primary-foreground" : ""}`}
+      <div className={`grid gap-4 ${q?.media ? "lg:grid-cols-[1.15fr_1fr]" : ""}`}>
+        {q?.media && (
+          <section className="relative rounded-[14px] border bg-card p-3 shadow-sm">
+            <div className="mb-2 text-xs font-semibold text-[color:var(--site-navy)]">Hình vẽ</div>
+            <div className="exam-grid-bg grid min-h-72 place-items-center rounded-xl p-3">
+              <QuestionMediaView media={q.media} />
+            </div>
+          </section>
+        )}
+        <article className="relative rounded-[14px] border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <nav aria-label="Các câu" className="flex flex-wrap gap-1.5">
+              {view.kinds.map((k, i) => {
+                const locked = i > reached;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => setIndex(i)}
+                    title={`${PART[k]} · câu ${numbers[i]}${locked ? " (chưa mở)" : ""}`}
+                    className={`exam-circle ${i === index ? "border-primary bg-primary text-primary-foreground" : done(i) ? "border-emerald-300 bg-emerald-50 text-emerald-800" : locked ? "cursor-not-allowed bg-muted text-muted-foreground opacity-50" : ""}`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </nav>
+            <span className="status-pill bg-violet-50 text-violet-700">
+              {PART[view.kinds[index] ?? "mcq"]}
+            </span>
+          </div>
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-orange-600">
+            Câu {index + 1} / {total}
+            <span className="ml-2 font-normal normal-case tracking-normal text-muted-foreground">
+              · câu {numbers[index]} của {PART[view.kinds[index] ?? "mcq"]} (
+              {formatPoints(view.points[index] ?? 0)} điểm)
+            </span>
+          </div>
+          {!q ? (
+            <p className="text-muted-foreground">Đang tải câu hỏi…</p>
+          ) : (
+            <div className="grid gap-3">
+              <ProtectedMath text={q.stem} protect={highCopy} />
+              {q.kind === "mcq" && (
+                <div className="grid gap-2" role="radiogroup">
+                  {q.options.map((o, i) => {
+                    const chosen = current?.kind === "mcq" && current.choice === i;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        role="radio"
+                        aria-checked={chosen}
+                        onClick={() => answer({ kind: "mcq", choice: i })}
+                        className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition ${chosen ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted"}`}
                       >
-                        {OPTION_LETTERS[i]}
-                      </span>
-                      <ProtectedMath text={o} protect={highCopy} className="min-w-0 flex-1" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {q.kind === "tf" && (
-              <div className="grid gap-2">
-                {q.statements.map((st, i) => {
-                  const choices =
-                    current?.kind === "tf" ? current.choices : [null, null, null, null];
-                  return (
-                    <div key={i} className="flex flex-wrap items-start gap-2 rounded-md border p-2">
-                      <span className="font-semibold">{STATEMENT_LETTERS[i]})</span>
-                      <ProtectedMath text={st} protect={highCopy} className="min-w-0 flex-1" />
-                      <div className="flex gap-1">
-                        {[true, false].map((v) => (
-                          <button
-                            key={String(v)}
-                            type="button"
-                            aria-pressed={choices[i] === v}
-                            onClick={() => {
-                              const next = [...choices];
-                              next[i] = v;
-                              answer({ kind: "tf", choices: next });
-                            }}
-                            className={`rounded-md border px-3 py-1 text-sm ${choices[i] === v ? (v ? "border-green-600 bg-green-600 text-white" : "border-red-600 bg-red-600 text-white") : "hover:bg-muted"}`}
-                          >
-                            {v ? "Đúng" : "Sai"}
-                          </button>
-                        ))}
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${chosen ? "border-primary bg-primary text-primary-foreground" : ""}`}
+                        >
+                          {OPTION_LETTERS[i]}
+                        </span>
+                        <ProtectedMath text={o} protect={highCopy} className="min-w-0 flex-1" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {q.kind === "tf" && (
+                <div className="grid gap-2">
+                  {q.statements.map((st, i) => {
+                    const choices =
+                      current?.kind === "tf" ? current.choices : [null, null, null, null];
+                    return (
+                      <div
+                        key={i}
+                        className="flex flex-wrap items-start gap-2 rounded-md border p-2"
+                      >
+                        <span className="font-semibold">{STATEMENT_LETTERS[i]})</span>
+                        <ProtectedMath text={st} protect={highCopy} className="min-w-0 flex-1" />
+                        <div className="flex gap-1">
+                          {[true, false].map((v) => (
+                            <button
+                              key={String(v)}
+                              type="button"
+                              aria-pressed={choices[i] === v}
+                              onClick={() => {
+                                const next = [...choices];
+                                next[i] = v;
+                                answer({ kind: "tf", choices: next });
+                              }}
+                              className={`rounded-md border px-3 py-1 text-sm ${choices[i] === v ? (v ? "border-green-600 bg-green-600 text-white" : "border-red-600 bg-red-600 text-white") : "hover:bg-muted"}`}
+                            >
+                              {v ? "Đúng" : "Sai"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-                <p className="text-xs text-muted-foreground">Chọn Đúng hoặc Sai cho cả bốn ý.</p>
-              </div>
-            )}
-            {q.kind === "short" && (
-              <form
-                className="flex flex-wrap items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (shortDraft.trim()) answer({ kind: "short", text: shortDraft.trim() });
-                }}
-              >
-                <Input
-                  className="w-48 font-mono text-lg"
-                  inputMode="decimal"
-                  maxLength={50}
-                  placeholder="Nhập đáp án"
-                  value={shortDraft}
-                  onChange={(e) => setShortDraft(e.target.value)}
-                />
-                <Button
-                  type="submit"
-                  variant={
-                    current?.kind === "short" &&
+                    );
+                  })}
+                  <p className="text-xs text-muted-foreground">Chọn Đúng hoặc Sai cho cả bốn ý.</p>
+                </div>
+              )}
+              {q.kind === "short" && (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (shortDraft.trim()) answer({ kind: "short", text: shortDraft.trim() });
+                  }}
+                >
+                  <Input
+                    className="w-48 font-mono text-lg"
+                    inputMode="decimal"
+                    maxLength={50}
+                    placeholder="Nhập đáp án"
+                    value={shortDraft}
+                    onChange={(e) => setShortDraft(e.target.value)}
+                  />
+                  <Button
+                    type="submit"
+                    variant={
+                      current?.kind === "short" &&
+                      current.text === shortDraft.trim() &&
+                      shortDraft.trim()
+                        ? "outline"
+                        : "default"
+                    }
+                  >
+                    {current?.kind === "short" &&
                     current.text === shortDraft.trim() &&
                     shortDraft.trim()
-                      ? "outline"
-                      : "default"
-                  }
-                >
-                  {current?.kind === "short" &&
-                  current.text === shortDraft.trim() &&
-                  shortDraft.trim()
-                    ? "Đã xác nhận"
-                    : "Xác nhận"}
-                </Button>
-                <span className="w-full text-xs text-muted-foreground">
-                  Số thập phân dùng dấu phẩy hoặc dấu chấm đều được; không dùng dấu ngăn cách hàng
-                  nghìn.
-                </span>
-              </form>
-            )}
-          </div>
-        )}
-      </article>
+                      ? "Đã xác nhận"
+                      : "Xác nhận"}
+                  </Button>
+                  <span className="w-full text-xs text-muted-foreground">
+                    Số thập phân dùng dấu phẩy hoặc dấu chấm đều được; không dùng dấu ngăn cách hàng
+                    nghìn.
+                  </span>
+                </form>
+              )}
+            </div>
+          )}
+          <p className="mt-4 flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2 text-[11px] text-muted-foreground">
+            <LockKeyhole size={12} />
+            Làm lần lượt từng câu, không bỏ qua câu hỏi.
+          </p>
+        </article>
+      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-3 rounded-[14px] border bg-card p-3 shadow-sm">
         <Button variant="outline" disabled={index === 0} onClick={() => setIndex(index - 1)}>
           <ArrowLeft />
-          Câu trước
+          Quay lại
         </Button>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{
+              width: `${Math.round((answers.filter((a) => answerComplete(a)).length / Math.max(1, total)) * 100)}%`,
+            }}
+          />
+        </div>
         {index < total - 1 ? (
           <Button
             disabled={!canNext}
             onClick={() => setIndex(index + 1)}
             title={canNext ? "" : "Trả lời câu này để sang câu tiếp"}
           >
-            Câu tiếp
+            Câu tiếp theo
             <ArrowRight />
           </Button>
         ) : (

@@ -67,7 +67,7 @@ export function WordExams({
   const create = useServerFn(createExamFromWord);
 
   return (
-    <section className="grid gap-2 rounded-lg border bg-card p-3">
+    <section id="de-thi-word" className="grid scroll-mt-20 gap-2 rounded-lg border bg-card p-3">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-2 font-semibold">
           <FileText size={18} />

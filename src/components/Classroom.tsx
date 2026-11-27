@@ -4,6 +4,9 @@ import { CubeReleaseControls } from './CubeReleaseControls';
 import { QuizSolo } from './QuizSolo';
 import { joinQuizSolo, scheduleQuizSoloRelease } from '@/lib/quiz-solo.functions';
 import { LessonCatalogue } from './LessonCatalogue';
+import { HomeLanding } from './site/HomeLanding';
+import { TeacherDashboard } from './site/TeacherDashboard';
+import { AuthorCredit, CapMark } from './site/brand';
 import { defaultClassroomTitle } from '@/lib/classroom-title';
 import { LinePairActivity } from './LinePairActivity';
 import { CustomLesson } from './CustomLesson';
@@ -28,6 +31,7 @@ import { canStart, normalizeTimings, remainingMs, timerTone, timingAt } from '@/
 import { allTeamsSubmitted, activityAnswersVisible, activityName, activityReleaseAt, answersVisibilityPatch, assignmentStarted, isPresentationPart, LESSON_ORDER, lessonSection, releasePatch, toActivity, type ActivityNumber } from '@/lib/assignment';
 import { isPracticeActivity, PRACTICE_SETS } from '@/lib/practice-questions';
 import { useClassroomAuth } from '@/hooks/use-classroom-auth';
+import { useTeacher } from '@/components/slides/use-teacher';
 import { AnswerResults, QUESTION_TEXT } from './AnswerResults';
 import { GoalAnswerResults } from './GoalAnswerResults';
 import { PracticeAnswerResults } from './PracticeAnswerResults';
@@ -93,7 +97,7 @@ function ClassroomContent() {
   const [room, setRoom] = useState<Room | null>(null); const [rooms, setRooms] = useState<Room[]>([]); const [teams, setTeams] = useState<Team[]>([]);
   const [invitations, setInvitations] = useState<{ number: number; key: string }[]>([]);
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [saved, setSaved] = useState(false); const [help, setHelp] = useState(false); const [confirmDelete, setConfirmDelete] = useState(false);
-  const user = useClassroomAuth(); const navigate = useNavigate(); const queryClient = useQueryClient();
+  const user = useClassroomAuth(); const authState = useTeacher(); const navigate = useNavigate(); const queryClient = useQueryClient();
   const create = useServerFn(createClassroom); const fetchStudent = useServerFn(studentRoom); const save = useServerFn(saveStudent); const start = useServerFn(startQuestion);
   const begin = useServerFn(beginAssignment);
   const scheduleCube = useServerFn(scheduleCubeRelease);
@@ -105,6 +109,13 @@ function ClassroomContent() {
   const find = useServerFn(findClassroom); const joinByCode = useServerFn(joinClassroom);
   const [now, setNow] = useState(() => Date.now()); const [offset, setOffset] = useState(0); const expiring = useRef(false);
   useEffect(() => { if (user && window.sessionStorage.getItem('classroom-enter-teacher')) { window.sessionStorage.removeItem('classroom-enter-teacher'); setRole('teacher'); setEntered(true); } }, [user]);
+  const [focusJoin, setFocusJoin] = useState(false);
+  const [enterParam, setEnterParam] = useState('');
+  useEffect(() => { const p = new URLSearchParams(window.location.search); const vao = p.get('vao'); if (vao) { if (vao === 'ma-lop') setFocusJoin(true); else setEnterParam(vao); p.delete('vao'); const rest = p.toString(); window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`); } }, []);
+  // Switching between the home page and the lesson workspace starts at the top of the page.
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [entered]);
+  // Sidebar links "Bài giảng" / "Lớp học" from the other teacher pages open the lesson workspace directly.
+  useEffect(() => { if (user && enterParam) { setEnterParam(''); setRole('teacher'); setEntered(true); } }, [user, enterParam]);
   useEffect(() => { const p = new URLSearchParams(window.location.search); if (p.get('code')) { setCode(p.get('code') ?? ''); setKey(p.get('key') ?? ''); setNumber(Number(p.get('team') ?? '1')); } }, []);
   const refreshTeacher = useCallback(async () => {
     if (!user) return;
@@ -356,27 +367,27 @@ function ClassroomContent() {
     } : undefined;
     return <Suspense fallback={<div className="box-figure" />}><PracticeOne key={`${part}-${access ? `${access.code}-${access.number}` : role}`} set={set} teacherPreview={role === 'teacher'} autoQuestion={part === 3 ? autoQuestion : null} questionsVisible={role === 'teacher' || partReleased} initialAnswers={progress.answers} initialStep={progress.step} initialCompleted={Boolean(progress.completed)} timings={part === 3 ? t?.practice_timings : undefined} serverNow={serverNow} closed={Boolean(student?.room.closed)} onDraft={part === 3 && role === 'student' && access ? async (step, answer) => { await draftPractice({ data: { ...access, step, answer } }); } : undefined} onSave={onSave} /></Suspense>;
   }
-  if (!entered) return <>
-    <header className="app-header"><div className="brand"><span className="brand-symbol"><Box size={24} /></span><div>Hình học 3D<small>Lớp học hình học không gian</small></div></div></header>
-    <main className="entry-workspace">
-      <div className="entry-heading"><p className="eyebrow">Toán học 11</p><h1>Hình học 3D</h1><p>Bài học hình học không gian</p></div>
-      {user && <LessonCatalogue userId={user.id} value={lessonKey} disabled={false} onChange={(key, name, content) => { setLessonKey(key); setLessonTitle(name); setLessonContent(content); setActivity(1); setSlideStep(0); }} />}
-      <Button variant="outline" className="mb-8" onClick={() => { setRoom(null); setCubeAccess(null); setAccess(null); setStudent(null); setLecture(null); setRole('teacher'); setEntered(true); }}><BookOpen />Xem bài học</Button>
-      <div className="entry-columns">
-        <section className="entry-section"><GraduationCap className="text-primary" size={32} /><h2>Giáo viên</h2><Button className="w-full" onClick={() => { if (user) { setRole('teacher'); setEntered(true); } else void navigate({ to: '/auth' }); }}>{user ? 'Vào lớp học của tôi' : 'Đăng nhập giáo viên'}<ArrowRight /></Button>{user && <Button className="w-full mt-2" variant="outline" asChild><Link to="/lop-thi">Thi online<ArrowRight /></Link></Button>}</section>
-        <section className="entry-section"><Users className="text-success" size={32} /><h2>Học sinh</h2><form className="form-stack" onSubmit={e => { e.preventDefault(); if (joinInfo) void join(); else void lookup(); }}>
-          <label>Mã lớp<Input required minLength={4} maxLength={12} autoComplete="off" placeholder="Nhập mã lớp" value={code} onChange={e => { setCode(e.target.value); setKey(''); setJoinInfo(null); setError(''); }} /></label>
+  const previewLesson = (key: string, title: string, content: unknown = {}) => { setLessonKey(key); setLessonTitle(title); setLessonContent(content); setActivity(1); setSlideStep(0); setRoom(null); setCubeAccess(null); setAccess(null); setStudent(null); setLecture(null); setInvitations([]); setRole('teacher'); setEntered(true); };
+  if (!entered) {
+    const joinForm = <form className="form-stack" onSubmit={e => { e.preventDefault(); if (joinInfo) void join(); else void lookup(); }}>
+          <label className="sr-only" htmlFor="ma-lop">Mã lớp</label><Input id="ma-lop" className="code-input h-11 text-center" aria-label="Mã lớp" required minLength={4} maxLength={12} autoComplete="off" placeholder="MÃ LỚP" value={code} onChange={e => { setCode(e.target.value); setKey(''); setJoinInfo(null); setError(''); }} />
           {joinInfo && (joinInfo.individual || joinInfo.mode !== 'lecture') && <><p>{joinInfo.title}</p>{joinInfo.individual ? <label>Họ và tên<Input aria-label="Họ và tên" required minLength={2} maxLength={100} value={studentName} onChange={e => setStudentName(e.target.value)} autoComplete="name" /></label> : <label>Chọn tổ<select aria-label="Chọn tổ" className="entry-select" value={number} onChange={e => setNumber(Number(e.target.value))}>{joinInfo.numbers.map(n => <option key={n} value={n}>Tổ {n}</option>)}</select></label>}</>}
           {error && <p className="error-note" role="alert">{error}</p>}
-          <Button disabled={busy} type="submit" variant="outline">{busy ? 'Đang xử lý…' : joinInfo ? 'Vào lớp học' : 'Tham gia lớp học'}<ArrowRight /></Button>
-        </form><Button className="w-full mt-2" variant="ghost" asChild><Link to="/hoc-sinh">Có tài khoản thi online? Đăng nhập<ArrowRight /></Link></Button></section>
-      </div>
-    </main>
-  </>;
+          <Button disabled={busy} type="submit">{busy ? 'Đang xử lý…' : joinInfo ? 'Vào lớp học' : 'Tham gia lớp học'}<ArrowRight /></Button>
+        </form>;
+    if (authState === undefined) return <div className="site-page" />;
+    if (!user && !authState) return <HomeLanding joinForm={joinForm} focusJoin={focusJoin} onPreviewLesson={(key, title) => previewLesson(key, title)} />;
+    if (!user) return <div className="site-page" />;
+    return <TeacherDashboard user={user} rooms={rooms}
+      onOpenLesson={(key, title, content) => previewLesson(key, title, content)}
+      onOpenLessons={() => { setRole('teacher'); setEntered(true); }}
+      onOpenRoom={selected => { if (selected.lesson_mode === 'presentation') enterPresentationFullscreen(); setLessonKey(selected.lesson_key); setLessonTitle(selected.lesson_title); setLessonContent(selected.lesson_content); setInitialLast(false); setSlideStep(0); setCubeAccess(null); setAccess(null); setStudent(null); setLecture(null); setRoom(selected); setActivity(toActivity(selected.current_activity)); setInvitations([]); setRole('teacher'); setEntered(true); }}
+      onCreateClass={() => { setRoom(null); setRole('teacher'); setEntered(true); setTitle(defaultClassroomTitle(activeLessonTitle, new Date())); setDialog('create'); }} />;
+  }
   return <>
     {presentingFullscreen && <PresentationCovers cover={cover} />}
     {presentingFullscreen && <div className={`presentation-title ${section ? 'has-section' : ''}`} role="banner"><span>{activeLessonTitle.replace(/^Bài \d+:\s*/, '')}</span>{section && <span className="presentation-section">{section}</span>}</div>}
-    <header className={`app-header ${presentingFullscreen ? "presentation-hidden" : ""}`}><div className="brand"><span className="brand-symbol"><Box size={24} strokeWidth={1.7} /></span><div>Hình học 3D<small>Không gian khám phá · Kết nối tri thức</small></div></div>
+    <header className={`app-header ${presentingFullscreen ? "presentation-hidden" : ""}`}><div className="brand site-brand"><CapMark size={36} /><div>LỚP HỌC SỐ<small>Kết nối tri thức – Kiến tạo tương lai</small></div></div>
       <div className="header-actions flex items-center gap-2"><Button variant="ghost" size="sm" aria-label="Trang chủ" onClick={() => { setEntered(false); setJoinInfo(null); setError(''); }}><ChevronLeft /><span className="header-label">Trang chủ</span></Button><Button variant="ghost" size="icon" title="Trợ giúp" aria-label="Trợ giúp" onClick={() => setHelp(true)}><CircleHelp /></Button>{user ? <Button variant="ghost" size="sm" aria-label="Đăng xuất" onClick={() => { void action(async () => { await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/auth', replace: true }); }); }}><LogOut /><span className="header-label">Đăng xuất</span></Button> : <Button variant="outline" size="sm" aria-label="Đăng nhập" onClick={() => { void navigate({ to: '/auth' }); }}><GraduationCap /><span className="header-label">Đăng nhập</span></Button>}{user && role === 'teacher' && <Button variant="ghost" size="sm" asChild><Link to="/soan-bai"><Presentation /><span className="header-label">Soạn bài giảng</span></Link></Button>}{user && role === 'teacher' && <LessonAiKeyControl />}</div>
     </header>
     <main className={`workspace ${presenting ? 'teacher-presentation' : ''} ${presentingFullscreen ? 'presenting-fullscreen' : ''} ${presentingFullscreen && section ? 'has-section' : ''}`}><div className="eyebrow flex items-center gap-2"><BookOpen size={13} />Bài học <span className="text-muted-foreground">/</span> Toán học 11 <span className="text-muted-foreground">/</span> Hình học không gian</div>
@@ -392,7 +403,7 @@ function ClassroomContent() {
       {cubeLesson ? <CubePractice teacher={role === 'teacher'} roomId={room?.id} review={results} access={cubeAccess} /> : soloLesson ? <QuizSolo teacher={role === 'teacher'} roomId={room?.id} review={results} access={cubeAccess} /> : activeLessonKey === '11' ? <LinePairActivity teacher={role === 'teacher'} lecture={lectureContent} released={activityOneReleased} review={results} step={student?.team.goal_step ?? 0} answers={student?.team.goal_answers ?? []} timings={student?.team.goal_timings ?? []} completed={Boolean(student?.team.goal_completed_at)} closed={Boolean(student?.room.closed)} now={serverNow} teams={teams} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer) => { await saveGoal({ data: { ...access, step, answer, completed: step === 5 } }); await refresh(access); } : undefined} /> : !legacyLesson ? <CustomLesson content={activeLessonContent} stepped={slideStepped} /> : lectureContent || followingSlides ? <LessonSlides part={currentActivity} review={slideReview} lecture={lectureContent} /> : currentActivity === 6 ? renderQuiz() : isPracticeActivity(currentActivity) ? renderPractice(currentActivity) : currentActivity === 1 && role === 'teacher' && results ? <div ref={resultsRef} className="results-anchor"><div className="model-heading"><h2>Câu trả lời của các tổ · Hoạt động 1</h2></div><GoalAnswerResults teams={teams} /></div> : currentActivity === 1 ? <Suspense fallback={<div className="goal-viewer" />}><ActivityOne key={access ? `${access.code}-${access.number}` : role} embedded teacherPreview={role === 'teacher'} autoQuestion={autoQuestion} questionsVisible={role === 'teacher' || activityOneReleased} initialAnswers={student?.team.goal_answers} initialStep={student?.team.goal_step} initialCompleted={Boolean(student?.team.goal_completed_at)} timings={student?.team.goal_timings} serverNow={serverNow} closed={Boolean(student?.room.closed)} onDraft={role === 'student' && access ? async (step, answer) => { await draftGoal({ data: { ...access, step, answer } }); } : undefined} onSave={role === 'student' && access ? async (step, answer, completed) => { await saveGoal({ data: { ...access, step, answer, completed } }); await refresh(access); } : undefined} /></Suspense> : <ActivityTwo />}
       </PresentationNavigation.Provider>
       </PresentationFrame>
-      <footer className="app-footer"><span>HÌNH HỌC 3D <span>·</span> Lớp học tương tác</span><span className="app-footer-author"><span>Tác giả: Đặng Vũ Cát Tường</span><span>Trường THPT Trần Văn Bảy - Cà Mau</span></span></footer>
+      <footer className="app-footer site-footer"><AuthorCredit /></footer>
     </main>
     <Dialog open={dialog !== null} onOpenChange={open => { if (!open) { setDialog(null); setError(''); } }}><DialogContent><DialogTitle>{dialog === 'join' ? 'Tham gia lớp học' : 'Tạo lớp học mới'}</DialogTitle><DialogDescription>{dialog === 'join' ? 'Mã lớp do giáo viên cung cấp.' : individualLesson ? 'Mỗi học sinh tự làm bài.' : 'Tạo buổi học cho các tổ.'}</DialogDescription><form className="form-stack" onSubmit={e => { e.preventDefault(); if (dialog === 'join') { if (joinInfo) void join(); else void lookup(); } else void makeRoom(); }}>{dialog === 'join' ? <><label>Mã lớp<Input value={code} onChange={e => { setCode(e.target.value); setKey(''); setJoinInfo(null); }} required minLength={4} maxLength={12} placeholder="Nhập mã lớp" /></label>{joinInfo && (joinInfo.individual || joinInfo.mode !== 'lecture') && (joinInfo.individual ? <label>Họ và tên<Input aria-label="Họ và tên" required minLength={2} maxLength={100} value={studentName} onChange={e => setStudentName(e.target.value)} autoComplete="name" /></label> : <label>Chọn tổ<select aria-label="Chọn tổ" className="entry-select" value={number} onChange={e => setNumber(Number(e.target.value))}>{joinInfo.numbers.map(n => <option key={n} value={n}>Tổ {n}</option>)}</select></label>)}</> : <><label>Tên lớp / buổi học<Input value={title} onChange={e => setTitle(e.target.value)} required /></label><label>Chế độ lớp học<select aria-label="Chế độ khi tạo lớp" className="entry-select" value={mode} onChange={e => setMode(e.target.value as LessonMode)}><option value="default">Thông thường</option><option value="lecture">Bài giảng</option><option value="presentation">Trình chiếu</option></select></label>{individualLesson ? <p>Tối đa 45 học sinh · Học sinh tham gia bằng mã lớp và họ tên</p> : <label>Số tổ (tối đa 10)<Input type="number" min={1} max={10} value={teamCount} onChange={e => setTeamCount(Number(e.target.value))} required /></label>}</>}{error && <p className="error-note" role="alert">{error}</p>}<Button disabled={busy} type="submit">{busy ? 'Đang xử lý…' : dialog === 'join' ? joinInfo ? 'Vào lớp học' : 'Tham gia lớp học' : 'Tạo lớp học'}<ArrowRight /></Button></form></DialogContent></Dialog>
     <AlertDialog open={confirmDelete} onOpenChange={open => { if (!busy) setConfirmDelete(open); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Xóa lớp học này?</AlertDialogTitle><AlertDialogDescription>{room ? `Lớp "${room.title}" · Mã ${room.code}` : ''} cùng toàn bộ bài làm của các tổ sẽ bị xóa và không thể khôi phục.</AlertDialogDescription></AlertDialogHeader>{error && <p className="error-note" role="alert">{error}</p>}<AlertDialogFooter><AlertDialogCancel disabled={busy}>Hủy</AlertDialogCancel><AlertDialogAction disabled={busy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={e => { e.preventDefault(); void deleteRoom(); }}>{busy ? 'Đang xóa…' : 'Xóa lớp'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

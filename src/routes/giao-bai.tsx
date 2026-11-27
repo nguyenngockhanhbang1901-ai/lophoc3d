@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeacher } from "@/components/slides/use-teacher";
-import { ExamNav } from "@/components/exam/ExamNav";
+import { TeacherShell } from "@/components/site/TeacherShell";
 import { ExamAssignments } from "@/components/exam/ExamAssignments";
 import { LessonAssignments } from "@/components/exam/LessonAssignments";
 
@@ -27,8 +27,7 @@ export const Route = createFileRoute("/giao-bai")({
 function AssignPage() {
   const user = useTeacher();
   return (
-    <main className="mx-auto min-h-screen max-w-[1400px] px-4 py-4">
-      <ExamNav current="/giao-bai" />
+    <TeacherShell current="exams" title="Thi trực tuyến · Giao bài">
       {user === undefined ? (
         <p className="text-muted-foreground">Đang tải…</p>
       ) : user === null ? (
@@ -47,6 +46,6 @@ function AssignPage() {
           <LessonAssignments ownerId={user.id} />
         </>
       )}
-    </main>
+    </TeacherShell>
   );
 }
