@@ -45,3 +45,9 @@ server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc đ�
 > Hãy tạo migration mới với đúng SQL trong `docs/thi-online/07-quyen-thi-lai-va-thong-bao.sql`
 > (bảng exam_retake_grants, exam_notifications, RLS và hai chỉ mục cho exam_connection_events),
 > rồi cập nhật lại types. Không sửa code khác.
+
+## Giai đoạn 10: giao bài giảng cho lớp
+
+> Hãy tạo migration mới với đúng SQL trong `docs/thi-online/08-giao-bai-giang.sql`
+> (bảng exam_lesson_assignments, exam_lesson_views, thêm loại thông báo new_lesson), rồi cập nhật lại types.
+> Không sửa code khác.

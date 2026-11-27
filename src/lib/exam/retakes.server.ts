@@ -4,7 +4,7 @@
 import { examDb, studentsInClass } from "./db.server";
 import { grantActive, type GrantRow } from "./attempt.server";
 
-export type NoticeKind = "new_assignment" | "retake_granted" | "retake_revoked";
+export type NoticeKind = "new_assignment" | "retake_granted" | "retake_revoked" | "new_lesson";
 
 interface AssignmentLite {
   id: string;
@@ -173,6 +173,7 @@ export interface Notice {
   id: string;
   kind: NoticeKind | "closing_soon";
   assignmentId: string | null;
+  lessonId: string | null;
   body: string;
   at: string;
   read: boolean;
@@ -194,7 +195,7 @@ export async function studentNotices(
   const [{ data: stored }, { data: open }] = await Promise.all([
     db
       .from("exam_notifications")
-      .select("id,kind,assignment_id,body,created_at,read_at")
+      .select("id,kind,assignment_id,lesson_assignment_id,body,created_at,read_at")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -226,6 +227,7 @@ export async function studentNotices(
       id: `soon-${a.id}`,
       kind: "closing_soon",
       assignmentId: a.id,
+      lessonId: null,
       body: `Bài "${a.title}" sắp đóng lúc ${noticeTime(a.closes_at)} mà em chưa làm.`,
       at: a.closes_at,
       read: false,
@@ -235,6 +237,7 @@ export async function studentNotices(
       id: number;
       kind: NoticeKind;
       assignment_id: string | null;
+      lesson_assignment_id?: string | null;
       body: string;
       created_at: string;
       read_at: string | null;
@@ -243,6 +246,7 @@ export async function studentNotices(
     id: String(n.id),
     kind: n.kind,
     assignmentId: n.assignment_id,
+    lessonId: n.lesson_assignment_id ?? null,
     body: n.body,
     at: n.created_at,
     read: n.read_at !== null,
