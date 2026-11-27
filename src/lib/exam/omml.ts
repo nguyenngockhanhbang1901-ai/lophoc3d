@@ -3,7 +3,7 @@
 // angle hat, bar), sums/integrals, functions, limits, systems (eqArr) and matrices. Unknown
 // elements fall back to their content, so a formula never disappears.
 
-const SYMBOLS: Record<string, string> = {
+export const SYMBOLS: Record<string, string> = {
   "∥": "\\ss ",
   "∦": "\\nparallel ",
   "⊥": "\\perp ",

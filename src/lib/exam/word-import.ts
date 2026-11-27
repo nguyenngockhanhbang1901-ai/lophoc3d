@@ -5,7 +5,8 @@
 //   the right answer is the option (or statement) whose letter or text is underlined and/or red,
 //   or given in a line "Đáp án: B" / "Đáp án: ĐSĐS" / "Đáp án: 3,5";
 //   "Lời giải" / "Hướng dẫn giải" starts the worked solution.
-// Formulas arrive as LaTeX ($…$, \(…\), \[…\]) typed in the text or as Word equations.
+// Formulas arrive as LaTeX ($…$, \(…\), \[…\]) typed in the text, as Word equations, or as
+// MathType / Equation Editor 3.0 objects (converted by mtef.ts).
 import type { DocParagraph, DocToken } from "./docx-reader";
 import {
   parseAnswerNumber,
@@ -220,7 +221,7 @@ function blockQuestion(
   );
   const text = plain(toks);
   if (toks.some((t) => t.k === "bad" && t.what === "mathtype"))
-    issues.push("Có công thức MathType không chuyển được, cần gõ lại bằng $…$");
+    issues.push("Có công thức MathType bị hỏng hoặc không đọc được, cần gõ lại bằng $…$");
   if (toks.some((t) => t.k === "bad" && t.what === "image-format"))
     issues.push("Có hình dạng WMF/EMF không hiển thị được trên web, cần chèn lại ảnh PNG/JPG");
 

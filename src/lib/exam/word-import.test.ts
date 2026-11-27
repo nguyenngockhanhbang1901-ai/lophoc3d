@@ -115,3 +115,37 @@ describe("Word import", () => {
     expect(() => readDocx(new Uint8Array([1, 2, 3]))).toThrow(/docx/);
   });
 });
+
+// MathType objects in this fixture are sample equations from the MIT-licensed `mathtype` gem
+// (github.com/jure/mathtype, spec/fixtures), embedded the way Word stores them.
+describe("Word import with MathType equations", () => {
+  const doc = readDocx(
+    new Uint8Array(
+      readFileSync(resolve(process.cwd(), "src/lib/exam/__fixtures__/de-mathtype.docx")),
+    ),
+  );
+  const qs = splitQuestions(doc.paragraphs);
+
+  it("converts MathType 4–7 equations in the stem", () => {
+    const q = qs[0]!;
+    expect(q.body.stem).toContain("$\\frac{-b\\pm \\sqrt{b^{2}-4ac}}{2a}$");
+    expect(q.body.stem).toContain("$\\sqrt[3]{27}$");
+    expect(q.body.data).toMatchObject({ kind: "mcq", correct: 1 });
+    expect(q.issues).toEqual([]);
+  });
+
+  it("converts Equation Editor 3.0 equations in the options", () => {
+    const q = qs[1]!;
+    expect(q.body.data.kind === "mcq" && q.body.data.options).toEqual([
+      "$\\sigma_{t}=\\sqrt{\\sigma_{R}^{2}+\\sigma_{P}^{2}}$",
+      "$D=\\left| K1-K2 \\right|$",
+      "$\\frac{2\\,\\text{d}}{204\\,\\text{d}}\\cdot 100\\,\\%=0{,}98\\,\\%$",
+      "$A=\\lim_{\\begin{array}{l}n\\to \\infty \\\\ \\Delta x_{k}\\to 0\\end{array}} \\sum_{k=1}^{n} f({\\tilde{x}}_{k})\\Delta x_{k}$",
+    ]);
+    expect(q.body.data).toMatchObject({ correct: 0 });
+  });
+
+  it("flags an equation it cannot read instead of dropping it", () => {
+    expect(qs[2]!.issues.some((i) => i.includes("MathType"))).toBe(true);
+  });
+});
