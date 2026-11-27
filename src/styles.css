@@ -772,3 +772,13 @@ html.presenting .teacher-presentation .goal-results-layout.quiz-results .case-bu
   .quiz-lane { grid-template-columns: 24px 48px minmax(0, 1fr) 58px; gap: 6px; }
   .quiz-team, .quiz-score { font-size: 11px; }
 }
+/* Bài 12.1 · Luyện tập 3 individual ranking */
+.solo-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.solo-table th { text-align: left; font-size: 12px; color: var(--muted-foreground); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.solo-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.solo-table tr.finished td { background: color-mix(in oklab, var(--success) 8%, transparent); }
+.solo-rank { width: 56px; font-weight: 700; color: var(--success); }
+.solo-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+.solo-picks { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; }
+.solo-picks span { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; }
+.solo-picks span.correct { border-color: var(--success); color: var(--success); font-weight: 700; }

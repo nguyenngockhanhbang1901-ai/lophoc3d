@@ -7,6 +7,7 @@ import { classroomCodeSchema, classroomJoinSchema, codeJoinKey } from './classro
 import { activityReleaseAt, assignmentStarted, toActivity } from './assignment';
 import { PAIR_STEPS } from './line-pairs';
 import { CUBE_LESSON_KEY, CUBE_LESSON_TITLE, MAX_CUBE_STUDENTS } from './cube-practice';
+import { QUIZ_SOLO_LESSON_KEY, QUIZ_SOLO_LESSON_TITLE } from './quiz-solo';
 import { GOAL_QUESTIONS } from './goal-questions';
 import { GOAL_STEPS, reconcileSteps, submitStep, type StepConfig, type StepProgress } from './goal-progress';
 import { QUIZ_STEPS, isQuizLetter } from './quiz-race';
@@ -24,7 +25,8 @@ export const findClassroom = createServerFn({ method: 'POST' }).inputValidator(c
   const { data: room } = await supabaseAdmin.from('classrooms').select('id,title,closed,lesson_mode,lesson_key').eq('code', data.code).maybeSingle();
   if (!room) throw new Error('Mã lớp không đúng');
   if (room.closed) throw new Error('Lớp học đã đóng');
-  if (room.lesson_key === CUBE_LESSON_KEY) return { title: room.title, numbers: [] as number[], mode: room.lesson_mode, individual: true };
+  if (room.lesson_key === CUBE_LESSON_KEY) return { title: room.title, numbers: [] as number[], mode: room.lesson_mode, individual: true, lessonKey: room.lesson_key };
+  if (room.lesson_key === QUIZ_SOLO_LESSON_KEY) return { title: room.title, numbers: [] as number[], mode: room.lesson_mode, individual: true, lessonKey: room.lesson_key };
   if (canReadLecture(room.lesson_mode, room.closed)) return { title: room.title, numbers: [] as number[], mode: room.lesson_mode };
   const { data: teams, error } = await supabaseAdmin.from('classroom_teams').select('number').eq('classroom_id', room.id).order('number');
   if (error || !teams?.length) throw new Error('Lớp học chưa có tổ');
@@ -43,14 +45,15 @@ export const createClassroom = createServerFn({ method: 'POST' }).middleware([re
   .handler(async ({ data, context }) => {
     if (!validateTeamCount(data.teamCount)) throw new Error('Tối đa 10 tổ');
     const { data: lesson } = await context.supabase.from('lessons').select().eq('owner_id', context.userId).eq('lesson_key', data.lessonKey).maybeSingle();
-    const fallbackTitle = data.lessonKey === CUBE_LESSON_KEY ? CUBE_LESSON_TITLE : data.lessonKey === '11' ? 'Bài 11: Hai đường thẳng song song' : 'Bài 12: Đường thẳng và mặt phẳng song song';
-    if (!lesson && !['11', '12', CUBE_LESSON_KEY].includes(data.lessonKey)) throw new Error('Bài học không tồn tại');
+    const fallbackTitle = data.lessonKey === CUBE_LESSON_KEY ? CUBE_LESSON_TITLE : data.lessonKey === QUIZ_SOLO_LESSON_KEY ? QUIZ_SOLO_LESSON_TITLE : data.lessonKey === '11' ? 'Bài 11: Hai đường thẳng song song' : 'Bài 12: Đường thẳng và mặt phẳng song song';
+    if (!lesson && !['11', '12', CUBE_LESSON_KEY, QUIZ_SOLO_LESSON_KEY].includes(data.lessonKey)) throw new Error('Bài học không tồn tại');
     const code = crypto.randomUUID().replaceAll('-', '').slice(0, 6).toUpperCase();
     const { data: classroom, error } = await context.supabase.from('classrooms').insert({ owner_id: context.userId, title: data.title, team_count: data.teamCount, code, lesson_mode: data.mode, lesson_key: data.lessonKey, lesson_title: lesson?.title ?? fallbackTitle, lesson_content: lesson?.content ?? {} }).select().single();
     if (error || !classroom) throw new Error('Không tạo được lớp học');
     // Verified owner just created this room; privileged insert generates secret team capabilities.
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-    if (data.lessonKey === CUBE_LESSON_KEY) {
+    // Bài 12.1 uses the same per-student slots as Bài 11.1 (students join by class code and name).
+    if (data.lessonKey === CUBE_LESSON_KEY || data.lessonKey === QUIZ_SOLO_LESSON_KEY) {
       const slots = await Promise.all(Array.from({length:MAX_CUBE_STUDENTS},async(_,i)=>({classroom_id:classroom.id,slot:i+1,access_hash:await hash(crypto.randomUUID())})));
       const {error:slotError}=await supabaseAdmin.from('lesson111_students').insert(slots);
       if(slotError) throw new Error('Không tạo được danh sách học sinh');

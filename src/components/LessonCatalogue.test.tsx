@@ -71,11 +71,12 @@ const labels = () =>
 describe("LessonCatalogue (Bài học page)", () => {
   it("lists the built-in lessons, old text lessons and the slide lessons from the database", async () => {
     render(<LessonCatalogue userId="me" value="12" disabled={false} onChange={() => {}} />);
-    await waitFor(() => expect(labels()).toHaveLength(5));
+    await waitFor(() => expect(labels()).toHaveLength(6));
     expect(labels()).toEqual([
       "Bài 11: Hai đường thẳng song song",
       "Bài 11.1: Hai đường thẳng song song",
       "Bài 12: Đường thẳng và mặt phẳng song song",
+      "Bài 12.1: Đường thẳng và mặt phẳng song song",
       "Bài chữ cũ",
       "Bài slide mới",
     ]);
@@ -84,14 +85,14 @@ describe("LessonCatalogue (Bài học page)", () => {
   it("passes the stored slide content to the classroom when the lesson is chosen", async () => {
     const onChange = vi.fn();
     render(<LessonCatalogue userId="me" value="12" disabled={false} onChange={onChange} />);
-    await waitFor(() => expect(labels()).toHaveLength(5));
+    await waitFor(() => expect(labels()).toHaveLength(6));
     fireEvent.change(screen.getByLabelText("Chọn bài học"), { target: { value: "slides:abc" } });
     expect(onChange).toHaveBeenCalledWith("slides:abc", "Bài slide mới", rows[2]!.content);
   });
 
   it("a lesson saved in Soạn bài giảng appears when this page regains focus, without a reload", async () => {
     render(<LessonCatalogue userId="me" value="12" disabled={false} onChange={() => {}} />);
-    await waitFor(() => expect(labels()).toHaveLength(5));
+    await waitFor(() => expect(labels()).toHaveLength(6));
     rows.push({
       lesson_key: "slides:new",
       title: "Bài vừa soạn",
@@ -108,7 +109,7 @@ describe("LessonCatalogue (Bài học page)", () => {
 
   it("the pencil for a slide lesson opens Soạn bài giảng, never the plain-text editor", async () => {
     render(<LessonCatalogue userId="me" value="slides:abc" disabled={false} onChange={() => {}} />);
-    await waitFor(() => expect(labels()).toHaveLength(5));
+    await waitFor(() => expect(labels()).toHaveLength(6));
     const pencil = screen.getByLabelText("Sửa bài học");
     expect(pencil.tagName).toBe("A");
     expect(pencil.getAttribute("href")).toBe("/soan-bai?lesson=slides%3Aabc");
@@ -116,7 +117,7 @@ describe("LessonCatalogue (Bài học page)", () => {
 
   it("the pencil for an old text lesson still opens the text editor", async () => {
     render(<LessonCatalogue userId="me" value="old-text" disabled={false} onChange={() => {}} />);
-    await waitFor(() => expect(labels()).toHaveLength(5));
+    await waitFor(() => expect(labels()).toHaveLength(6));
     fireEvent.click(screen.getByLabelText("Sửa bài học"));
     expect(await screen.findByText("Sửa bài học", { selector: "h2" })).toBeTruthy();
     expect((screen.getByLabelText("Nội dung bài học") as HTMLTextAreaElement).value).toBe(
@@ -130,6 +131,7 @@ describe("LessonCatalogue (Bài học page)", () => {
       "Bài 11: Hai đường thẳng song song",
       "Bài 11.1: Hai đường thẳng song song",
       "Bài 12: Đường thẳng và mặt phẳng song song",
+      "Bài 12.1: Đường thẳng và mặt phẳng song song",
     ]);
   });
 });
