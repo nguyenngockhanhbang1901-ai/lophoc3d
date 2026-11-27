@@ -14,6 +14,7 @@ import {
 import { displayDate } from "@/lib/exam/roster";
 import { AssignedList, ExamFlow } from "./StudentExam";
 import { myNotices, readNotices } from "@/lib/exam/attempt.functions";
+import { HistoryList } from "./StudentHistory";
 import type { Notice } from "@/lib/exam/retakes.server";
 import { passwordProblem } from "@/lib/exam/accounts";
 
@@ -193,7 +194,7 @@ export function StudentPortal() {
           <AssignedList token={token} onOpen={setOpenAssignment} />
         </TabsContent>
         <TabsContent value="history">
-          <Empty text="Chưa có bài làm nào." />
+          <HistoryList token={token} />
         </TabsContent>
         <TabsContent value="lessons">
           <Empty text="Chưa có bài giảng nào được giao cho lớp." />

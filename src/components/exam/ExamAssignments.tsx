@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { BarChart3, KeyRound, Pencil, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import {
+  BarChart3,
+  Download,
+  KeyRound,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Undo2,
+} from "lucide-react";
+import { ReviewQuestionCard } from "./ExamReview";
+import type { AttemptDetail } from "@/lib/exam/review.server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { listExamClasses, type ExamClassSummary } from "@/lib/exam/classes.functions";
 import {
+  assignmentReport,
   assignmentResults,
+  attemptDetail,
   deleteAssignment,
   grantRetake,
   revokeRetake,
@@ -632,6 +645,14 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
   const revokeFn = useServerFn(revokeRetake);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [granting, setGranting] = useState(false);
+  const [detailOf, setDetailOf] = useState<StudentResult | null>(null);
+  const reportFn = useServerFn(assignmentReport);
+  const [exporting, setExporting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 5_000);
+    return () => window.clearInterval(t);
+  }, []);
   const toggle = (id: string) =>
     setSelected((x) => {
       const n = new Set(x);
@@ -654,6 +675,24 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
       {error && <p className="error-note">{error}</p>}
       {rows !== null && (
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={exporting}
+            onClick={() => {
+              setExporting(true);
+              reportFn({ data: { assignmentId: assignment.id } })
+                .then(async (r) => {
+                  const { downloadAssignmentReport } = await import("@/lib/exam/files");
+                  await downloadAssignmentReport(r);
+                })
+                .catch((e) => setError(message(e)))
+                .finally(() => setExporting(false));
+            }}
+          >
+            <Download />
+            {exporting ? "Đang xuất…" : "Xuất Excel"}
+          </Button>
           <Button
             size="sm"
             disabled={!selected.size}
@@ -733,7 +772,18 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                     </td>
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2 font-medium">
-                      {r.fullName}
+                      {r.attempts.length ? (
+                        <button
+                          type="button"
+                          className="text-left underline-offset-2 hover:underline"
+                          title="Xem chi tiết quá trình làm bài"
+                          onClick={() => setDetailOf(r)}
+                        >
+                          {r.fullName}
+                        </button>
+                      ) : (
+                        r.fullName
+                      )}
                       {r.attempts.length > 1 && (
                         <div className="text-xs font-normal text-muted-foreground">
                           {r.attempts.length} lượt
@@ -743,7 +793,9 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
                       )}
                     </td>
                     <td className="p-2">
-                      {last ? (
+                      {last?.status === "in_progress" ? (
+                        <LiveCell attempt={last} now={now} />
+                      ) : last ? (
                         ATTEMPT_LABEL[last.status]
                       ) : (
                         <span className="text-muted-foreground">Chưa làm</span>
@@ -801,6 +853,11 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
           </table>
         </div>
       )}
+      <Dialog open={!!detailOf} onOpenChange={(o) => !o && setDetailOf(null)}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+          {detailOf && <AttemptDetailView student={detailOf} />}
+        </DialogContent>
+      </Dialog>
       <Dialog open={granting} onOpenChange={setGranting}>
         <DialogContent>
           <GrantForm
@@ -823,6 +880,153 @@ function Results({ assignment }: { assignment: AssignmentSummary }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function LiveCell({ attempt, now }: { attempt: StudentResult["attempts"][number]; now: number }) {
+  const left = Math.max(0, new Date(attempt.deadlineAt).getTime() - now);
+  const seen = attempt.lastSeenAt ? now - new Date(attempt.lastSeenAt).getTime() : Infinity;
+  const online = seen < 20_000;
+  return (
+    <div className="grid gap-0.5">
+      <span className="font-medium text-amber-800">
+        Đang làm · câu {Math.min(attempt.reachedIndex + 1, attempt.questionCount)}/
+        {attempt.questionCount}
+      </span>
+      <span className="text-xs text-muted-foreground">
+        còn {Math.ceil(left / 60_000)} phút ·{" "}
+        <span className={online ? "text-green-700" : "text-destructive"}>
+          ● {online ? "đang kết nối" : "mất kết nối"}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+const TIMELINE_TONE: Record<AttemptDetail["timeline"][number]["kind"], string> = {
+  start: "bg-blue-500",
+  answer: "bg-muted-foreground/40",
+  edit: "bg-amber-500",
+  completed: "bg-blue-500",
+  violation: "bg-destructive",
+  drop: "bg-destructive",
+  finish: "bg-green-600",
+};
+const CLOCK = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+function AttemptDetailView({ student }: { student: StudentResult }) {
+  const load = useServerFn(attemptDetail);
+  const [attemptId, setAttemptId] = useState(student.attempts[student.attempts.length - 1]!.id);
+  const [detail, setDetail] = useState<AttemptDetail | null>(null);
+  const [tab, setTab] = useState<"timeline" | "questions">("timeline");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    setDetail(null);
+    load({ data: { attemptId } })
+      .then(setDetail)
+      .catch((e) => setError(message(e)));
+  }, [load, attemptId]);
+  return (
+    <div className="grid gap-3">
+      <DialogTitle>{student.fullName}</DialogTitle>
+      <DialogDescription>Quá trình làm bài, từng lượt (kể cả lượt bị hủy).</DialogDescription>
+      <div className="flex flex-wrap gap-1">
+        {student.attempts.map((a) => (
+          <Button
+            key={a.id}
+            size="sm"
+            variant={a.id === attemptId ? "default" : "outline"}
+            onClick={() => setAttemptId(a.id)}
+          >
+            Lượt {a.attemptNo}: {ATTEMPT_LABEL[a.status]}
+          </Button>
+        ))}
+      </div>
+      {error && <p className="error-note">{error}</p>}
+      {!detail ? (
+        <p>Đang tải…</p>
+      ) : (
+        <>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border p-3 text-sm sm:grid-cols-4">
+            <dt className="text-muted-foreground">Mã đề</dt>
+            <dd className="font-mono">{detail.code}</dd>
+            <dt className="text-muted-foreground">Điểm</dt>
+            <dd className="font-semibold">
+              {detail.score === null ? "—" : `${formatPoints(detail.score)}/${detail.scale}`}
+            </dd>
+            <dt className="text-muted-foreground">Bắt đầu</dt>
+            <dd>{formatTime(detail.startedAt)}</dd>
+            <dt className="text-muted-foreground">Kết thúc</dt>
+            <dd>{formatTime(detail.finishedAt)}</dd>
+            <dt className="text-muted-foreground">Làm xong lượt đầu</dt>
+            <dd>
+              {detail.completedAllAt
+                ? `sau ${minutesBetween(detail.startedAt, detail.completedAllAt)} phút`
+                : "—"}
+            </dd>
+            <dt className="text-muted-foreground">Câu đã sửa</dt>
+            <dd>
+              {detail.editCount}/{detail.questions.length}
+            </dd>
+            <dt className="text-muted-foreground">Vi phạm</dt>
+            <dd>{detail.violationCount}</dd>
+            <dt className="text-muted-foreground">Mất mạng</dt>
+            <dd>{detail.disconnectCount}</dd>
+          </dl>
+          {detail.userAgent && (
+            <p className="truncate text-xs text-muted-foreground" title={detail.userAgent}>
+              Thiết bị: {detail.userAgent}
+            </p>
+          )}
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={tab === "timeline" ? "secondary" : "ghost"}
+              onClick={() => setTab("timeline")}
+            >
+              Dòng thời gian
+            </Button>
+            <Button
+              size="sm"
+              variant={tab === "questions" ? "secondary" : "ghost"}
+              onClick={() => setTab("questions")}
+            >
+              Bài làm từng câu
+            </Button>
+          </div>
+          {tab === "timeline" ? (
+            <ol className="grid gap-1 text-sm">
+              {detail.timeline.map((e, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span
+                    className={`mt-1.5 size-2 shrink-0 rounded-full ${TIMELINE_TONE[e.kind]}`}
+                  />
+                  <span className="w-16 shrink-0 font-mono text-xs text-muted-foreground">
+                    {CLOCK.format(new Date(e.at))}
+                  </span>
+                  <span
+                    className={e.kind === "edit" || e.kind === "violation" ? "font-medium" : ""}
+                  >
+                    {e.text}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="grid gap-2">
+              {detail.questions.map((q, i) => (
+                <ReviewQuestionCard key={i} label={detail.labels[i] ?? `Câu ${i + 1}`} q={q} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

@@ -14,6 +14,8 @@ const {
   reportViolation,
   GRACE_MS,
 } = await import("./attempt.server");
+const { teacherAttemptDetail, teacherAssignmentReport, studentHistory, studentReview } =
+  await import("./review.server");
 type AssignmentRow = import("./attempt.server").AssignmentRow;
 type AttemptRow = import("./attempt.server").AttemptRow;
 
@@ -301,5 +303,52 @@ describe("anti-cheat", () => {
     expect(used["used_attempt_id"]).toBe(next);
     await finishAttempt(attempt(next), "submitted", { now: T0 + 30_000 });
     await expect(beginAttempt(STUDENT, a, "", T0 + 40_000, DEV)).rejects.toThrow();
+  });
+});
+
+describe("looking back at attempts", () => {
+  it("gives the teacher the detail and report, and the student a review when allowed", async () => {
+    const a = seed();
+    db.rows("exam_students").push({
+      id: STUDENT,
+      class_id: a.class_id,
+      full_name: "Nguyễn Văn An",
+      username: "annv0001",
+      student_code: null,
+    });
+    const id = await beginAttempt(STUDENT, a, "Chrome", T0, "dev");
+    const row = () => attempt(id);
+    await recordAnswer(row(), 0, { kind: "mcq", choice: 0 }, T0 + 10_000);
+    await recordAnswer(row(), 1, { kind: "mcq", choice: 0 }, T0 + 20_000);
+    await recordAnswer(row(), 2, { kind: "tf", choices: [true, true, false, false] }, T0 + 30_000);
+    await recordAnswer(row(), 3, { kind: "short", text: "2,5" }, T0 + 40_000);
+    await recordAnswer(row(), 0, { kind: "mcq", choice: 1 }, T0 + 50_000);
+    await reportViolation(row(), "tab_hidden", null, T0 + 55_000);
+    await finishAttempt(row(), "submitted", { now: T0 + 60_000 });
+
+    await expect(teacherAttemptDetail("someone-else", id)).rejects.toThrow();
+    const d = await teacherAttemptDetail(OWNER, id);
+    expect(d.questions).toHaveLength(4);
+    expect(d.questions[2]!.share).toBe(1);
+    expect(d.log.filter((l) => l.afterCompletion)).toHaveLength(1);
+    expect(d.timeline.map((e) => e.kind)).toContain("violation");
+    expect(d.timeline.at(-1)!.kind).toBe("finish");
+
+    const r = await teacherAssignmentReport(OWNER, a.id);
+    expect(r.attempts).toHaveLength(1);
+    expect(r.edits).toHaveLength(1);
+    expect(r.incidents.map((i) => i.kind)).toEqual(["tab_hidden"]);
+    expect(r.students[0]!.fullName).toBe("Nguyễn Văn An");
+
+    // review is off by default
+    let h = await studentHistory(STUDENT, T0 + 70_000);
+    expect(h[0]).toMatchObject({ attemptId: id, canReview: false, reviewFrom: null });
+    await expect(studentReview(STUDENT, id, T0 + 70_000)).rejects.toThrow("không cho xem");
+    db.rows("exam_assignments")[0]!["settings"] = { scale: 10, review: "after_close" };
+    h = await studentHistory(STUDENT, T0 + 70_000);
+    expect(h[0]!.reviewFrom).toBe(a.closes_at);
+    const rv = await studentReview(STUDENT, id, T0 + 3600_000);
+    expect(rv.questions[3]!.correct).toEqual({ kind: "short", answers: ["2,5"] });
+    await expect(studentReview("other", id, T0 + 3600_000)).rejects.toThrow();
   });
 });
