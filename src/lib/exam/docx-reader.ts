@@ -4,6 +4,7 @@
 // still come out in order.
 import { unzipSync, strFromU8 } from "fflate";
 import { ommlToLatex } from "./omml";
+import { mathTypeOleToLatex } from "./mtef";
 
 export type DocToken =
   | { kind: "text"; text: string; marked: boolean }
@@ -72,7 +73,27 @@ function resolveTarget(target: string): string {
   return out.join("/");
 }
 
-function collectRun(run: Element, rels: Map<string, string>, out: DocToken[]) {
+interface Ctx {
+  rels: Map<string, string>;
+  files: Record<string, Uint8Array>;
+}
+
+/** LaTeX of an embedded MathType / Equation Editor 3.0 object, or null when it cannot be read. */
+function oleEquation(ole: Element, ctx: Ctx): string | null {
+  const id = ole.getAttributeNS(R, "id") ?? ole.getAttribute("r:id");
+  const path = id ? ctx.rels.get(id) : undefined;
+  const bytes = path ? ctx.files[path] : undefined;
+  if (!bytes) return null;
+  try {
+    const tex = mathTypeOleToLatex(bytes);
+    return tex === null ? null : tex;
+  } catch {
+    return null;
+  }
+}
+
+function collectRun(run: Element, ctx: Ctx, out: DocToken[]) {
+  const rels = ctx.rels;
   const marked = runMarked(Array.from(run.children).find((c) => c.localName === "rPr"));
   for (const c of Array.from(run.children)) {
     switch (c.localName) {
@@ -112,7 +133,14 @@ function collectRun(run: Element, rels: Map<string, string>, out: DocToken[]) {
       case "object": {
         const ole = c.getElementsByTagNameNS("*", "OLEObject")[0];
         if (ole && /equation/i.test(ole.getAttribute("ProgID") ?? "")) {
-          out.push({ kind: "unsupported", what: "mathtype" });
+          const tex = oleEquation(ole, ctx);
+          out.push(
+            tex === null
+              ? { kind: "unsupported", what: "mathtype" }
+              : tex
+                ? { kind: "math", tex, marked }
+                : { kind: "text", text: "", marked },
+          );
           break;
         }
         const data = c.getElementsByTagNameNS("*", "imagedata")[0];
@@ -133,24 +161,24 @@ function collectRun(run: Element, rels: Map<string, string>, out: DocToken[]) {
 }
 
 /** Everything inside a paragraph, in reading order. */
-function collectInline(el: Element, rels: Map<string, string>, out: DocToken[]) {
+function collectInline(el: Element, ctx: Ctx, out: DocToken[]) {
   for (const c of Array.from(el.children)) {
     const name = c.localName;
-    if (name === "r") collectRun(c, rels, out);
+    if (name === "r") collectRun(c, ctx, out);
     else if (name === "oMath" || name === "oMathPara") {
       const tex = ommlToLatex(c);
       if (tex) out.push({ kind: "math", tex, marked: false });
     } else if (name === "del" || name === "pPr" || name === "moveFrom") continue;
     // hyperlinks, tracked insertions, content controls, smart tags, fields: look inside
-    else collectInline(c, rels, out);
+    else collectInline(c, ctx, out);
   }
 }
 
-function collectBlocks(el: Element, rels: Map<string, string>, out: DocParagraph[]) {
+function collectBlocks(el: Element, ctx: Ctx, out: DocParagraph[]) {
   for (const c of Array.from(el.children)) {
     if (c.localName === "p") {
       const tokens: DocToken[] = [];
-      collectInline(c, rels, tokens);
+      collectInline(c, ctx, tokens);
       out.push(tokens);
     } else if (
       c.localName === "tbl" ||
@@ -160,7 +188,7 @@ function collectBlocks(el: Element, rels: Map<string, string>, out: DocParagraph
       c.localName === "sdtContent" ||
       c.localName === "customXml"
     ) {
-      collectBlocks(c, rels, out);
+      collectBlocks(c, ctx, out);
     }
   }
 }
@@ -192,7 +220,7 @@ export function readDocx(bytes: Uint8Array): DocxContent {
   const body = xml.getElementsByTagNameNS(W, "body")[0];
   if (!body) throw new Error("File Word không có nội dung");
   const paragraphs: DocParagraph[] = [];
-  collectBlocks(body, rels, paragraphs);
+  collectBlocks(body, { rels, files }, paragraphs);
   const media = new Map<string, Uint8Array>();
   for (const [path, data] of Object.entries(files))
     if (path.startsWith("word/media/")) media.set(path, data);

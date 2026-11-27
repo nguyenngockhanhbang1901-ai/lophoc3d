@@ -133,8 +133,8 @@ export function ImportWord({
       <DialogTitle>Nhập đề từ Word vào “{bankTitle}”</DialogTitle>
       <DialogDescription>
         Mỗi câu bắt đầu bằng “Câu 1.”, “Câu 2:”… Đáp án đúng là chữ cái (hoặc nội dung) được gạch
-        chân, tô màu đỏ, hoặc cả hai; cũng có thể ghi dòng “Đáp án: B”. Công thức gõ LaTeX ($…$)
-        hoặc chèn bằng Equation của Word đều được.
+        chân, tô màu đỏ, hoặc cả hai; cũng có thể ghi dòng “Đáp án: B”. Công thức gõ LaTeX ($…$),
+        chèn bằng Equation của Word, MathType hay Equation Editor 3.0 đều được.
       </DialogDescription>
       <div className="flex flex-wrap items-center gap-3">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
