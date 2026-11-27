@@ -6,6 +6,7 @@ const PAGES = [
   { to: "/lop-thi", label: "Lớp và tài khoản" },
   { to: "/ngan-hang-de", label: "Ngân hàng đề" },
   { to: "/ma-tran-de", label: "Ma trận đề" },
+  { to: "/giao-bai", label: "Giao bài" },
 ] as const;
 
 /** Header shared by the teacher's online-exam pages. */
