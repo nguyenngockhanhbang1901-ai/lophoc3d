@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Box, ImagePlus, Plus, X } from "lucide-react";
+import { Box, ClipboardPaste, ImagePlus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -30,6 +30,7 @@ import {
 } from "@/lib/exam/questions";
 import { scoreShare } from "@/lib/exam/grading";
 import { MathField, QuestionView } from "./ExamMath";
+import { imageFileToDataUrl } from "@/components/slides/media-files";
 
 export type Editing = { id?: string; level: QuestionLevel; topic: string; body: QuestionBody };
 
@@ -66,6 +67,54 @@ export function QuestionEditor({
     [userId],
   );
 
+  const [pasteNote, setPasteNote] = useState("");
+
+  async function attachImageFile(file: File) {
+    setPasteNote("Đang chèn ảnh…");
+    try {
+      const src = await imageFileToDataUrl(file);
+      setDraft((x) => ({ ...x, body: { ...x.body, media: { kind: "image", src } } }));
+      setPasteNote("");
+    } catch (e) {
+      setPasteNote(e instanceof Error && e.message ? e.message : "Không chèn được ảnh này");
+    }
+  }
+
+  /** Ctrl+V anywhere in the editor: a copied picture (screenshot, image copied from Word or a web page) becomes the figure. */
+  function onPaste(e: React.ClipboardEvent) {
+    const file = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+    const typing =
+      (e.target as HTMLElement).tagName === "TEXTAREA" ||
+      (e.target as HTMLElement).tagName === "INPUT";
+    // copying from Word puts both the text and a picture of it on the clipboard: keep text pastes in text boxes
+    if (typing && e.clipboardData.getData("text/plain").trim()) return;
+    e.preventDefault();
+    void attachImageFile(file);
+  }
+
+  /** The "Dán ảnh" button: read a picture from the clipboard (Chrome/Edge ask for permission once). */
+  async function pasteFromClipboard() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (type) {
+          const blob = await item.getType(type);
+          await attachImageFile(new File([blob], "anh-dan.png", { type }));
+          return;
+        }
+      }
+      setPasteNote(
+        "Bộ nhớ tạm không có ảnh. Hãy sao chép ảnh (hoặc chụp màn hình) rồi bấm lại, hoặc nhấn Ctrl+V trong khung soạn câu.",
+      );
+    } catch {
+      setPasteNote(
+        "Trình duyệt chưa cho đọc bộ nhớ tạm. Hãy nhấn Ctrl+V trong khung soạn câu để dán ảnh.",
+      );
+    }
+  }
+
   function pickMedia(pick: MediaPick, kind: MediaKind) {
     setMedia(null);
     if (kind === "image" && pick.src)
@@ -89,7 +138,7 @@ export function QuestionEditor({
     d.kind === "short" && trial.trim() ? scoreShare(d, { kind: "short", text: trial }) : null;
 
   return (
-    <>
+    <div onPaste={onPaste} className="contents">
       <DialogTitle>{initial.id ? "Sửa câu hỏi" : "Câu hỏi mới"}</DialogTitle>
       <DialogDescription>
         Gõ công thức giữa hai dấu $, ví dụ <code>$a \ss (\alpha)$</code>; công thức đứng riêng một
@@ -148,6 +197,17 @@ export function QuestionEditor({
             {body.media ? (
               <>
                 <span>{body.media.kind === "image" ? "Ảnh" : "Mô hình 3D"}</span>
+                {body.media.kind === "image" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void pasteFromClipboard()}
+                    title="Thay bằng ảnh trong bộ nhớ tạm"
+                  >
+                    <ClipboardPaste />
+                    Dán ảnh khác
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => setBody({ ...body, media: null })}>
                   <X />
                   Bỏ
@@ -155,6 +215,10 @@ export function QuestionEditor({
               </>
             ) : (
               <>
+                <Button size="sm" variant="outline" onClick={() => void pasteFromClipboard()}>
+                  <ClipboardPaste />
+                  Dán ảnh (Ctrl+V)
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setMedia("image")}>
                   <ImagePlus />
                   Chèn ảnh
@@ -166,6 +230,18 @@ export function QuestionEditor({
               </>
             )}
           </div>
+          {pasteNote ? (
+            <p className="text-sm text-amber-800" role="status">
+              {pasteNote}
+            </p>
+          ) : (
+            !body.media && (
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Mẹo: chụp màn hình hoặc sao chép hình trong Word, rồi nhấn Ctrl+V ngay trong khung
+                này.
+              </p>
+            )
+          )}
 
           {d.kind === "mcq" && (
             <fieldset className="grid gap-2">
@@ -376,6 +452,6 @@ export function QuestionEditor({
         onPick={pickMedia}
         onClose={() => setMedia(null)}
       />
-    </>
+    </div>
   );
 }

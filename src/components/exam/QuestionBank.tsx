@@ -32,6 +32,12 @@ function message(e: unknown): string {
   return e instanceof Error ? e.message : "Có lỗi, hãy thử lại";
 }
 
+const PART_TITLE: Record<QuestionKind, string> = {
+  mcq: "Phần I. Trắc nghiệm nhiều phương án",
+  tf: "Phần II. Trắc nghiệm đúng/sai",
+  short: "Phần III. Trả lời ngắn",
+};
+
 export function QuestionBank({ userId }: { userId: string }) {
   const [banks, setBanks] = useState<BankSummary[] | null>(null);
   const [bankId, setBankId] = useState("");
@@ -42,6 +48,7 @@ export function QuestionBank({ userId }: { userId: string }) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [showAnswers, setShowAnswers] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [tab, setTab] = useState<"all" | QuestionKind>("all");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -87,12 +94,19 @@ export function QuestionBank({ userId }: { userId: string }) {
   }
   const refresh = () => Promise.all([loadBanks(), loadQuestions(bankId)]);
 
-  async function move(index: number, delta: number) {
-    const ids = questions.map((q) => q.id);
-    const j = index + delta;
-    if (j < 0 || j >= ids.length) return;
-    [ids[index], ids[j]] = [ids[j]!, ids[index]!];
-    setQuestions(ids.map((id) => questions.find((q) => q.id === id)!));
+  /** Move a question up or down among the questions of its own kind (the order students see). */
+  async function move(id: string, delta: number) {
+    const q = questions.find((x) => x.id === id);
+    if (!q) return;
+    const sameKind = questions.filter((x) => x.kind === q.kind);
+    const k = sameKind.findIndex((x) => x.id === id);
+    const other = sameKind[k + delta];
+    if (!other) return;
+    const ids = questions.map((x) => x.id);
+    const a = ids.indexOf(id);
+    const b = ids.indexOf(other.id);
+    [ids[a], ids[b]] = [ids[b]!, ids[a]!];
+    setQuestions(ids.map((x) => questions.find((y) => y.id === x)!));
     await reorderQuestions(ids);
   }
 
@@ -173,19 +187,20 @@ export function QuestionBank({ userId }: { userId: string }) {
                 </Button>
               </div>
             </div>
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">Thêm câu:</span>
               {(["mcq", "tf", "short"] as QuestionKind[]).map((k) => (
                 <Button
                   key={k}
                   size="sm"
-                  variant={k === "mcq" ? "default" : "outline"}
+                  variant="outline"
                   onClick={() => setEditing({ level: "nb", topic: bank.topic, body: emptyBody(k) })}
                 >
                   <Plus />
                   {KIND_LABEL[k]}
                 </Button>
               ))}
-              <Button size="sm" variant="secondary" onClick={() => setImporting(true)}>
+              <Button size="sm" onClick={() => setImporting(true)}>
                 <FileUp />
                 Nhập từ Word
               </Button>
@@ -194,91 +209,147 @@ export function QuestionBank({ userId }: { userId: string }) {
                 {showAnswers ? "Ẩn đáp án" : "Hiện đáp án"}
               </Button>
             </div>
+            <div
+              role="tablist"
+              aria-label="Lọc theo dạng câu"
+              className="mb-3 flex flex-wrap gap-1 border-b"
+            >
+              {(["all", "mcq", "tf", "short"] as const).map((k) => {
+                const count =
+                  k === "all" ? questions.length : questions.filter((q) => q.kind === k).length;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === k}
+                    onClick={() => setTab(k)}
+                    className={`-mb-px border-b-2 px-3 py-1.5 text-sm ${tab === k ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {k === "all" ? "Tất cả" : KIND_LABEL[k]} ({count})
+                  </button>
+                );
+              })}
+            </div>
             {questions.length === 0 ? (
               <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                 Ngân hàng chưa có câu nào. Nên có ít nhất 3 câu tương đương để mỗi học sinh nhận câu
                 khác nhau.
               </p>
             ) : (
-              <ol className="grid gap-3">
-                {questions.map((q, i) => {
-                  const gaps = questionGaps(q.body);
-                  return (
-                    <li
-                      key={q.id}
-                      className={`rounded-lg border p-3 ${q.hidden ? "opacity-60" : ""}`}
-                    >
-                      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-semibold">Câu {i + 1}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5">{KIND_LABEL[q.kind]}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5">
-                          {LEVEL_LABEL[q.level]}
-                        </span>
-                        {q.topic && (
-                          <span className="rounded bg-muted px-1.5 py-0.5">{q.topic}</span>
-                        )}
-                        {q.hidden && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-900">
-                            Đang ẩn
-                          </span>
-                        )}
-                        {gaps.length > 0 && (
-                          <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-900">
-                            {gaps[0]}
-                          </span>
-                        )}
-                        <span className="ml-auto flex gap-0.5">
-                          <IconButton
-                            title="Lên"
-                            disabled={busy || i === 0}
-                            onClick={() => run(() => move(i, -1))}
-                            icon={<ArrowUp />}
-                          />
-                          <IconButton
-                            title="Xuống"
-                            disabled={busy || i === questions.length - 1}
-                            onClick={() => run(() => move(i, 1))}
-                            icon={<ArrowDown />}
-                          />
-                          <IconButton
-                            title="Sửa"
-                            onClick={() =>
-                              setEditing({ id: q.id, level: q.level, topic: q.topic, body: q.body })
-                            }
-                            icon={<Pencil />}
-                          />
-                          <IconButton
-                            title="Nhân bản / chép sang ngân hàng khác"
-                            disabled={busy}
-                            onClick={() => setCopying(q)}
-                            icon={<Copy />}
-                          />
-                          <IconButton
-                            title={
-                              q.hidden ? "Hiện lại (dùng trong đề)" : "Ẩn (không dùng trong đề)"
-                            }
-                            disabled={busy}
-                            onClick={() =>
-                              run(async () => {
-                                await setQuestionHidden(q.id, !q.hidden);
-                                await refresh();
-                              })
-                            }
-                            icon={q.hidden ? <Eye /> : <EyeOff />}
-                          />
-                          <IconButton
-                            title="Xóa"
-                            disabled={busy}
-                            onClick={() => setConfirmDelete(q)}
-                            icon={<Trash2 />}
-                          />
-                        </span>
-                      </div>
-                      <QuestionView body={q.body} showAnswer={showAnswers} />
-                    </li>
-                  );
-                })}
-              </ol>
+              <div className="grid gap-5">
+                {(["mcq", "tf", "short"] as QuestionKind[])
+                  .filter((k) => tab === "all" || tab === k)
+                  .map((kind) => {
+                    const group = questions.filter((q) => q.kind === kind);
+                    if (!group.length)
+                      return tab === kind ? (
+                        <p
+                          key={kind}
+                          className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground"
+                        >
+                          Chưa có câu {KIND_LABEL[kind].toLowerCase()} trong ngân hàng này.
+                        </p>
+                      ) : null;
+                    return (
+                      <section key={kind}>
+                        <h3 className="mb-2 font-semibold">
+                          {PART_TITLE[kind]} · {group.length} câu
+                        </h3>
+                        <ol className="grid gap-3">
+                          {group.map((q, i) => {
+                            const gaps = questionGaps(q.body);
+                            return (
+                              <li
+                                key={q.id}
+                                className={`rounded-lg border p-3 ${q.hidden ? "opacity-60" : ""}`}
+                              >
+                                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="font-semibold">Câu {i + 1}</span>
+                                  <span className="rounded bg-muted px-1.5 py-0.5">
+                                    {KIND_LABEL[q.kind]}
+                                  </span>
+                                  <span className="rounded bg-muted px-1.5 py-0.5">
+                                    {LEVEL_LABEL[q.level]}
+                                  </span>
+                                  {q.topic && (
+                                    <span className="rounded bg-muted px-1.5 py-0.5">
+                                      {q.topic}
+                                    </span>
+                                  )}
+                                  {q.hidden && (
+                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-900">
+                                      Đang ẩn
+                                    </span>
+                                  )}
+                                  {gaps.length > 0 && (
+                                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-900">
+                                      {gaps[0]}
+                                    </span>
+                                  )}
+                                  <span className="ml-auto flex gap-0.5">
+                                    <IconButton
+                                      title="Lên"
+                                      disabled={busy || i === 0}
+                                      onClick={() => run(() => move(q.id, -1))}
+                                      icon={<ArrowUp />}
+                                    />
+                                    <IconButton
+                                      title="Xuống"
+                                      disabled={busy || i === group.length - 1}
+                                      onClick={() => run(() => move(q.id, 1))}
+                                      icon={<ArrowDown />}
+                                    />
+                                    <IconButton
+                                      title="Sửa"
+                                      onClick={() =>
+                                        setEditing({
+                                          id: q.id,
+                                          level: q.level,
+                                          topic: q.topic,
+                                          body: q.body,
+                                        })
+                                      }
+                                      icon={<Pencil />}
+                                    />
+                                    <IconButton
+                                      title="Nhân bản / chép sang ngân hàng khác"
+                                      disabled={busy}
+                                      onClick={() => setCopying(q)}
+                                      icon={<Copy />}
+                                    />
+                                    <IconButton
+                                      title={
+                                        q.hidden
+                                          ? "Hiện lại (dùng trong đề)"
+                                          : "Ẩn (không dùng trong đề)"
+                                      }
+                                      disabled={busy}
+                                      onClick={() =>
+                                        run(async () => {
+                                          await setQuestionHidden(q.id, !q.hidden);
+                                          await refresh();
+                                        })
+                                      }
+                                      icon={q.hidden ? <Eye /> : <EyeOff />}
+                                    />
+                                    <IconButton
+                                      title="Xóa"
+                                      disabled={busy}
+                                      onClick={() => setConfirmDelete(q)}
+                                      icon={<Trash2 />}
+                                    />
+                                  </span>
+                                </div>
+                                <QuestionView body={q.body} showAnswer={showAnswers} />
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </section>
+                    );
+                  })}
+              </div>
             )}
           </>
         )}
