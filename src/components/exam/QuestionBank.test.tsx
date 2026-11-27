@@ -43,6 +43,8 @@ vi.mock("@/lib/exam/bank-store", () => ({
   deleteQuestion: vi.fn(),
   setQuestionHidden: vi.fn(),
   reorderQuestions: vi.fn(),
+  saveQuestions: vi.fn(),
+  swapPositions: vi.fn(),
   copyQuestion: vi.fn(),
 }));
 

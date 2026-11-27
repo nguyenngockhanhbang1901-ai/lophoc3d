@@ -258,13 +258,13 @@ export async function recordAnswer(
   if (item.kind !== answer.kind) throw new Error("Câu trả lời không đúng dạng câu");
   const db = examDb();
   const at = new Date(now).toISOString();
-  const { error } = await db
-    .from("exam_answers")
-    .upsert({ attempt_id: attempt.id, item_index: index, answer, updated_at: at });
+  const [{ error }] = await Promise.all([
+    db
+      .from("exam_answers")
+      .upsert({ attempt_id: attempt.id, item_index: index, answer, updated_at: at }),
+    db.from("exam_answer_events").insert({ attempt_id: attempt.id, item_index: index, answer, at }),
+  ]);
   if (error) throw new Error("Không lưu được câu trả lời");
-  await db
-    .from("exam_answer_events")
-    .insert({ attempt_id: attempt.id, item_index: index, answer, at });
 
   let reached = attempt.reached_index;
   let completedAll = attempt.completed_all_at !== null;

@@ -432,13 +432,21 @@ function ExamRunner({
   const total = view?.kinds.length ?? 0;
   const numbers = useMemo(() => kindNumbering(view?.kinds ?? []), [view?.kinds]);
 
-  // the question on screen, fetched once
+  // the question on screen, and the next one as soon as it opens, each fetched once
+  const requested = useRef(new Set<number>());
   useEffect(() => {
-    if (!view || result || questions.has(index) || index > reached) return;
-    questionFn({ data: { token, attemptId, index } })
-      .then((q) => setQuestions((m) => new Map(m).set(index, q)))
-      .catch((e) => setError(message(e)));
-  }, [view, index, reached, questions, questionFn, token, attemptId, result]);
+    if (!view || result) return;
+    for (const i of [index, reached]) {
+      if (i > reached || i >= view.kinds.length || requested.current.has(i)) continue;
+      requested.current.add(i);
+      questionFn({ data: { token, attemptId, index: i } })
+        .then((q) => setQuestions((m) => new Map(m).set(i, q)))
+        .catch((e) => {
+          requested.current.delete(i);
+          if (i === index) setError(message(e));
+        });
+    }
+  }, [view, index, reached, questionFn, token, attemptId, result]);
 
   useEffect(() => {
     const a = answers[index];
