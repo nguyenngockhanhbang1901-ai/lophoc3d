@@ -51,3 +51,9 @@ server functions trong `src/lib/exam/` quản lý; chỉ service_role đọc đ�
 > Hãy tạo migration mới với đúng SQL trong `docs/thi-online/08-giao-bai-giang.sql`
 > (bảng exam_lesson_assignments, exam_lesson_views, thêm loại thông báo new_lesson), rồi cập nhật lại types.
 > Không sửa code khác.
+
+## Giai đoạn 11: tạo đề thi từ file Word
+
+> Hãy tạo migration mới với đúng SQL trong `docs/thi-online/09-de-tu-file-word.sql`
+> (cột purpose cho exam_banks và exam_matrices, source_file, source_bank_id, shuffle_statements),
+> rồi cập nhật lại types. Không sửa code khác.

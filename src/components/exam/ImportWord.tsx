@@ -44,14 +44,18 @@ export function ImportWord({
   busy,
   onSave,
   onClose,
+  mode = "bank",
 }: {
   userId: string;
   bankTitle: string;
   defaultTopic: string;
   busy: boolean;
-  onSave: (questions: ImportedForSave[]) => void;
+  onSave: (questions: ImportedForSave[], fileName: string) => void;
   onClose: () => void;
+  /** "exam": making an exam straight from the file; every kept question must be complete */
+  mode?: "bank" | "exam";
 }) {
+  const exam = mode === "exam";
   const [fileName, setFileName] = useState("");
   const [items, setItems] = useState<Item[] | null>(null);
   const [reading, setReading] = useState(false);
@@ -127,10 +131,16 @@ export function ImportWord({
   const update = (key: number, patch: Partial<Item>) =>
     setItems((list) => list?.map((q) => (q.key === key ? { ...q, ...patch } : q)) ?? null);
   const shown = (items ?? []).filter((q) => !onlyIssues || (q.issues.length && !q.edited));
+  /** what still has to be fixed (exam mode): kept questions with an open problem */
+  const blocking = (items ?? []).filter(
+    (q) => q.include && (questionGaps(q.body).length > 0 || (!q.edited && q.issues.length > 0)),
+  );
 
   return (
     <>
-      <DialogTitle>Nhập đề từ Word vào “{bankTitle}”</DialogTitle>
+      <DialogTitle>
+        {exam ? "Tạo đề thi từ file Word" : `Nhập đề từ Word vào “${bankTitle}”`}
+      </DialogTitle>
       <DialogDescription>
         Mỗi câu bắt đầu bằng “Câu 1.”, “Câu 2:”… Đáp án đúng là chữ cái (hoặc nội dung) được gạch
         chân, tô màu đỏ, hoặc cả hai; cũng có thể ghi dòng “Đáp án: B”. Công thức gõ LaTeX ($…$),
@@ -192,7 +202,14 @@ export function ImportWord({
               Chỉ hiện câu cần xem lại
             </label>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          {exam && blocking.length > 0 && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+              Còn {blocking.length} câu chưa nhận dạng được đầy đủ (dạng câu, phương án hoặc đáp
+              án): {blocking.map((q) => `Câu ${q.number ?? q.key + 1}`).join(", ")}. Hãy bấm Sửa
+              từng câu (hoặc bỏ chọn câu đó) trước khi tạo đề.
+            </p>
+          )}
+          <div className={`flex flex-wrap items-center gap-2 text-sm ${exam ? "hidden" : ""}`}>
             <label className="flex items-center gap-2">
               Chủ đề cho các câu
               <Input
@@ -294,16 +311,21 @@ export function ImportWord({
               Hủy
             </Button>
             <Button
-              disabled={busy || stats.chosen === 0}
+              disabled={busy || stats.chosen === 0 || (exam && blocking.length > 0)}
               onClick={() =>
                 onSave(
                   (items ?? [])
                     .filter((q) => q.include)
                     .map((q) => ({ level: q.level, topic, body: q.body })),
+                  fileName,
                 )
               }
             >
-              {busy ? "Đang lưu…" : `Lưu ${stats.chosen} câu vào ngân hàng`}
+              {busy
+                ? "Đang lưu…"
+                : exam
+                  ? `Tiếp tục với ${stats.chosen} câu`
+                  : `Lưu ${stats.chosen} câu vào ngân hàng`}
             </Button>
           </div>
         </div>

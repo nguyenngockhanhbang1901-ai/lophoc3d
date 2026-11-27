@@ -30,6 +30,7 @@ export async function listBanks(): Promise<BankSummary[]> {
   const { data, error } = await db()
     .from("exam_banks")
     .select("id,title,topic,description,created_at,updated_at")
+    .eq("purpose", "bank")
     .order("created_at");
   if (error) fail("Không tải được ngân hàng đề", error);
   const { data: qs } = await db().from("exam_questions").select("bank_id,hidden");

@@ -43,7 +43,7 @@ function AssignPage() {
         </div>
       ) : (
         <>
-          <ExamAssignments />
+          <ExamAssignments userId={user.id} />
           <LessonAssignments ownerId={user.id} />
         </>
       )}

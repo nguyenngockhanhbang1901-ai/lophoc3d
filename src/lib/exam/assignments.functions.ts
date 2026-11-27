@@ -154,7 +154,7 @@ export const saveAssignment = createServerFn({ method: "POST" })
 
     const { data: matrix } = await db
       .from("exam_matrices")
-      .select("id,slots,shuffle_options,shuffle_order")
+      .select("id,slots,shuffle_options,shuffle_order,shuffle_statements")
       .eq("id", data.matrixId)
       .eq("owner_id", context.userId)
       .maybeSingle();
@@ -191,6 +191,7 @@ export const saveAssignment = createServerFn({ method: "POST" })
       slots,
       shuffle_options: (matrix as { shuffle_options: boolean }).shuffle_options,
       shuffle_order: (matrix as { shuffle_order: boolean }).shuffle_order,
+      shuffle_statements: !!(matrix as { shuffle_statements?: boolean }).shuffle_statements,
       duration_minutes: data.durationMinutes,
     };
     if (data.id) {

@@ -65,3 +65,62 @@ describe("ImportWord", () => {
     expect(saved[0]!.topic).toBe("Bài 11");
   });
 });
+
+describe("ImportWord for an exam", () => {
+  it("blocks creating the exam until every kept question is complete", async () => {
+    const { zipSync, strToU8 } = await import("fflate");
+    const p = (t: string) => `<w:p><w:r><w:t xml:space="preserve">${t}</w:t></w:r></w:p>`;
+    const u = (t: string) =>
+      `<w:p><w:r><w:rPr><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${t}</w:t></w:r></w:p>`;
+    const docXml = `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
+      p("Câu 1. Một cộng một bằng"),
+      p("A. 1"),
+      u("B. 2"),
+      p("C. 3"),
+      p("D. 4"),
+      p("Câu 2. Hai cộng hai bằng"),
+      p("A. 3"),
+      p("B. 4"),
+      p("C. 5"),
+      p("D. 6"),
+    ].join("")}</w:body></w:document>`;
+    const docx = zipSync({
+      "[Content_Types].xml": strToU8(
+        '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+      ),
+      "word/document.xml": strToU8(docXml),
+    });
+    const onSave = vi.fn();
+    render(
+      <Dialog open>
+        <DialogContent>
+          <ImportWord
+            mode="exam"
+            userId="u"
+            bankTitle=""
+            defaultTopic=""
+            busy={false}
+            onSave={onSave}
+            onClose={() => undefined}
+          />
+        </DialogContent>
+      </Dialog>,
+    );
+    const file = new File([docx], "kiem-tra.docx");
+    Object.defineProperty(file, "arrayBuffer", {
+      value: () => Promise.resolve(docx.buffer.slice(0)),
+    });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(document.body.textContent).toContain("Tách được 2 câu"));
+    expect(document.body.textContent).toContain("Còn 1 câu chưa nhận dạng được đầy đủ");
+    const next = screen.getByText("Tiếp tục với 2 câu").closest("button")!;
+    expect(next.disabled).toBe(true);
+    // leaving the incomplete question out lets the teacher go on
+    fireEvent.click(screen.getByLabelText("Câu 2"));
+    const go = screen.getByText("Tiếp tục với 1 câu").closest("button")!;
+    expect(go.disabled).toBe(false);
+    fireEvent.click(go);
+    expect(onSave).toHaveBeenCalledWith(expect.any(Array), "kiem-tra.docx");
+  });
+});
