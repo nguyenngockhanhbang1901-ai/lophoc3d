@@ -1097,6 +1097,248 @@ export type Database = {
           },
         ]
       }
+      hr_absences: {
+        Row: {
+          class_id: string
+          created_at: string
+          day: string
+          id: string
+          kind: string
+          owner_id: string
+          reason: string
+          session: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          day: string
+          id?: string
+          kind: string
+          owner_id: string
+          reason?: string
+          session?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          day?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          reason?: string
+          session?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_absences_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_absences_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_attendance_days: {
+        Row: {
+          class_id: string
+          day: string
+          owner_id: string
+          session: string
+          taken_at: string
+        }
+        Insert: {
+          class_id: string
+          day: string
+          owner_id: string
+          session?: string
+          taken_at?: string
+        }
+        Update: {
+          class_id?: string
+          day?: string
+          owner_id?: string
+          session?: string
+          taken_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_days_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_class_settings: {
+        Row: {
+          alert_consecutive: number
+          alert_unexcused_month: number
+          class_id: string
+          created_at: string
+          owner_id: string
+          term2_start: string | null
+          two_sessions: boolean
+          updated_at: string
+          year_end: string | null
+          year_start: string | null
+        }
+        Insert: {
+          alert_consecutive?: number
+          alert_unexcused_month?: number
+          class_id: string
+          created_at?: string
+          owner_id: string
+          term2_start?: string | null
+          two_sessions?: boolean
+          updated_at?: string
+          year_end?: string | null
+          year_start?: string | null
+        }
+        Update: {
+          alert_consecutive?: number
+          alert_unexcused_month?: number
+          class_id?: string
+          created_at?: string
+          owner_id?: string
+          term2_start?: string | null
+          two_sessions?: boolean
+          updated_at?: string
+          year_end?: string | null
+          year_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_class_settings_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: true
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_guardians: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          is_primary: boolean
+          owner_id: string
+          phone: string
+          position: number
+          relation: string
+          student_id: string
+          zalo: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          is_primary?: boolean
+          owner_id: string
+          phone?: string
+          position?: number
+          relation?: string
+          student_id: string
+          zalo?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_primary?: boolean
+          owner_id?: string
+          phone?: string
+          position?: number
+          relation?: string
+          student_id?: string
+          zalo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_guardians_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_student_profiles: {
+        Row: {
+          care_note: string
+          class_role: string
+          current_address: string
+          ethnicity: string
+          gender: string | null
+          group_name: string
+          owner_id: string
+          permanent_address: string
+          photo: string | null
+          private_note: string
+          seat: string
+          status: string
+          status_date: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          care_note?: string
+          class_role?: string
+          current_address?: string
+          ethnicity?: string
+          gender?: string | null
+          group_name?: string
+          owner_id: string
+          permanent_address?: string
+          photo?: string | null
+          private_note?: string
+          seat?: string
+          status?: string
+          status_date?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          care_note?: string
+          class_role?: string
+          current_address?: string
+          ethnicity?: string
+          gender?: string | null
+          group_name?: string
+          owner_id?: string
+          permanent_address?: string
+          photo?: string | null
+          private_note?: string
+          seat?: string
+          status?: string
+          status_date?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_student_profiles_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_ai_prepared: {
         Row: {
           answer: string

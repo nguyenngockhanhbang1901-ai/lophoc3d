@@ -61,7 +61,7 @@ describe("AttendancePage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lưu điểm danh/ }));
 
     await waitFor(() => expect(fns.saveAttendance).toHaveBeenCalledTimes(1));
-    expect(fns.saveAttendance.mock.calls[0][0].data).toEqual({
+    expect(fns.saveAttendance.mock.calls[0]?.[0]?.data).toEqual({
       classId: "c1",
       day: vnToday(),
       session: "ca_ngay",
