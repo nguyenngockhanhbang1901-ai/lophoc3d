@@ -3,7 +3,7 @@
 // and the homeroom teacher's learning / conduct levels and comment per student.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, FileUp, MessageSquareText } from "lucide-react";
+import { Download, FileUp, MessageSquareText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -13,12 +13,14 @@ import { readSmasSheet, type SmasSheet } from "@/lib/gradebook/smas";
 import { formatScore } from "@/lib/gradebook/scores";
 import { attendanceData, type StudentBasic } from "@/lib/homeroom/homeroom.functions";
 import {
+  behaviorRange,
   classBooks,
   listEvaluations,
   listIncidents,
   saveEvaluation,
   weeklyData,
   type ClassBook,
+  type ClassEvent,
   type Evaluation,
   type Incident,
   type WeeklyResult,
@@ -30,9 +32,14 @@ import {
   subjectResult,
   yearConduct,
   yearResult,
+  studentResult,
   type Level,
   type SubjectResult,
 } from "@/lib/homeroom/evaluation";
+import { BEHAVIOR_LABEL, BEHAVIOR_POSITIVE, type BehaviorKind } from "@/lib/gradebook/scores";
+import { commentPrompt, type StudentFacts } from "@/lib/homeroom/ai";
+import type { AbsenceRecord } from "@/lib/homeroom/attendance";
+import { AiKeyField, useHomeroomAi } from "./AiDraft";
 import { periodRange, vnToday } from "@/lib/homeroom/periods";
 import { byGivenName, isActive } from "@/lib/homeroom/profiles";
 import { errorText, type HomeroomContext } from "./HomeroomFrame";
@@ -41,23 +48,7 @@ import { downloadTable, fileSafe } from "./sheets";
 type Term = 1 | 2 | 3;
 const TERM_LABEL: Record<Term, string> = { 1: "Học kỳ I", 2: "Học kỳ II", 3: "Cả năm" };
 
-function bookResult(b: ClassBook | undefined, studentId: string): SubjectResult | undefined {
-  if (!b) return undefined;
-  const raw: Record<string, number | null> = {};
-  const texts: Record<string, string | null> = {};
-  for (const s of b.scores)
-    if (s.studentId === studentId) {
-      raw[s.key] = s.num;
-      texts[s.key] = s.txt;
-    }
-  return subjectResult({
-    columns: b.columns,
-    bonusTarget: b.bonusTarget,
-    raw,
-    texts,
-    bonus: b.bonus.find((x) => x.studentId === studentId),
-  });
-}
+const bookResult = studentResult;
 
 function show(r: SubjectResult | undefined): { text: string; low: boolean; partial: boolean } {
   if (!r) return { text: "", low: false, partial: false };
@@ -81,6 +72,7 @@ export function GradesPage({ cls }: HomeroomContext) {
   const loadWeekly = useServerFn(weeklyData);
   const loadIncidents = useServerFn(listIncidents);
   const loadClasses = useServerFn(listExamClasses);
+  const loadEvents = useServerFn(behaviorRange);
   const save = useServerFn(saveEvaluation);
   const [term, setTerm] = useState<Term>(1);
   const [books, setBooks] = useState<ClassBook[] | null>(null);
@@ -88,6 +80,9 @@ export function GradesPage({ cls }: HomeroomContext) {
   const [evals, setEvals] = useState<Evaluation[]>([]);
   const [weekly, setWeekly] = useState<WeeklyResult[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [absences, setAbsences] = useState<AbsenceRecord[]>([]);
+  const [events, setEvents] = useState<ClassEvent[]>([]);
+  const [batch, setBatch] = useState(false);
   const [importing, setImporting] = useState<{
     sheet: SmasSheet;
     bytes: Uint8Array;
@@ -116,7 +111,7 @@ export function GradesPage({ cls }: HomeroomContext) {
       const t = vnToday();
       const [b, s, e, w, i] = await Promise.all([
         loadBooks({ data: { classId: cls.id } }),
-        loadStudents({ data: { classId: cls.id, from: t, to: t } }),
+        loadStudents({ data: { classId: cls.id, from: year.from, to: t < year.to ? t : year.to } }),
         loadEval({ data: { classId: cls.id } }),
         loadWeekly({ data: { classId: cls.id, ...year } }),
         loadIncidents({ data: { classId: cls.id, ...year } }),
@@ -126,12 +121,18 @@ export function GradesPage({ cls }: HomeroomContext) {
       setEvals(e);
       setWeekly(w.results);
       setIncidents(i);
+      setAbsences(s.absences);
+      setEvents(
+        await loadEvents({
+          data: { classId: cls.id, from: year.from, to: t < year.to ? t : year.to },
+        }),
+      );
       setError("");
     } catch (e) {
       setBooks([]);
       setError(errorText(e));
     }
-  }, [loadBooks, loadStudents, loadEval, loadWeekly, loadIncidents, cls.id, year]);
+  }, [loadBooks, loadStudents, loadEval, loadWeekly, loadIncidents, loadEvents, cls.id, year]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -176,6 +177,53 @@ export function GradesPage({ cls }: HomeroomContext) {
     } catch (e) {
       setError(errorText(e));
     }
+  }
+
+  /** What the AI may know about one student for this term: numbers and records, no names. */
+  function factsFor(studentId: string): StudentFacts {
+    const inTerm = (d: string) => d >= range.from && d <= range.to;
+    const att = { coPhep: 0, khongPhep: 0, diMuon: 0 };
+    for (const a of absences)
+      if (a.studentId === studentId && inTerm(a.day))
+        att[a.kind === "co_phep" ? "coPhep" : a.kind === "khong_phep" ? "khongPhep" : "diMuon"]++;
+    const good: Record<string, number> = {};
+    const bad: Record<string, number> = {};
+    let speak = 0;
+    for (const e of events) {
+      if (e.studentId !== studentId || !inTerm(e.day)) continue;
+      if (e.kind === "phat_bieu") {
+        speak++;
+        continue;
+      }
+      const label = BEHAVIOR_LABEL[e.kind as BehaviorKind];
+      const bag = BEHAVIOR_POSITIVE[e.kind as BehaviorKind] ? good : bad;
+      bag[label] = (bag[label] ?? 0) + 1;
+    }
+    const inc = incidents.filter((i) => i.studentId === studentId && inTerm(i.day));
+    const wk = weekly.filter((w) => w.studentId === studentId && inTerm(w.weekStart));
+    const e = evalOf(studentId);
+    return {
+      period: TERM_LABEL[term],
+      subjects: subjects
+        .map((sub) => ({
+          subject: sub,
+          value: show(resultOf(sub, studentId)).text.replace("*", ""),
+        }))
+        .filter((x) => x.value && x.value !== "…"),
+      studyLevel: e?.studyLevel ? LEVEL_LABEL[e.studyLevel] : null,
+      conductLevel: e?.conductLevel ? LEVEL_LABEL[e.conductLevel] : null,
+      attendance: att,
+      speak,
+      good,
+      bad,
+      khen: inc.filter((i) => i.type === "khen").map((i) => i.content),
+      viPham: inc.filter((i) => i.type === "vi_pham").map((i) => i.content),
+      weeks: wk.length
+        ? (["tot", "kha", "dat", "chua_dat"] as Level[])
+            .map((l) => `${LEVEL_LABEL[l]} ${wk.filter((w) => w.level === l).length} tuần`)
+            .join(", ")
+        : "",
+    };
   }
 
   function conductHint(studentId: string): string {
@@ -241,6 +289,14 @@ export function GradesPage({ cls }: HomeroomContext) {
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
             <FileUp /> Nhập điểm môn từ file SMAS
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBatch(true)}
+            disabled={!books || !active.length}
+          >
+            <Sparkles /> AI gợi ý nhận xét cả lớp
           </Button>
           <Button variant="outline" size="sm" onClick={() => void exportExcel()} disabled={!books}>
             <Download /> Excel
@@ -391,10 +447,27 @@ export function GradesPage({ cls }: HomeroomContext) {
           student={comment}
           term={term}
           value={evalOf(comment.id)?.comment ?? ""}
+          facts={() => factsFor(comment.id)}
           onClose={() => setComment(null)}
           onSave={async (text) => {
             await update(comment, { comment: text });
             setComment(null);
+          }}
+        />
+      ) : null}
+      {batch ? (
+        <BatchCommentDialog
+          students={active.filter((s) => !evalOf(s.id)?.comment)}
+          term={term}
+          facts={factsFor}
+          onClose={() => setBatch(false)}
+          onSave={async (list) => {
+            for (const x of list) {
+              const st = active.find((s) => s.id === x.studentId);
+              if (st) await update(st, { comment: x.text });
+            }
+            setBatch(false);
+            setNotice(`Đã lưu nhận xét cho ${list.length} học sinh.`);
           }}
         />
       ) : null}
@@ -448,32 +521,78 @@ function CommentDialog({
   student,
   term,
   value,
+  facts,
   onClose,
   onSave,
 }: {
   student: StudentBasic;
   term: Term;
   value: string;
+  facts: () => StudentFacts;
   onClose: () => void;
   onSave: (text: string) => Promise<void>;
 }) {
+  const ai = useHomeroomAi();
   const [text, setText] = useState(value);
   const [busy, setBusy] = useState(false);
+  const [tone, setTone] = useState<"dong_vien" | "trung_tinh">("dong_vien");
+  const [hint, setHint] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [error, setError] = useState("");
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogTitle>
           Nhận xét {TERM_LABEL[term].toLowerCase()} · {student.fullName}
         </DialogTitle>
-        <DialogDescription>
-          Nhận xét lưu riêng cho từng học kỳ và cả năm. AI gợi ý nhận xét sẽ có ở đợt 3.
-        </DialogDescription>
+        <DialogDescription>Nhận xét lưu riêng cho từng học kỳ và cả năm.</DialogDescription>
         <Textarea
           rows={6}
           maxLength={2000}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
+        <div className="grid gap-2 rounded-lg border p-2 text-sm">
+          <AiKeyField ai={ai} />
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="h-8 rounded-md border bg-background px-2"
+              value={tone}
+              onChange={(e) => setTone(e.target.value as "dong_vien" | "trung_tinh")}
+              aria-label="Giọng văn"
+            >
+              <option value="dong_vien">Động viên</option>
+              <option value="trung_tinh">Trung tính</option>
+            </select>
+            <input
+              className="h-8 min-w-[160px] flex-1 rounded-md border px-2"
+              placeholder="Lưu ý thêm cho AI (không bắt buộc)"
+              maxLength={300}
+              value={hint}
+              onChange={(e) => setHint(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={aiBusy || !ai.apiKey.trim()}
+              onClick={() => {
+                setAiBusy(true);
+                setError("");
+                void ai
+                  .run("comment", commentPrompt(facts(), tone, hint))
+                  .then((r) => (r.error ? setError(r.error) : setText(r.text)))
+                  .finally(() => setAiBusy(false));
+              }}
+            >
+              <Sparkles /> {aiBusy ? "Đang viết…" : "Gợi ý bằng AI"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            AI chỉ nhận điểm, chuyên cần và các ghi nhận của học kỳ, không nhận họ tên. Hãy đọc và
+            sửa trước khi lưu.
+          </p>
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
             Hủy
@@ -486,6 +605,136 @@ function CommentDialog({
             }}
           >
             Lưu
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BatchCommentDialog({
+  students,
+  term,
+  facts,
+  onClose,
+  onSave,
+}: {
+  students: StudentBasic[];
+  term: Term;
+  facts: (id: string) => StudentFacts;
+  onClose: () => void;
+  onSave: (list: { studentId: string; text: string }[]) => Promise<void>;
+}) {
+  const ai = useHomeroomAi();
+  const [tone, setTone] = useState<"dong_vien" | "trung_tinh">("dong_vien");
+  const [drafts, setDrafts] = useState<
+    Record<string, { text: string; keep: boolean; error?: string }>
+  >({});
+  const [running, setRunning] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const stop = useRef(false);
+  const done = Object.values(drafts).filter((d) => d.text).length;
+
+  async function runAll() {
+    setRunning(true);
+    stop.current = false;
+    for (const s of students) {
+      if (stop.current) break;
+      if (drafts[s.id]?.text) continue;
+      const r = await ai.run("comment", commentPrompt(facts(s.id), tone, ""));
+      setDrafts((d) => ({
+        ...d,
+        [s.id]: r.error ? { text: "", keep: false, error: r.error } : { text: r.text, keep: true },
+      }));
+      if (r.error && /khóa|key|hạn mức|RESOURCE/i.test(r.error)) break;
+    }
+    setRunning(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !running && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+        <DialogTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-primary" /> AI gợi ý nhận xét{" "}
+          {TERM_LABEL[term].toLowerCase()}
+        </DialogTitle>
+        <DialogDescription>
+          {students.length} học sinh chưa có nhận xét. AI viết lần lượt từng em; thầy/cô sửa, bỏ
+          chọn em chưa ưng rồi lưu.
+        </DialogDescription>
+        <AiKeyField ai={ai} />
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <select
+            className="h-9 rounded-md border bg-background px-2"
+            value={tone}
+            onChange={(e) => setTone(e.target.value as "dong_vien" | "trung_tinh")}
+            aria-label="Giọng văn"
+            disabled={running}
+          >
+            <option value="dong_vien">Giọng động viên</option>
+            <option value="trung_tinh">Giọng trung tính</option>
+          </select>
+          {running ? (
+            <Button variant="outline" onClick={() => (stop.current = true)}>
+              Dừng ({done}/{students.length})
+            </Button>
+          ) : (
+            <Button onClick={() => void runAll()} disabled={!ai.apiKey.trim() || !students.length}>
+              <Sparkles /> {done ? `Viết tiếp (${done}/${students.length})` : "Bắt đầu viết"}
+            </Button>
+          )}
+        </div>
+        <ul className="grid gap-2">
+          {students.map((s) => {
+            const d = drafts[s.id];
+            return (
+              <li key={s.id} className="grid gap-1 rounded-lg border p-2 text-sm">
+                <label className="flex items-center gap-2 font-medium">
+                  <input
+                    type="checkbox"
+                    disabled={!d?.text}
+                    checked={!!d?.keep}
+                    onChange={(e) =>
+                      setDrafts((x) => ({ ...x, [s.id]: { ...x[s.id]!, keep: e.target.checked } }))
+                    }
+                  />
+                  {s.fullName}
+                  {!d ? (
+                    <span className="font-normal text-muted-foreground">— chưa viết</span>
+                  ) : null}
+                </label>
+                {d?.error ? <p className="text-destructive">{d.error}</p> : null}
+                {d?.text ? (
+                  <Textarea
+                    rows={3}
+                    value={d.text}
+                    onChange={(e) =>
+                      setDrafts((x) => ({ ...x, [s.id]: { ...x[s.id]!, text: e.target.value } }))
+                    }
+                  />
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={running}>
+            Đóng
+          </Button>
+          <Button
+            disabled={
+              running || busy || !Object.values(drafts).some((d) => d.keep && d.text.trim())
+            }
+            onClick={() => {
+              setBusy(true);
+              void onSave(
+                Object.entries(drafts)
+                  .filter(([, d]) => d.keep && d.text.trim())
+                  .map(([studentId, d]) => ({ studentId, text: d.text.trim() })),
+              ).finally(() => setBusy(false));
+            }}
+          >
+            Lưu nhận xét đã chọn
           </Button>
         </div>
       </DialogContent>

@@ -13,7 +13,10 @@ export interface ReportInput {
   weekly: { studentId: string; weekStart: string; level: Level; points: number }[];
   books: {
     subject: string;
+    semester: 1 | 2;
     columns: BookColumn[];
+    bonusTarget: string | null;
+    bonus: { studentId: string; plus: number; minus: number }[];
     scores: {
       studentId: string;
       key: string;

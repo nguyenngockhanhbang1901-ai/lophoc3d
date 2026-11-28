@@ -135,6 +135,9 @@ describe("report summary", () => {
         books: [
           {
             subject: "Toán",
+            semester: 1,
+            bonusTarget: null,
+            bonus: [],
             columns: defaultColumns(2),
             scores: [
               { studentId: "a", key: "tx1", num: 8, txt: null, updatedAt: "2026-11-24T03:00:00Z" },
@@ -158,5 +161,106 @@ describe("report summary", () => {
     expect(s.viPham).toEqual(["Không đeo thẻ"]);
     expect(s.weeks).toEqual([{ weekStart: "2026-11-23", level: "kha", points: 92 }]);
     expect(s.scores).toEqual([{ subject: "Toán", label: "TX1", value: "8" }]);
+  });
+});
+
+describe("learning alerts and AI helpers", () => {
+  it("flags averages under 5 and term II drops of 1.5 or more", async () => {
+    const { learningAlerts } = await import("./evaluation");
+    const b = (semester: 1 | 2, v: number) => ({
+      subject: "Toán",
+      semester,
+      columns: defaultColumns(1),
+      bonusTarget: null,
+      scores: ["tx1", "gk", "ck"].map((key) => ({ studentId: "a", key, num: v, txt: null })),
+      bonus: [],
+    });
+    expect(learningAlerts([b(1, 8), b(2, 6.5)], ["a"], 2)).toEqual([
+      { kind: "drop", studentId: "a", subject: "Toán", from: 8, to: 6.5 },
+    ]);
+    expect(learningAlerts([b(1, 4.5)], ["a"], 1)).toEqual([
+      { kind: "low", studentId: "a", subject: "Toán", value: 4.5 },
+    ]);
+  });
+
+  it("keeps names out of prompts and restores them in the browser", async () => {
+    const { codesFor, restoreNames, classPrompt, cleanAi } = await import("./ai");
+    const codes = codesFor(["x", "y"]);
+    const prompt = classPrompt({
+      className: "11A1",
+      period: "Tháng 11/2026",
+      size: 2,
+      sessions: 20,
+      rows: [
+        {
+          code: codes.get("x")!,
+          coPhep: 1,
+          khongPhep: 2,
+          diMuon: 0,
+          speak: 0,
+          good: 0,
+          bad: 1,
+          khen: 0,
+          viPham: 1,
+          lowSubjects: ["Toán"],
+        },
+        {
+          code: codes.get("y")!,
+          coPhep: 0,
+          khongPhep: 0,
+          diMuon: 0,
+          speak: 0,
+          good: 0,
+          bad: 0,
+          khen: 0,
+          viPham: 0,
+          lowSubjects: [],
+        },
+      ],
+      previous: null,
+      extra: [],
+    });
+    expect(prompt).toContain("HS01; 1/2; 0; 0; 0; 1; 0; 1; Toán");
+    expect(prompt).not.toContain("HS02;");
+    expect(
+      restoreNames(
+        "HS01 cần quan tâm, HS02 tốt.",
+        codes,
+        new Map([
+          ["x", "An"],
+          ["y", "Bình"],
+        ]),
+      ),
+    ).toBe("An cần quan tâm, Bình tốt.");
+    expect(cleanAi("**Tiến bộ:**\n* Tốt\n\n\n# Hết")).toBe("Tiến bộ:\n- Tốt\n\nHết");
+  });
+
+  it("relays Gemini errors as teacher messages", async () => {
+    const { requestHomeroomAi } = await import("./ai");
+    const ok = await requestHomeroomAi(
+      "k",
+      "comment",
+      "p",
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: "Em **chăm ngoan**." }] } }],
+          }),
+        ),
+    );
+    expect(ok).toEqual({ text: "Em chăm ngoan.", error: "" });
+    const bad = await requestHomeroomAi(
+      "k",
+      "comment",
+      "p",
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: { status: "INVALID_ARGUMENT", details: [{ reason: "API_KEY_INVALID" }] },
+          }),
+          { status: 400 },
+        ),
+    );
+    expect(bad.error).toContain("API_KEY_INVALID");
   });
 });

@@ -19,6 +19,8 @@ vi.mock("@/lib/homeroom/records.functions", () => ({
 }));
 vi.mock("@/lib/homeroom/homeroom.functions", () => fns);
 vi.mock("@/lib/exam/classes.functions", () => fns);
+const ai = vi.hoisted(() => ({ writeWithAi: vi.fn() }));
+vi.mock("@/lib/homeroom/ai.functions", () => ai);
 vi.mock("@/lib/gradebook/gradebook.functions", () => ({
   behaviorOfDay: vi.fn().mockResolvedValue([]),
   recordBehavior: vi.fn(),
@@ -128,5 +130,23 @@ describe("MeritPage weekly", () => {
     expect(fns.lockWeek.mock.calls[0]?.[0]?.data.rows).toEqual([
       { studentId: "s1", points: 90, level: "kha", note: "" },
     ]);
+  });
+});
+
+describe("AI comment", () => {
+  it("drafts a comment from numbers only, never the student's name", async () => {
+    localStorage.setItem("lesson-ai-gemini-key", "AIza-test");
+    ai.writeWithAi.mockResolvedValue({ text: "Em chăm ngoan, tích cực phát biểu.", error: "" });
+    fns.classBooks.mockResolvedValue([book("Toán", 8.5)]);
+    render(<GradesPage {...ctx} />);
+    fireEvent.click(await screen.findByLabelText("Nhận xét – Nguyễn Văn An"));
+    fireEvent.click(screen.getByRole("button", { name: /Gợi ý bằng AI/ }));
+    await screen.findByDisplayValue("Em chăm ngoan, tích cực phát biểu.");
+    const sent = ai.writeWithAi.mock.calls[0]?.[0]?.data;
+    expect(sent.task).toBe("comment");
+    expect(sent.apiKey).toBe("AIza-test");
+    expect(sent.prompt).toContain("Toán 8,5");
+    expect(sent.prompt).not.toContain("Nguyễn");
+    localStorage.clear();
   });
 });
