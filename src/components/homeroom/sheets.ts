@@ -106,3 +106,33 @@ export function printTable(
   w.document.close();
   return true;
 }
+
+/** Several titled tables, one per printed page (e.g. a progress sheet per student). */
+export function printPages(
+  title: string,
+  pages: { heading: string; subtitle: string; head: string[]; rows: (string | number)[][] }[],
+): boolean {
+  const body = pages
+    .map(
+      (p) =>
+        `<section><h1>${esc(p.heading)}</h1><p>${esc(p.subtitle)}</p><table><thead><tr>${p.head
+          .map((h) => `<th>${esc(h)}</th>`)
+          .join("")}</tr></thead><tbody>${p.rows
+          .map((r) => `<tr>${r.map((c) => `<td>${esc(String(c))}</td>`).join("")}</tr>`)
+          .join("")}</tbody></table></section>`,
+    )
+    .join("");
+  const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${esc(title)}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;margin:12mm;color:#111;font-size:13px}
+  section{break-after:page;margin-bottom:24px}section:last-child{break-after:auto}
+  h1{font-size:17px;margin:0 0 2px;text-align:center}p{margin:0 0 10px;text-align:center;color:#444}
+  table{border-collapse:collapse;width:100%}th,td{border:1px solid #666;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}td:first-child{width:28%;font-weight:bold}@media print{body{margin:8mm}}</style></head><body>
+  ${body}<script>window.onload=function(){window.print()}</script></body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  return true;
+}

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { User } from "@supabase/supabase-js";
 import {
+  Award,
   BarChart3,
   BookOpenCheck,
   CalendarCheck,
@@ -11,11 +12,14 @@ import {
   LineChart,
   ClipboardCheck,
   Database,
+  FileBarChart,
   FileText,
+  GraduationCap,
   Grid2x2,
   Home,
   LogOut,
   Menu,
+  MessagesSquare,
   MonitorPlay,
   NotebookPen,
   PenLine,
@@ -52,7 +56,11 @@ export type TeacherNavKey =
   | "hr-overview"
   | "hr-profiles"
   | "hr-attendance"
-  | "hr-stats";
+  | "hr-stats"
+  | "hr-merit"
+  | "hr-grades"
+  | "hr-parents"
+  | "hr-reports";
 
 type Item = { key: TeacherNavKey; label: string; icon: typeof Home; href: string };
 const GROUPS: { title?: string; items: Item[] }[] = [
@@ -87,6 +95,15 @@ const GROUPS: { title?: string; items: Item[] }[] = [
         href: "/chu-nhiem/diem-danh",
       },
       { key: "hr-stats", label: "Chuyên cần", icon: LineChart, href: "/chu-nhiem/chuyen-can" },
+      { key: "hr-merit", label: "Thi đua – Khen thưởng", icon: Award, href: "/chu-nhiem/thi-dua" },
+      {
+        key: "hr-grades",
+        label: "Điểm & đánh giá",
+        icon: GraduationCap,
+        href: "/chu-nhiem/danh-gia",
+      },
+      { key: "hr-parents", label: "Phụ huynh", icon: MessagesSquare, href: "/chu-nhiem/phu-huynh" },
+      { key: "hr-reports", label: "Báo cáo", icon: FileBarChart, href: "/chu-nhiem/bao-cao" },
     ],
   },
   {
