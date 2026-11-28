@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { attendanceData, type AttendanceData } from "@/lib/homeroom/homeroom.functions";
+import {
+  listParentContacts,
+  weeklyData,
+  type ParentContact,
+} from "@/lib/homeroom/records.functions";
 import { attendanceAlerts, classTotal, dayTaken, tallies } from "@/lib/homeroom/attendance";
 import {
   addDays,
@@ -28,8 +33,13 @@ import { errorText, type HomeroomContext } from "./HomeroomFrame";
 export function OverviewPage({ cls }: HomeroomContext) {
   const load = useServerFn(attendanceData);
   const today = vnToday();
+  const contacts = useServerFn(listParentContacts);
+  const weekly = useServerFn(weeklyData);
   const [data, setData] = useState<AttendanceData | null>(null);
+  const [followUps, setFollowUps] = useState<ParentContact[]>([]);
+  const [lastWeekLocked, setLastWeekLocked] = useState(true);
   const [error, setError] = useState("");
+  const lastWeek = weekRange(addDays(today, -7)).from;
 
   const fetchData = useCallback(async () => {
     try {
@@ -38,7 +48,18 @@ export function OverviewPage({ cls }: HomeroomContext) {
     } catch (e) {
       setError(errorText(e));
     }
-  }, [load, cls.id, today]);
+    // later-phase reminders; quietly skipped until their tables exist
+    try {
+      const [c, w] = await Promise.all([
+        contacts({ data: { classId: cls.id } }),
+        weekly({ data: { classId: cls.id, from: lastWeek, to: lastWeek } }),
+      ]);
+      setFollowUps(c.filter((x) => x.followUp && !x.followUpDone && x.followUp <= today));
+      setLastWeekLocked(w.results.length > 0);
+    } catch {
+      /* not set up yet */
+    }
+  }, [load, contacts, weekly, cls.id, today, lastWeek]);
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
@@ -76,6 +97,10 @@ export function OverviewPage({ cls }: HomeroomContext) {
   }, [data, today]);
 
   const term = termOf(today, cls.settings);
+  const names = useMemo(
+    () => new Map((data?.students ?? []).map((x) => [x.id, x.fullName])),
+    [data],
+  );
 
   return (
     <div className="grid gap-4">
@@ -134,6 +159,23 @@ export function OverviewPage({ cls }: HomeroomContext) {
                   {a.kind === "consecutive"
                     ? `đã nghỉ ${a.count} buổi liên tiếp (từ ${displayDay(a.since)}) — nên liên hệ phụ huynh.`
                     : `có ${a.count} buổi nghỉ không phép trong tháng này.`}
+                </Todo>
+              ))}
+              {!lastWeekLocked ? (
+                <Todo tone="info">
+                  Chưa chốt xếp loại thi đua tuần trước.{" "}
+                  <Link to="/chu-nhiem/thi-dua" className="text-primary underline">
+                    Chốt tuần
+                  </Link>
+                </Todo>
+              ) : null}
+              {followUps.map((c) => (
+                <Todo key={c.id} tone="warn">
+                  Hẹn liên hệ lại phụ huynh em <b>{names.get(c.studentId) ?? ""}</b> (
+                  {displayDay(c.followUp!)}).{" "}
+                  <Link to="/chu-nhiem/phu-huynh" className="text-primary underline">
+                    Mở nhật ký
+                  </Link>
                 </Todo>
               ))}
               {view.noGender ? (

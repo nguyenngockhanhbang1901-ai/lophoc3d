@@ -10,7 +10,6 @@ import {
   recordBehavior,
   undoBehavior,
   type BehaviorEvent,
-  type BookData,
 } from "@/lib/gradebook/gradebook.functions";
 import {
   BEHAVIOR_KINDS,
@@ -19,9 +18,8 @@ import {
   type BehaviorKind,
 } from "@/lib/gradebook/scores";
 import { displayDay, vnToday, weekdayName } from "@/lib/homeroom/periods";
-import { isActive } from "@/lib/homeroom/profiles";
+import { byGivenName, isActive, type StudentStatus } from "@/lib/homeroom/profiles";
 import { errorText } from "./files";
-import { sortedStudents } from "./ScoreGrid";
 
 const SHORT: Record<BehaviorKind, string> = {
   phat_bieu: "Phát biểu",
@@ -32,7 +30,19 @@ const SHORT: Record<BehaviorKind, string> = {
   mat_trat_tu: "Mất trật tự",
 };
 
-export function BehaviorPanel({ data, onRecorded }: { data: BookData; onRecorded: () => void }) {
+export function BehaviorPanel({
+  classId,
+  subject,
+  roster,
+  note,
+  onRecorded,
+}: {
+  classId: string;
+  subject: string;
+  roster: { id: string; fullName: string; status: StudentStatus }[];
+  note?: string;
+  onRecorded?: () => void;
+}) {
   const load = useServerFn(behaviorOfDay);
   const record = useServerFn(recordBehavior);
   const undo = useServerFn(undoBehavior);
@@ -40,8 +50,10 @@ export function BehaviorPanel({ data, onRecorded }: { data: BookData; onRecorded
   const [events, setEvents] = useState<BehaviorEvent[]>([]);
   const [last, setLast] = useState<(BehaviorEvent & { name: string }) | null>(null);
   const [error, setError] = useState("");
-  const students = useMemo(() => sortedStudents(data).filter((s) => isActive(s.status)), [data]);
-  const { classId, subject } = data.book;
+  const students = useMemo(
+    () => roster.filter((s) => isActive(s.status)).sort(byGivenName),
+    [roster],
+  );
 
   const fetchDay = useCallback(async () => {
     try {
@@ -70,7 +82,7 @@ export function BehaviorPanel({ data, onRecorded }: { data: BookData; onRecorded
       const ev = await record({ data: { classId, studentId, kind, subject, day } });
       setEvents((x) => [...x, ev]);
       setLast({ ...ev, name });
-      onRecorded();
+      onRecorded?.();
     } catch (e) {
       setError(errorText(e));
     }
@@ -135,7 +147,7 @@ export function BehaviorPanel({ data, onRecorded }: { data: BookData; onRecorded
                 void undo({ data: { id } })
                   .then(() => {
                     setEvents((x) => x.filter((e) => e.id !== id));
-                    onRecorded();
+                    onRecorded?.();
                   })
                   .catch((e) => setError(errorText(e)));
               }}

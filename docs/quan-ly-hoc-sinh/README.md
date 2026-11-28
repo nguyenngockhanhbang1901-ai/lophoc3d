@@ -24,3 +24,12 @@ Trang mới: `/chu-nhiem` (tổng quan), `/chu-nhiem/ho-so`, `/chu-nhiem/diem-da
 
 Trang mới: `/so-diem`. File SMAS (Sổ điểm → Xuất Excel) được đọc và lưu cùng sổ; “Xuất file SMAS”
 trả lại đúng file đó đã điền điểm (điểm sau cộng/trừ), giữ nguyên mã ẩn và công thức để nhập lại SMAS.
+
+## Đợt 2b: khen thưởng – vi phạm, thi đua tuần, đánh giá, phụ huynh
+
+> Hãy tạo migration mới với đúng nội dung SQL trong file `docs/quan-ly-hoc-sinh/03-dot-2b-danh-gia-thi-dua.sql`
+> (cột weekly_rule cho hr_class_settings; bảng hr_incidents, hr_weekly_results, hr_evaluations,
+> hr_parent_contacts; chỉ cấp quyền cho service_role, bật RLS, không thêm policy).
+> Không sửa code giao diện hay server functions. Sau khi tạo xong, cập nhật lại types của Supabase.
+
+Trang mới: `/chu-nhiem/thi-dua`, `/chu-nhiem/danh-gia`, `/chu-nhiem/phu-huynh`, `/chu-nhiem/bao-cao`.

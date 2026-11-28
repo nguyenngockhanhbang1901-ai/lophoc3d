@@ -287,7 +287,13 @@ export function GradebookPage() {
             />
           </TabsContent>
           <TabsContent value="ghi-nhan">
-            <BehaviorPanel data={data} onRecorded={() => void refreshBook()} />
+            <BehaviorPanel
+              classId={data.book.classId}
+              subject={data.book.subject}
+              roster={data.students}
+              note="Chạm một lần = một lần ghi nhận. Ghi nhận cũng hiện ở trang thi đua của giáo viên chủ nhiệm."
+              onRecorded={() => void refreshBook()}
+            />
           </TabsContent>
         </Tabs>
       )}

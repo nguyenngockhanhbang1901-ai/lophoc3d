@@ -186,7 +186,7 @@ export function SmasImportDialog({
         nameKey(c.name) === nameKey(sheet.className) &&
         (!sheet.schoolYear || !c.schoolYear || c.schoolYear === sheet.schoolYear),
     ) ?? active.find((c) => nameKey(c.name) === nameKey(sheet.className));
-  const [classId, setClassId] = useState(guess?.id ?? "");
+  const [classId, setClassId] = useState(guess?.id ?? (active.length === 1 ? active[0]!.id : ""));
   const [students, setStudents] = useState<ClassStudent[] | null>(null);
   const [overwrite, setOverwrite] = useState(false);
   const [busy, setBusy] = useState(false);

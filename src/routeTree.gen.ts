@@ -22,9 +22,13 @@ import { Route as SoDiemRouteImport } from './routes/so-diem'
 import { Route as SoanBaiRouteImport } from './routes/soan-bai'
 import { Route as XemBaiRouteImport } from './routes/xem-bai'
 import { Route as ChuNhiemIndexRouteImport } from './routes/chu-nhiem.index'
+import { Route as ChuNhiemBaoCaoRouteImport } from './routes/chu-nhiem.bao-cao'
 import { Route as ChuNhiemChuyenCanRouteImport } from './routes/chu-nhiem.chuyen-can'
+import { Route as ChuNhiemDanhGiaRouteImport } from './routes/chu-nhiem.danh-gia'
 import { Route as ChuNhiemDiemDanhRouteImport } from './routes/chu-nhiem.diem-danh'
 import { Route as ChuNhiemHoSoRouteImport } from './routes/chu-nhiem.ho-so'
+import { Route as ChuNhiemPhuHuynhRouteImport } from './routes/chu-nhiem.phu-huynh'
+import { Route as ChuNhiemThiDuaRouteImport } from './routes/chu-nhiem.thi-dua'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -91,9 +95,19 @@ const ChuNhiemIndexRoute = ChuNhiemIndexRouteImport.update({
   path: '/chu-nhiem/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChuNhiemBaoCaoRoute = ChuNhiemBaoCaoRouteImport.update({
+  id: '/chu-nhiem/bao-cao',
+  path: '/chu-nhiem/bao-cao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChuNhiemChuyenCanRoute = ChuNhiemChuyenCanRouteImport.update({
   id: '/chu-nhiem/chuyen-can',
   path: '/chu-nhiem/chuyen-can',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemDanhGiaRoute = ChuNhiemDanhGiaRouteImport.update({
+  id: '/chu-nhiem/danh-gia',
+  path: '/chu-nhiem/danh-gia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChuNhiemDiemDanhRoute = ChuNhiemDiemDanhRouteImport.update({
@@ -104,6 +118,16 @@ const ChuNhiemDiemDanhRoute = ChuNhiemDiemDanhRouteImport.update({
 const ChuNhiemHoSoRoute = ChuNhiemHoSoRouteImport.update({
   id: '/chu-nhiem/ho-so',
   path: '/chu-nhiem/ho-so',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemPhuHuynhRoute = ChuNhiemPhuHuynhRouteImport.update({
+  id: '/chu-nhiem/phu-huynh',
+  path: '/chu-nhiem/phu-huynh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemThiDuaRoute = ChuNhiemThiDuaRouteImport.update({
+  id: '/chu-nhiem/thi-dua',
+  path: '/chu-nhiem/thi-dua',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -120,9 +144,13 @@ export interface FileRoutesByFullPath {
   '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/bao-cao': typeof ChuNhiemBaoCaoRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/danh-gia': typeof ChuNhiemDanhGiaRoute
   '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
   '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem/phu-huynh': typeof ChuNhiemPhuHuynhRoute
+  '/chu-nhiem/thi-dua': typeof ChuNhiemThiDuaRoute
   '/chu-nhiem/': typeof ChuNhiemIndexRoute
 }
 export interface FileRoutesByTo {
@@ -138,9 +166,13 @@ export interface FileRoutesByTo {
   '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/bao-cao': typeof ChuNhiemBaoCaoRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/danh-gia': typeof ChuNhiemDanhGiaRoute
   '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
   '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem/phu-huynh': typeof ChuNhiemPhuHuynhRoute
+  '/chu-nhiem/thi-dua': typeof ChuNhiemThiDuaRoute
   '/chu-nhiem': typeof ChuNhiemIndexRoute
 }
 export interface FileRoutesById {
@@ -157,9 +189,13 @@ export interface FileRoutesById {
   '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/bao-cao': typeof ChuNhiemBaoCaoRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/danh-gia': typeof ChuNhiemDanhGiaRoute
   '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
   '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem/phu-huynh': typeof ChuNhiemPhuHuynhRoute
+  '/chu-nhiem/thi-dua': typeof ChuNhiemThiDuaRoute
   '/chu-nhiem/': typeof ChuNhiemIndexRoute
 }
 export interface FileRouteTypes {
@@ -177,9 +213,13 @@ export interface FileRouteTypes {
     | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/bao-cao'
     | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/danh-gia'
     | '/chu-nhiem/diem-danh'
     | '/chu-nhiem/ho-so'
+    | '/chu-nhiem/phu-huynh'
+    | '/chu-nhiem/thi-dua'
     | '/chu-nhiem/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -195,9 +235,13 @@ export interface FileRouteTypes {
     | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/bao-cao'
     | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/danh-gia'
     | '/chu-nhiem/diem-danh'
     | '/chu-nhiem/ho-so'
+    | '/chu-nhiem/phu-huynh'
+    | '/chu-nhiem/thi-dua'
     | '/chu-nhiem'
   id:
     | '__root__'
@@ -213,9 +257,13 @@ export interface FileRouteTypes {
     | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/bao-cao'
     | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/danh-gia'
     | '/chu-nhiem/diem-danh'
     | '/chu-nhiem/ho-so'
+    | '/chu-nhiem/phu-huynh'
+    | '/chu-nhiem/thi-dua'
     | '/chu-nhiem/'
   fileRoutesById: FileRoutesById
 }
@@ -232,9 +280,13 @@ export interface RootRouteChildren {
   SoDiemRoute: typeof SoDiemRoute
   SoanBaiRoute: typeof SoanBaiRoute
   XemBaiRoute: typeof XemBaiRoute
+  ChuNhiemBaoCaoRoute: typeof ChuNhiemBaoCaoRoute
   ChuNhiemChuyenCanRoute: typeof ChuNhiemChuyenCanRoute
+  ChuNhiemDanhGiaRoute: typeof ChuNhiemDanhGiaRoute
   ChuNhiemDiemDanhRoute: typeof ChuNhiemDiemDanhRoute
   ChuNhiemHoSoRoute: typeof ChuNhiemHoSoRoute
+  ChuNhiemPhuHuynhRoute: typeof ChuNhiemPhuHuynhRoute
+  ChuNhiemThiDuaRoute: typeof ChuNhiemThiDuaRoute
   ChuNhiemIndexRoute: typeof ChuNhiemIndexRoute
 }
 
@@ -331,11 +383,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChuNhiemIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chu-nhiem/bao-cao': {
+      id: '/chu-nhiem/bao-cao'
+      path: '/chu-nhiem/bao-cao'
+      fullPath: '/chu-nhiem/bao-cao'
+      preLoaderRoute: typeof ChuNhiemBaoCaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chu-nhiem/chuyen-can': {
       id: '/chu-nhiem/chuyen-can'
       path: '/chu-nhiem/chuyen-can'
       fullPath: '/chu-nhiem/chuyen-can'
       preLoaderRoute: typeof ChuNhiemChuyenCanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/danh-gia': {
+      id: '/chu-nhiem/danh-gia'
+      path: '/chu-nhiem/danh-gia'
+      fullPath: '/chu-nhiem/danh-gia'
+      preLoaderRoute: typeof ChuNhiemDanhGiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chu-nhiem/diem-danh': {
@@ -350,6 +416,20 @@ declare module '@tanstack/react-router' {
       path: '/chu-nhiem/ho-so'
       fullPath: '/chu-nhiem/ho-so'
       preLoaderRoute: typeof ChuNhiemHoSoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/phu-huynh': {
+      id: '/chu-nhiem/phu-huynh'
+      path: '/chu-nhiem/phu-huynh'
+      fullPath: '/chu-nhiem/phu-huynh'
+      preLoaderRoute: typeof ChuNhiemPhuHuynhRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/thi-dua': {
+      id: '/chu-nhiem/thi-dua'
+      path: '/chu-nhiem/thi-dua'
+      fullPath: '/chu-nhiem/thi-dua'
+      preLoaderRoute: typeof ChuNhiemThiDuaRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -368,9 +448,13 @@ const rootRouteChildren: RootRouteChildren = {
   SoDiemRoute: SoDiemRoute,
   SoanBaiRoute: SoanBaiRoute,
   XemBaiRoute: XemBaiRoute,
+  ChuNhiemBaoCaoRoute: ChuNhiemBaoCaoRoute,
   ChuNhiemChuyenCanRoute: ChuNhiemChuyenCanRoute,
+  ChuNhiemDanhGiaRoute: ChuNhiemDanhGiaRoute,
   ChuNhiemDiemDanhRoute: ChuNhiemDiemDanhRoute,
   ChuNhiemHoSoRoute: ChuNhiemHoSoRoute,
+  ChuNhiemPhuHuynhRoute: ChuNhiemPhuHuynhRoute,
+  ChuNhiemThiDuaRoute: ChuNhiemThiDuaRoute,
   ChuNhiemIndexRoute: ChuNhiemIndexRoute,
 }
 export const routeTree = rootRouteImport
