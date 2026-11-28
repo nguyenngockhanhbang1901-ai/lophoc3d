@@ -20,6 +20,7 @@ import {
   type ParentContact,
 } from "@/lib/homeroom/records.functions";
 import { learningAlerts, type LearningAlert } from "@/lib/homeroom/evaluation";
+import { vnDay } from "@/lib/homeroom/report";
 import { attendanceAlerts, classTotal, dayTaken, tallies } from "@/lib/homeroom/attendance";
 import {
   addDays,
@@ -42,6 +43,9 @@ export function OverviewPage({ cls }: HomeroomContext) {
   const incidentsFn = useServerFn(listIncidents);
   const [learning, setLearning] = useState<LearningAlert[]>([]);
   const [repeated, setRepeated] = useState<{ studentId: string; count: number }[]>([]);
+  const [fresh, setFresh] = useState<
+    { studentId: string; subject: string; label: string; value: number }[]
+  >([]);
   const weekly = useServerFn(weeklyData);
   const [data, setData] = useState<AttendanceData | null>(null);
   const [followUps, setFollowUps] = useState<ParentContact[]>([]);
@@ -72,6 +76,20 @@ export function OverviewPage({ cls }: HomeroomContext) {
       const semester = termOf(today, cls.settings) ?? 1;
       const ids = [...new Set(b.flatMap((x) => x.scores.map((sc) => sc.studentId)))];
       setLearning(learningAlerts(b, ids, semester));
+      // single scores under 3.5 entered in the last 7 days
+      const since = addDays(today, -7);
+      setFresh(
+        b.flatMap((book) =>
+          book.scores
+            .filter((sc) => sc.num !== null && sc.num < 3.5 && vnDay(sc.updatedAt) >= since)
+            .map((sc) => ({
+              studentId: sc.studentId,
+              subject: book.subject,
+              label: book.columns.find((c) => c.key === sc.key)?.label ?? sc.key,
+              value: sc.num as number,
+            })),
+        ),
+      );
       const counts = new Map<string, number>();
       for (const i of inc)
         if (i.type === "vi_pham") counts.set(i.studentId, (counts.get(i.studentId) ?? 0) + 1);
@@ -194,9 +212,34 @@ export function OverviewPage({ cls }: HomeroomContext) {
               {learning.map((a) => (
                 <Todo key={`${a.kind}${a.studentId}${a.subject}`} tone="alert">
                   <b>{names.get(a.studentId) ?? ""}</b>{" "}
-                  {a.kind === "low"
-                    ? `có ĐTB môn ${a.subject} ${String(a.value).replace(".", ",")} (dưới 5).`
-                    : `giảm môn ${a.subject} từ ${String(a.from).replace(".", ",")} xuống ${String(a.to).replace(".", ",")}.`}
+                  {a.kind === "very_low" ? (
+                    <>
+                      có ĐTB môn {a.subject}{" "}
+                      <span className="rounded bg-red-100 px-1 font-bold text-red-900">
+                        {String(a.value).replace(".", ",")}
+                      </span>{" "}
+                      — dưới 3,5, có thể khiến mức học tập bị xếp Chưa đạt.
+                    </>
+                  ) : a.kind === "low" ? (
+                    <>
+                      có ĐTB môn {a.subject}{" "}
+                      <span className="font-semibold text-red-600">
+                        {String(a.value).replace(".", ",")}
+                      </span>{" "}
+                      (dưới 5).
+                    </>
+                  ) : a.kind === "drop" ? (
+                    `giảm môn ${a.subject} từ ${String(a.from).replace(".", ",")} xuống ${String(a.to).replace(".", ",")}.`
+                  ) : null}
+                </Todo>
+              ))}
+              {fresh.map((f) => (
+                <Todo key={`f${f.studentId}${f.subject}${f.label}`} tone="alert">
+                  <b>{names.get(f.studentId) ?? ""}</b> vừa nhận điểm{" "}
+                  <span className="rounded bg-red-100 px-1 font-bold text-red-900">
+                    {String(f.value).replace(".", ",")}
+                  </span>{" "}
+                  môn {f.subject} ({f.label}).
                 </Todo>
               ))}
               {repeated.map((r) => (

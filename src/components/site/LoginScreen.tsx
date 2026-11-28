@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { AuthorCredit, HeroArt, SiteLogo } from "./brand";
 import { TAB_ALIVE_KEY, TEMP_SESSION_KEY } from "@/lib/session-keys";
+import { isOwnerEmail, NOT_OWNER_FLAG, NOT_OWNER_MESSAGE } from "@/lib/site-owner";
 
 export type LoginRole = "student" | "teacher";
 type TeacherMode = "login" | "signup" | "forgot";
@@ -222,9 +223,8 @@ export function LoginScreen({
                 thầy cô chiếu trên màn hình chung, không cần tài khoản.
               </p>
               <p>
-                <b>Giáo viên:</b> chọn thẻ <i>Giáo viên</i>, đăng nhập bằng email đã đăng ký hoặc
-                bấm <i>Tiếp tục với Google</i>. Chưa có tài khoản thì bấm{" "}
-                <i>Đăng ký tài khoản giáo viên</i>.
+                <b>Giáo viên:</b> đây là website cá nhân, chỉ tài khoản của chủ website được đăng
+                nhập quản trị. Khách có thể xem các trang công khai mà không cần đăng nhập.
               </p>
             </div>
           </DialogDescription>
@@ -312,6 +312,27 @@ function TeacherForm() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The root signs out any account that is not the site owner and leaves this flag to explain why.
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(NOT_OWNER_FLAG)) {
+        window.sessionStorage.removeItem(NOT_OWNER_FLAG);
+        setMessage({ ok: false, text: NOT_OWNER_MESSAGE });
+      }
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  /** Only the owner's accounts may stay signed in. */
+  async function ownerOnly(): Promise<boolean> {
+    const { data } = await supabase.auth.getUser();
+    if (data.user && isOwnerEmail(data.user.email)) return true;
+    await supabase.auth.signOut();
+    setMessage({ ok: false, text: NOT_OWNER_MESSAGE });
+    return false;
+  }
+
   function keepSession() {
     try {
       if (remember) window.localStorage.removeItem(TEMP_SESSION_KEY);
@@ -335,6 +356,7 @@ function TeacherForm() {
         if (error) throw error;
         setMessage({ ok: true, text: "Đã gửi email. Hãy mở hộp thư để đặt lại mật khẩu." });
       } else if (mode === "signup") {
+        if (!isOwnerEmail(email)) throw new Error(NOT_OWNER_MESSAGE);
         if (password !== again) throw new Error("Hai lần nhập mật khẩu không khớp.");
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -355,6 +377,7 @@ function TeacherForm() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (!(await ownerOnly())) return;
         keepSession();
         await navigate({ to: "/" });
       }
@@ -381,6 +404,7 @@ function TeacherForm() {
       setMessage({ ok: false, text: "Không đăng nhập được. Vui lòng thử lại." });
       return;
     }
+    if (!(await ownerOnly())) return;
     await navigate({ to: "/" });
   }
 
@@ -511,18 +535,9 @@ function TeacherForm() {
             {mode === "signup" ? "Đăng ký bằng Google" : "Tiếp tục với Google"}
           </Button>
           {mode === "login" && (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-[10px] font-semibold"
-              onClick={() => {
-                setMode("signup");
-                setMessage(null);
-              }}
-            >
-              <Plus />
-              Đăng ký tài khoản giáo viên
-            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Website cá nhân: chỉ chủ website đăng nhập quản trị. Học sinh chọn thẻ Học sinh.
+            </p>
           )}
         </>
       )}

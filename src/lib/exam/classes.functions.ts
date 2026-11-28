@@ -5,7 +5,7 @@
 // hash for signing in, and an AES-GCM copy the teacher can read back (key on the server).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 import { cleanFullName, makeUsername, passwordProblem } from "./accounts";
 import { parseRoster } from "./roster";
 
@@ -89,7 +89,7 @@ async function applyPassword(studentIds: string[], plain: string) {
 }
 
 export const listExamClasses = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .handler(async ({ context }): Promise<ExamClassSummary[]> => {
     const { examDb } = await import("./db.server");
     const db = examDb();
@@ -130,7 +130,7 @@ export const listExamClasses = createServerFn({ method: "POST" })
  * (including those who chose their own) goes back to the new default.
  */
 export const saveExamClass = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       id: uuid.optional(),
@@ -183,7 +183,7 @@ export const saveExamClass = createServerFn({ method: "POST" })
   });
 
 export const deleteExamClass = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass } = await import("./db.server");
@@ -198,7 +198,7 @@ export const deleteExamClass = createServerFn({ method: "POST" })
   });
 
 export const listClassStudents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid }))
   .handler(async ({ data, context }): Promise<ExamStudentSummary[]> => {
     const { examDb, ownedClass, passwordKey, STUDENT_PUBLIC_COLUMNS } = await import("./db.server");
@@ -254,7 +254,7 @@ export const listClassStudents = createServerFn({ method: "POST" })
  * against the class are checked again here.
  */
 export const addStudents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -369,7 +369,7 @@ export const addStudents = createServerFn({ method: "POST" })
 
 /** Chosen students go back to the class default password; their open sessions end. */
 export const resetToDefaultPassword = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, studentIds: ids }))
   .handler(async ({ data, context }) => {
     const { ownedClass, studentsInClass } = await import("./db.server");
@@ -382,7 +382,7 @@ export const resetToDefaultPassword = createServerFn({ method: "POST" })
   });
 
 export const setStudentsLocked = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, studentIds: ids, locked: z.boolean() }))
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass, studentsInClass } = await import("./db.server");
@@ -399,7 +399,7 @@ export const setStudentsLocked = createServerFn({ method: "POST" })
   });
 
 export const moveStudents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, studentIds: ids, toClassId: uuid }))
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass, studentsInClass } = await import("./db.server");
@@ -415,7 +415,7 @@ export const moveStudents = createServerFn({ method: "POST" })
   });
 
 export const deleteStudents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, studentIds: ids }))
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass, studentsInClass } = await import("./db.server");
@@ -427,7 +427,7 @@ export const deleteStudents = createServerFn({ method: "POST" })
   });
 
 export const updateStudent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -456,7 +456,7 @@ export const updateStudent = createServerFn({ method: "POST" })
 
 /** Login history of one student (newest first). */
 export const studentLoginLog = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, studentId: uuid }))
   .handler(async ({ data, context }) => {
     const { examDb, ownedClass, studentsInClass } = await import("./db.server");

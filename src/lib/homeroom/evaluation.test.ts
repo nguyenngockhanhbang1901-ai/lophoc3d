@@ -178,6 +178,9 @@ describe("learning alerts and AI helpers", () => {
     expect(learningAlerts([b(1, 8), b(2, 6.5)], ["a"], 2)).toEqual([
       { kind: "drop", studentId: "a", subject: "Toán", from: 8, to: 6.5 },
     ]);
+    expect(learningAlerts([b(1, 3)], ["a"], 1)).toEqual([
+      { kind: "very_low", studentId: "a", subject: "Toán", value: 3 },
+    ]);
     expect(learningAlerts([b(1, 4.5)], ["a"], 1)).toEqual([
       { kind: "low", studentId: "a", subject: "Toán", value: 4.5 },
     ]);

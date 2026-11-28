@@ -10,6 +10,7 @@ import {
   formatScore,
   isNumeric,
   parseScore,
+  scoreClass,
   termAverage,
   type BehaviorKind,
   type BookColumn,
@@ -202,7 +203,7 @@ export function ScoreGrid({
                     </button>
                   </td>
                   <td
-                    className={`px-1 text-center font-semibold ${avg.average !== null && avg.average < 5 ? "text-red-700" : ""} ${avg.complete ? "" : "text-muted-foreground"}`}
+                    className={`px-1 text-center font-semibold ${avg.average !== null && avg.average < 5 ? scoreClass(avg.average) : avg.complete ? "" : "text-muted-foreground"}`}
                     title={
                       avg.average !== null && !avg.complete
                         ? "Chưa đủ cột điểm – SMAS chỉ tính khi đủ các cột"
@@ -273,6 +274,9 @@ function Cell({
     setBad(!ok);
   }
 
+  const typed = isNumeric(col) ? parseScore(text) : null;
+  const tone = typeof typed === "number" ? scoreClass(typed) : "";
+
   if (col.kind === "dg")
     return (
       <select
@@ -298,7 +302,7 @@ function Cell({
         aria-label={label}
         inputMode={isNumeric(col) ? "decimal" : "text"}
         maxLength={isNumeric(col) ? 5 : 255}
-        className={`h-8 w-full rounded border px-1 ${isNumeric(col) ? "text-center" : ""} ${bad ? "border-red-500 bg-red-50" : "border-transparent hover:border-border focus:border-primary"} ${saving ? "opacity-60" : ""}`}
+        className={`h-8 w-full rounded border px-1 ${isNumeric(col) ? "text-center" : ""} ${bad ? "border-red-500 bg-red-50" : "border-transparent hover:border-border focus:border-primary"} ${bad ? "" : tone} ${saving ? "opacity-60" : ""}`}
         value={text}
         onChange={(e) => {
           setText(e.target.value);

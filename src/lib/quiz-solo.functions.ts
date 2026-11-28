@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { requireOwner } from '@/lib/owner-middleware';
 import { classroomCodeSchema, codeJoinKey } from './classroom-access';
 import { assignmentStarted } from './assignment';
 import { MAX_CUBE_STUDENTS, scheduledReleaseError } from './cube-practice';
@@ -87,7 +87,7 @@ export const answerQuizSolo = createServerFn({ method: 'POST' }).inputValidator(
 });
 
 /** Teacher only: every joined student's stored progress; ranking is computed in pure quiz-solo.ts. */
-export const readQuizSoloResults = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(z.object({ roomId: z.string().uuid() })).handler(async ({ data, context }) => {
+export const readQuizSoloResults = createServerFn({ method: 'POST' }).middleware([requireOwner]).inputValidator(z.object({ roomId: z.string().uuid() })).handler(async ({ data, context }) => {
   const { data: room } = await context.supabase.from('classrooms').select('id,lesson_key,started_at').eq('id', data.roomId).eq('owner_id', context.userId).maybeSingle();
   if (!room || room.lesson_key !== QUIZ_SOLO_LESSON_KEY) throw new Error('Không có quyền xem lớp');
   const { data: rows, error } = await context.supabase.from('lesson111_students').select('slot,name,answers').eq('classroom_id', room.id).not('name', 'is', null).order('slot');
@@ -96,7 +96,7 @@ export const readQuizSoloResults = createServerFn({ method: 'POST' }).middleware
 });
 
 /** Same scheduling as Bài 11.1: the future moment is stored as classrooms.started_at, so the game opens exactly then. */
-export const scheduleQuizSoloRelease = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(z.object({ roomId: z.string().uuid(), at: z.string().datetime({ offset: true }).nullable() })).handler(async ({ data, context }) => {
+export const scheduleQuizSoloRelease = createServerFn({ method: 'POST' }).middleware([requireOwner]).inputValidator(z.object({ roomId: z.string().uuid(), at: z.string().datetime({ offset: true }).nullable() })).handler(async ({ data, context }) => {
   const { data: room } = await context.supabase.from('classrooms').select('id,lesson_key,started_at').eq('id', data.roomId).eq('owner_id', context.userId).maybeSingle();
   if (!room || room.lesson_key !== QUIZ_SOLO_LESSON_KEY) throw new Error('Không có quyền với lớp này');
   const now = Date.now();
