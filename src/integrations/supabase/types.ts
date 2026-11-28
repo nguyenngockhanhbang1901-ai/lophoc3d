@@ -1097,6 +1097,200 @@ export type Database = {
           },
         ]
       }
+      gb_bonus: {
+        Row: {
+          book_id: string
+          minus: number
+          note: string
+          plus: number
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          minus?: number
+          note?: string
+          plus?: number
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          minus?: number
+          note?: string
+          plus?: number
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gb_bonus_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "gb_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gb_bonus_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gb_bonus_log: {
+        Row: {
+          at: string
+          book_id: string
+          id: string
+          minus_new: number
+          minus_old: number
+          note: string
+          owner_id: string
+          plus_new: number
+          plus_old: number
+          student_id: string
+        }
+        Insert: {
+          at?: string
+          book_id: string
+          id?: string
+          minus_new: number
+          minus_old: number
+          note?: string
+          owner_id: string
+          plus_new: number
+          plus_old: number
+          student_id: string
+        }
+        Update: {
+          at?: string
+          book_id?: string
+          id?: string
+          minus_new?: number
+          minus_old?: number
+          note?: string
+          owner_id?: string
+          plus_new?: number
+          plus_old?: number
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gb_bonus_log_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "gb_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gb_bonus_log_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gb_books: {
+        Row: {
+          bonus_rule: Json | null
+          bonus_target: string | null
+          class_id: string
+          columns: Json
+          created_at: string
+          id: string
+          owner_id: string
+          school_year: string
+          semester: number
+          smas_map: Json | null
+          smas_template: string | null
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          bonus_rule?: Json | null
+          bonus_target?: string | null
+          class_id: string
+          columns: Json
+          created_at?: string
+          id?: string
+          owner_id: string
+          school_year?: string
+          semester: number
+          smas_map?: Json | null
+          smas_template?: string | null
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          bonus_rule?: Json | null
+          bonus_target?: string | null
+          class_id?: string
+          columns?: Json
+          created_at?: string
+          id?: string
+          owner_id?: string
+          school_year?: string
+          semester?: number
+          smas_map?: Json | null
+          smas_template?: string | null
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gb_books_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gb_scores: {
+        Row: {
+          book_id: string
+          column_key: string
+          num: number | null
+          student_id: string
+          txt: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          column_key: string
+          num?: number | null
+          student_id: string
+          txt?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          column_key?: string
+          num?: number | null
+          student_id?: string
+          txt?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gb_scores_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "gb_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gb_scores_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_absences: {
         Row: {
           class_id: string
@@ -1179,6 +1373,57 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_behavior_events: {
+        Row: {
+          class_id: string
+          created_at: string
+          day: string
+          id: string
+          kind: string
+          note: string
+          owner_id: string
+          student_id: string
+          subject: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          day: string
+          id?: string
+          kind: string
+          note?: string
+          owner_id: string
+          student_id: string
+          subject?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          day?: string
+          id?: string
+          kind?: string
+          note?: string
+          owner_id?: string
+          student_id?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_behavior_events_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_behavior_events_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
             referencedColumns: ["id"]
           },
         ]

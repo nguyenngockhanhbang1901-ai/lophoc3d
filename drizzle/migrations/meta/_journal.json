@@ -85,6 +85,13 @@
       "when": 1795854610459,
       "tag": "0011_create_homeroom_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795855874790,
+      "tag": "0012_create_gradebook_and_behavior_events",
+      "breakpoints": true
     }
   ]
 }
