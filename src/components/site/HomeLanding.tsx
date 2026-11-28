@@ -117,20 +117,23 @@ export const LESSON_TITLES: Record<string, string> = {
 export function HomeLanding({
   joinForm,
   focusJoin,
-  onPreviewLesson,
 }: {
   /** The class-code form students use to enter a live lesson. */
   joinForm: ReactNode;
   focusJoin: boolean;
-  onPreviewLesson: (key: string, title: string) => void;
 }) {
   const [help, setHelp] = useState(false);
+  /** Guests only see the outside of the site: a lesson opens only through a class code. */
+  const [locked, setLocked] = useState<string | null>(null);
   const joinRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!focusJoin) return;
+  const goJoin = () => {
     joinRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     joinRef.current?.querySelector("input")?.focus();
+  };
+  useEffect(() => {
+    if (focusJoin) goJoin();
   }, [focusJoin]);
+  const onPreviewLesson = (_key: string, title: string) => setLocked(title);
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   const openTool = (t: Tool) => {
@@ -303,7 +306,11 @@ export function HomeLanding({
             </div>
           </section>
 
-          <section id="vao-lop" ref={joinRef} className="site-card order-first scroll-mt-24 p-4 lg:order-none">
+          <section
+            id="vao-lop"
+            ref={joinRef}
+            className="site-card order-first scroll-mt-24 p-4 lg:order-none"
+          >
             <h2 className="mb-1 flex items-center gap-2 font-bold text-[color:var(--site-navy)]">
               <KeyRound size={17} className="text-amber-500" />
               Vào lớp bằng mã lớp
@@ -353,6 +360,28 @@ export function HomeLanding({
       <footer className="mx-auto flex w-full max-w-7xl justify-end px-4 pb-5 md:px-8">
         <AuthorCredit />
       </footer>
+
+      <Dialog open={!!locked} onOpenChange={(o) => !o && setLocked(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle>Cần mã lớp để xem bài giảng</DialogTitle>
+          <DialogDescription asChild>
+            <div className="grid gap-3 text-sm">
+              <p>
+                <b>{locked}</b> chỉ mở trong giờ học. Hãy nhập <b>mã lớp</b> thầy cô cung cấp (lớp
+                phải đang mở) để vào bài.
+              </p>
+              <Button
+                onClick={() => {
+                  setLocked(null);
+                  setTimeout(goJoin, 150);
+                }}
+              >
+                Nhập mã lớp
+              </Button>
+            </div>
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent>

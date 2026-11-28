@@ -376,7 +376,7 @@ function ClassroomContent() {
           <Button disabled={busy} type="submit">{busy ? 'Đang xử lý…' : joinInfo ? 'Vào lớp học' : 'Tham gia lớp học'}<ArrowRight /></Button>
         </form>;
     if (authState === undefined) return <div className="site-page" />;
-    if (!user && !authState) return <HomeLanding joinForm={joinForm} focusJoin={focusJoin} onPreviewLesson={(key, title) => previewLesson(key, title)} />;
+    if (!user && !authState) return <HomeLanding joinForm={joinForm} focusJoin={focusJoin} />;
     if (!user) return <div className="site-page" />;
     return <TeacherDashboard user={user} rooms={rooms}
       onOpenLesson={(key, title, content) => previewLesson(key, title, content)}
