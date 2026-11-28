@@ -18,6 +18,7 @@ import { Route as LopThiRouteImport } from './routes/lop-thi'
 import { Route as MaTranDeRouteImport } from './routes/ma-tran-de'
 import { Route as NganHangDeRouteImport } from './routes/ngan-hang-de'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SoDiemRouteImport } from './routes/so-diem'
 import { Route as SoanBaiRouteImport } from './routes/soan-bai'
 import { Route as XemBaiRouteImport } from './routes/xem-bai'
 import { Route as ChuNhiemIndexRouteImport } from './routes/chu-nhiem.index'
@@ -70,6 +71,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoDiemRoute = SoDiemRouteImport.update({
+  id: '/so-diem',
+  path: '/so-diem',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SoanBaiRoute = SoanBaiRouteImport.update({
   id: '/soan-bai',
   path: '/soan-bai',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/ma-tran-de': typeof MaTranDeRoute
   '/ngan-hang-de': typeof NganHangDeRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/so-diem': typeof SoDiemRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
   '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
+    | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
     | '/chu-nhiem/chuyen-can'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
+    | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
     | '/chu-nhiem/chuyen-can'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/ma-tran-de'
     | '/ngan-hang-de'
     | '/reset-password'
+    | '/so-diem'
     | '/soan-bai'
     | '/xem-bai'
     | '/chu-nhiem/chuyen-can'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   MaTranDeRoute: typeof MaTranDeRoute
   NganHangDeRoute: typeof NganHangDeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SoDiemRoute: typeof SoDiemRoute
   SoanBaiRoute: typeof SoanBaiRoute
   XemBaiRoute: typeof XemBaiRoute
   ChuNhiemChuyenCanRoute: typeof ChuNhiemChuyenCanRoute
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/so-diem': {
+      id: '/so-diem'
+      path: '/so-diem'
+      fullPath: '/so-diem'
+      preLoaderRoute: typeof SoDiemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/soan-bai': {
       id: '/soan-bai'
       path: '/soan-bai'
@@ -345,6 +365,7 @@ const rootRouteChildren: RootRouteChildren = {
   MaTranDeRoute: MaTranDeRoute,
   NganHangDeRoute: NganHangDeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SoDiemRoute: SoDiemRoute,
   SoanBaiRoute: SoanBaiRoute,
   XemBaiRoute: XemBaiRoute,
   ChuNhiemChuyenCanRoute: ChuNhiemChuyenCanRoute,
