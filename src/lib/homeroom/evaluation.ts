@@ -124,3 +124,75 @@ export function yearConduct(t1: Level | null, t2: Level | null): Level | null {
   if (t2 === "kha") return t1 === "chua_dat" ? "dat" : "kha";
   return t1 === "tot" ? "kha" : "dat";
 }
+
+/** A score book as the homeroom pages hold it (see ClassBook in records.functions.ts). */
+export interface StudentBook {
+  subject: string;
+  semester: 1 | 2;
+  columns: BookColumn[];
+  bonusTarget: string | null;
+  scores: { studentId: string; key: string; num: number | null; txt: string | null }[];
+  bonus: { studentId: string; plus: number; minus: number }[];
+}
+
+/** One student's result in one book. */
+export function studentResult(
+  b: StudentBook | undefined,
+  studentId: string,
+): SubjectResult | undefined {
+  if (!b) return undefined;
+  const raw: Values = {};
+  const texts: Record<string, string | null> = {};
+  for (const s of b.scores)
+    if (s.studentId === studentId) {
+      raw[s.key] = s.num;
+      texts[s.key] = s.txt;
+    }
+  return subjectResult({
+    columns: b.columns,
+    bonusTarget: b.bonusTarget,
+    raw,
+    texts,
+    bonus: b.bonus.find((x) => x.studentId === studentId),
+  });
+}
+
+export type LearningAlert =
+  | { kind: "low"; studentId: string; subject: string; value: number }
+  | { kind: "drop"; studentId: string; subject: string; from: number; to: number };
+
+/**
+ * Rule-based learning alerts for the current term: a subject average under 5.0, or a term II
+ * average at least `drop` points below term I. Comment-graded subjects are left out.
+ */
+export function learningAlerts(
+  books: StudentBook[],
+  studentIds: string[],
+  semester: 1 | 2,
+  drop = 1.5,
+): LearningAlert[] {
+  const out: LearningAlert[] = [];
+  const subjects = [...new Set(books.map((b) => b.subject))];
+  for (const id of studentIds)
+    for (const subject of subjects) {
+      const now = studentResult(
+        books.find((b) => b.subject === subject && b.semester === semester),
+        id,
+      );
+      if (now?.kind !== "score" || now.value === null) continue;
+      if (now.value < 5) out.push({ kind: "low", studentId: id, subject, value: now.value });
+      if (semester === 2) {
+        const before = studentResult(
+          books.find((b) => b.subject === subject && b.semester === 1),
+          id,
+        );
+        if (
+          before?.kind === "score" &&
+          before.value !== null &&
+          before.value - now.value >= drop - 1e-9
+        )
+          out.push({ kind: "drop", studentId: id, subject, from: before.value, to: now.value });
+      }
+    }
+  return out;
+}

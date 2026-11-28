@@ -13,15 +13,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { attendanceData, type AttendanceData } from "@/lib/homeroom/homeroom.functions";
 import {
+  classBooks,
+  listIncidents,
   listParentContacts,
   weeklyData,
   type ParentContact,
 } from "@/lib/homeroom/records.functions";
+import { learningAlerts, type LearningAlert } from "@/lib/homeroom/evaluation";
 import { attendanceAlerts, classTotal, dayTaken, tallies } from "@/lib/homeroom/attendance";
 import {
   addDays,
   displayDay,
   isSchoolDay,
+  monthRange,
   termOf,
   vnToday,
   weekRange,
@@ -34,6 +38,10 @@ export function OverviewPage({ cls }: HomeroomContext) {
   const load = useServerFn(attendanceData);
   const today = vnToday();
   const contacts = useServerFn(listParentContacts);
+  const books = useServerFn(classBooks);
+  const incidentsFn = useServerFn(listIncidents);
+  const [learning, setLearning] = useState<LearningAlert[]>([]);
+  const [repeated, setRepeated] = useState<{ studentId: string; count: number }[]>([]);
   const weekly = useServerFn(weeklyData);
   const [data, setData] = useState<AttendanceData | null>(null);
   const [followUps, setFollowUps] = useState<ParentContact[]>([]);
@@ -56,10 +64,24 @@ export function OverviewPage({ cls }: HomeroomContext) {
       ]);
       setFollowUps(c.filter((x) => x.followUp && !x.followUpDone && x.followUp <= today));
       setLastWeekLocked(w.results.length > 0);
+      const month = monthRange(today);
+      const [b, inc] = await Promise.all([
+        books({ data: { classId: cls.id } }),
+        incidentsFn({ data: { classId: cls.id, ...month } }),
+      ]);
+      const semester = termOf(today, cls.settings) ?? 1;
+      const ids = [...new Set(b.flatMap((x) => x.scores.map((sc) => sc.studentId)))];
+      setLearning(learningAlerts(b, ids, semester));
+      const counts = new Map<string, number>();
+      for (const i of inc)
+        if (i.type === "vi_pham") counts.set(i.studentId, (counts.get(i.studentId) ?? 0) + 1);
+      setRepeated(
+        [...counts].filter(([, n]) => n >= 3).map(([studentId, count]) => ({ studentId, count })),
+      );
     } catch {
       /* not set up yet */
     }
-  }, [load, contacts, weekly, cls.id, today, lastWeek]);
+  }, [load, contacts, weekly, books, incidentsFn, cls.id, cls.settings, today, lastWeek]);
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
@@ -169,6 +191,19 @@ export function OverviewPage({ cls }: HomeroomContext) {
                   </Link>
                 </Todo>
               ) : null}
+              {learning.map((a) => (
+                <Todo key={`${a.kind}${a.studentId}${a.subject}`} tone="alert">
+                  <b>{names.get(a.studentId) ?? ""}</b>{" "}
+                  {a.kind === "low"
+                    ? `có ĐTB môn ${a.subject} ${String(a.value).replace(".", ",")} (dưới 5).`
+                    : `giảm môn ${a.subject} từ ${String(a.from).replace(".", ",")} xuống ${String(a.to).replace(".", ",")}.`}
+                </Todo>
+              ))}
+              {repeated.map((r) => (
+                <Todo key={`vp${r.studentId}`} tone="alert">
+                  <b>{names.get(r.studentId) ?? ""}</b> vi phạm {r.count} lần trong tháng này.
+                </Todo>
+              ))}
               {followUps.map((c) => (
                 <Todo key={c.id} tone="warn">
                   Hẹn liên hệ lại phụ huynh em <b>{names.get(c.studentId) ?? ""}</b> (

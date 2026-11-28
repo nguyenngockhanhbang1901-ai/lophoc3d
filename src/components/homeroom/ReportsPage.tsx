@@ -2,27 +2,41 @@
 // student's progress sheet compared with the previous period (printable for every student).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Printer, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { attendanceData, type StudentBasic } from "@/lib/homeroom/homeroom.functions";
 import {
   behaviorRange,
   classBooks,
+  listEvaluations,
   listIncidents,
+  listParentContacts,
   weeklyData,
 } from "@/lib/homeroom/records.functions";
+import {
+  classPrompt,
+  codesFor,
+  progressPrompt,
+  restoreNames,
+  type StudentFacts,
+} from "@/lib/homeroom/ai";
+import { studentResult, type StudentBook } from "@/lib/homeroom/evaluation";
+import { formatScore } from "@/lib/gradebook/scores";
+import { takenCount } from "@/lib/homeroom/attendance";
+import { AiDraftDialog } from "./AiDraft";
 import {
   addDays,
   displayDay,
   periodLabel,
   periodRange,
   previousPeriod,
+  termOf,
   vnToday,
   type PeriodKind,
   type Range,
 } from "@/lib/homeroom/periods";
 import { byGivenName, isActive } from "@/lib/homeroom/profiles";
-import { LEVEL_LABEL, type Level } from "@/lib/homeroom/evaluation";
+import { LEVELS, LEVEL_LABEL, type Level } from "@/lib/homeroom/evaluation";
 import { BEHAVIOR_LABEL, type BehaviorKind } from "@/lib/gradebook/scores";
 import { speakText, summarize, type ReportInput, type StudentSummary } from "@/lib/homeroom/report";
 import { errorText, type HomeroomContext } from "./HomeroomFrame";
@@ -89,6 +103,62 @@ export function sheetRows(now: StudentSummary, before: StudentSummary | undefine
   ];
 }
 
+function termAverages(
+  books: StudentBook[],
+  studentId: string,
+  day: string,
+  terms: HomeroomContext["cls"]["settings"],
+) {
+  const semester = termOf(day, terms) ?? 1;
+  return books
+    .filter((b) => b.semester === semester)
+    .map((b) => {
+      const r = studentResult(b, studentId);
+      const value =
+        r?.kind === "score"
+          ? r.value === null
+            ? ""
+            : formatScore(r.value)
+          : r?.pass === null
+            ? ""
+            : r?.pass
+              ? "Đạt"
+              : "Chưa đạt";
+      return { subject: b.subject, value };
+    })
+    .filter((x) => x.value);
+}
+
+/** Facts for the AI about one student and one period (no names). */
+function factsOf(
+  s: StudentSummary,
+  period: string,
+  subjects: { subject: string; value: string }[],
+): StudentFacts {
+  const good: Record<string, number> = {};
+  const bad: Record<string, number> = {};
+  for (const [k, n] of Object.entries(s.kinds) as [BehaviorKind, number][]) {
+    if (k === "phat_bieu") continue;
+    (["len_bang", "lam_tot"].includes(k) ? good : bad)[BEHAVIOR_LABEL[k]] = n;
+  }
+  return {
+    period,
+    subjects: [
+      ...subjects.map((x) => ({ subject: `${x.subject} (ĐTB học kỳ)`, value: x.value })),
+      ...s.scores.map((x) => ({ subject: `${x.subject} ${x.label} mới`, value: x.value })),
+    ],
+    studyLevel: null,
+    conductLevel: null,
+    attendance: { coPhep: s.coPhep, khongPhep: s.khongPhep, diMuon: s.diMuon },
+    speak: s.speak,
+    good,
+    bad,
+    khen: s.khen,
+    viPham: s.viPham,
+    weeks: weeksText(s),
+  };
+}
+
 export function ReportsPage({ cls }: HomeroomContext) {
   const att = useServerFn(attendanceData);
   const beh = useServerFn(behaviorRange);
@@ -110,6 +180,10 @@ export function ReportsPage({ cls }: HomeroomContext) {
   const [students, setStudents] = useState<StudentBasic[]>([]);
   const [input, setInput] = useState<ReportInput | null>(null);
   const [error, setError] = useState("");
+  const [aiOpen, setAiOpen] = useState<"student" | "class" | null>(null);
+  const [taken, setTaken] = useState<{ day: string; session: "ca_ngay" | "sang" | "chieu" }[]>([]);
+  const evalsFn = useServerFn(listEvaluations);
+  const contactsFn = useServerFn(listParentContacts);
 
   const load = useCallback(async () => {
     setInput(null);
@@ -123,6 +197,7 @@ export function ReportsPage({ cls }: HomeroomContext) {
         books({ data: { classId: cls.id } }),
       ]);
       setStudents(a.students.slice().sort(byGivenName));
+      setTaken(a.taken);
       setInput({ absences: a.absences, events: b, incidents: i, weekly: w.results, books: bk });
       setError("");
     } catch (e) {
@@ -189,6 +264,89 @@ export function ReportsPage({ cls }: HomeroomContext) {
     };
   };
   const picked = active.find((s) => s.id === studentId) ?? active[0];
+  const isTermKind = kind === "term1" || kind === "term2" || kind === "year";
+
+  async function classFacts(): Promise<string> {
+    const codes = codesFor(ids);
+    const semester = termOf(range.to < vnToday() ? range.to : vnToday(), cls.settings) ?? 1;
+    const rowsOut = active.map((st) => {
+      const x = now!.get(st.id)!;
+      const low = (input?.books ?? [])
+        .filter((b) => b.semester === semester)
+        .filter((b) => {
+          const r = studentResult(b, st.id);
+          return (
+            (r?.kind === "score" && r.value !== null && r.value < 5) ||
+            (r?.kind === "comment" && r.pass === false)
+          );
+        })
+        .map((b) => b.subject);
+      return {
+        code: codes.get(st.id)!,
+        coPhep: x.coPhep,
+        khongPhep: x.khongPhep,
+        diMuon: x.diMuon,
+        speak: x.speak,
+        good: x.good,
+        bad: x.bad,
+        khen: x.khen.length,
+        viPham: x.viPham.length,
+        lowSubjects: low,
+      };
+    });
+    const sum = (m: Map<string, StudentSummary> | null) => {
+      if (!m) return null;
+      const t = { absent: 0, khongPhep: 0, diMuon: 0, viPham: 0, khen: 0, speak: 0 };
+      for (const x of m.values()) {
+        t.absent += x.coPhep + x.khongPhep;
+        t.khongPhep += x.khongPhep;
+        t.diMuon += x.diMuon;
+        t.viPham += x.viPham.length;
+        t.khen += x.khen.length;
+        t.speak += x.speak;
+      }
+      return t;
+    };
+    const extra: string[] = [];
+    const levels = [...now!.values()].flatMap((x) => x.weeks.map((w) => w.level));
+    if (levels.length)
+      extra.push(
+        `Xếp loại thi đua tuần đã chốt: ${LEVELS.map((l) => `${LEVEL_LABEL[l]} ${levels.filter((x) => x === l).length}`).join(", ")} lượt.`,
+      );
+    if (isTermKind) {
+      const term = kind === "term1" ? 1 : kind === "term2" ? 2 : 3;
+      const [ev, pc] = await Promise.all([
+        evalsFn({ data: { classId: cls.id } }).catch(() => []),
+        contactsFn({ data: { classId: cls.id } }).catch(() => []),
+      ]);
+      const mine = ev.filter((e) => e.term === term);
+      const dist = (pick: (e: (typeof mine)[number]) => Level | null) =>
+        LEVELS.map((l) => `${LEVEL_LABEL[l]} ${mine.filter((e) => pick(e) === l).length}`).join(
+          ", ",
+        );
+      if (mine.length) {
+        extra.push(
+          `Kết quả học tập (${mine.filter((e) => e.studyLevel).length} em đã xếp): ${dist((e) => e.studyLevel)}.`,
+        );
+        extra.push(
+          `Kết quả rèn luyện (${mine.filter((e) => e.conductLevel).length} em đã xếp): ${dist((e) => e.conductLevel)}.`,
+        );
+      } else extra.push("Chưa xếp mức học tập, rèn luyện.");
+      const contacts = pc.filter((c) => c.day >= range.from && c.day <= range.to);
+      extra.push(
+        `Số lần trao đổi với phụ huynh: ${contacts.length} (với ${new Set(contacts.map((c) => c.studentId)).size} gia đình).`,
+      );
+    }
+    return classPrompt({
+      className: cls.name,
+      period: label,
+      size: active.length,
+      sessions: takenCount(taken, range),
+      rows: rowsOut,
+      previous: sum(before),
+      extra,
+    });
+  }
 
   return (
     <div className="grid gap-4">
@@ -259,17 +417,22 @@ export function ReportsPage({ cls }: HomeroomContext) {
                 </Button>
               </>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!now}
-                onClick={() => {
-                  if (!printPages(`Phiếu theo dõi lớp ${cls.name}`, active.map(pageOf)))
-                    setError("Trình duyệt đã chặn cửa sổ in.");
-                }}
-              >
-                <Printer /> In phiếu cả lớp
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!now}
+                  onClick={() => {
+                    if (!printPages(`Phiếu theo dõi lớp ${cls.name}`, active.map(pageOf)))
+                      setError("Trình duyệt đã chặn cửa sổ in.");
+                  }}
+                >
+                  <Printer /> In phiếu cả lớp
+                </Button>
+                <Button size="sm" disabled={!now || !picked} onClick={() => setAiOpen("student")}>
+                  <Sparkles /> AI phân tích tiến bộ
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -357,6 +520,44 @@ export function ReportsPage({ cls }: HomeroomContext) {
       ) : (
         <p className="text-muted-foreground">Lớp chưa có học sinh.</p>
       )}
+      {aiOpen === "student" && picked && now ? (
+        <AiDraftDialog
+          title={`Phân tích tiến bộ · ${picked.fullName}`}
+          description={`${label}${prev ? ", so với kỳ trước" : ""}. AI chỉ nhận số liệu của em, không nhận họ tên.`}
+          task="progress"
+          buildPrompt={() =>
+            progressPrompt(
+              factsOf(
+                now.get(picked.id)!,
+                label,
+                termAverages(input?.books ?? [], picked.id, range.to, cls.settings),
+              ),
+              prev && before
+                ? factsOf(
+                    before.get(picked.id)!,
+                    "Kỳ trước",
+                    termAverages(input?.books ?? [], picked.id, prev.to, cls.settings),
+                  )
+                : null,
+            )
+          }
+          onClose={() => setAiOpen(null)}
+        />
+      ) : null}
+      {aiOpen === "class" && now ? (
+        <AiDraftDialog
+          title={
+            isTermKind ? `Tổng kết công tác chủ nhiệm lớp ${cls.name}` : `Tình hình lớp ${cls.name}`
+          }
+          description={`${label}. AI nhận số liệu theo mã HS01, HS02…; tên học sinh chỉ được ghép lại trên máy của thầy/cô.`}
+          task={isTermKind ? "term" : "month"}
+          buildPrompt={classFacts}
+          finish={(t) =>
+            restoreNames(t, codesFor(ids), new Map(active.map((x) => [x.id, x.fullName])))
+          }
+          onClose={() => setAiOpen(null)}
+        />
+      ) : null}
     </div>
   );
 }
