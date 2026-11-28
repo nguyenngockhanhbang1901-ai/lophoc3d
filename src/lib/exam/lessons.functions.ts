@@ -1,20 +1,20 @@
 // Server functions for giving slide lessons to exam classes (teacher) and reading them (student).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 
 const uuid = z.string().uuid();
 const token = z.string().regex(/^[0-9a-f]{64}$/);
 
 export const listLessonAssignments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .handler(async ({ context }) => {
     const { teacherLessonAssignments } = await import("./lessons.server");
     return { items: await teacherLessonAssignments(context.userId) };
   });
 
 export const giveLesson = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -28,7 +28,7 @@ export const giveLesson = createServerFn({ method: "POST" })
   });
 
 export const takeBackLesson = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { unassignLesson } = await import("./lessons.server");

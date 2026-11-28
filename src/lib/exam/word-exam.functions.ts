@@ -1,14 +1,14 @@
 // Server functions for exams made straight from a Word file (teacher only).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 
 const uuid = z.string().uuid();
 const level = z.enum(["nb", "th", "vd", "vdc"]);
 const points = z.number().min(0).max(100);
 
 export const createExamFromWord = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       title: z.string().trim().min(1).max(150),
@@ -38,7 +38,7 @@ export const createExamFromWord = createServerFn({ method: "POST" })
   });
 
 export const removeWordExam = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { deleteWordExam } = await import("./word-exam.server");
@@ -46,7 +46,7 @@ export const removeWordExam = createServerFn({ method: "POST" })
   });
 
 export const getWordExamQuestions = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { wordExamQuestions } = await import("./word-exam.server");
@@ -54,7 +54,7 @@ export const getWordExamQuestions = createServerFn({ method: "POST" })
   });
 
 export const fixWordExamQuestion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid, questionId: uuid, level, body: z.unknown() }))
   .handler(async ({ data, context }) => {
     const { updateWordExamQuestion } = await import("./word-exam.server");

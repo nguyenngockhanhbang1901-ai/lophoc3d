@@ -4,7 +4,7 @@
 // with the service role. Tables: docs/quan-ly-hoc-sinh/02-dot-2a-so-diem.sql.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 import {
   BEHAVIOR_KINDS,
   bonusRuleSchema,
@@ -120,7 +120,7 @@ async function termRange(classId: string, schoolYear: string, semester: 1 | 2) {
 }
 
 export const listBooks = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .handler(async ({ context }): Promise<BookSummary[]> => {
     const d = await db();
     const { data, error } = await d
@@ -160,7 +160,7 @@ export const listBooks = createServerFn({ method: "POST" })
   });
 
 export const createBook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -192,7 +192,7 @@ export const createBook = createServerFn({ method: "POST" })
   });
 
 export const updateBook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       bookId: uuid,
@@ -228,7 +228,7 @@ export const updateBook = createServerFn({ method: "POST" })
   });
 
 export const deleteBook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ bookId: uuid }))
   .handler(async ({ data, context }) => {
     const book = await ownedBook(context.userId, data.bookId);
@@ -238,7 +238,7 @@ export const deleteBook = createServerFn({ method: "POST" })
   });
 
 export const bookData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ bookId: uuid }))
   .handler(async ({ data, context }): Promise<BookData> => {
     const book = await ownedBook(context.userId, data.bookId);
@@ -391,7 +391,7 @@ async function writeCells(
 }
 
 export const saveScores = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ bookId: uuid, cells: z.array(cellSchema).max(1000) }))
   .handler(async ({ data, context }) => {
     const book = await ownedBook(context.userId, data.bookId);
@@ -401,7 +401,7 @@ export const saveScores = createServerFn({ method: "POST" })
   });
 
 export const saveBonus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       bookId: uuid,
@@ -454,7 +454,7 @@ export const saveBonus = createServerFn({ method: "POST" })
   });
 
 export const bonusHistory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ bookId: uuid, studentId: uuid }))
   .handler(async ({ data, context }) => {
     const book = await ownedBook(context.userId, data.bookId);
@@ -492,7 +492,7 @@ export const bonusHistory = createServerFn({ method: "POST" })
  * overwrite is set; students matched by name get their SMAS code when they had none.
  */
 export const importSmas = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -584,7 +584,7 @@ export const importSmas = createServerFn({ method: "POST" })
 
 /** The stored SMAS file and where each student's row is, for exporting back into SMAS. */
 export const smasTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ bookId: uuid }))
   .handler(async ({ data, context }) => {
     const book = await ownedBook(context.userId, data.bookId);
@@ -602,7 +602,7 @@ export interface BehaviorEvent {
 }
 
 export const recordBehavior = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -639,7 +639,7 @@ export const recordBehavior = createServerFn({ method: "POST" })
   });
 
 export const undoBehavior = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { error } = await (
@@ -654,7 +654,7 @@ export const undoBehavior = createServerFn({ method: "POST" })
   });
 
 export const behaviorOfDay = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, subject: z.string().trim().max(60), day }))
   .handler(async ({ data, context }): Promise<BehaviorEvent[]> => {
     await owned(context.userId, data.classId);

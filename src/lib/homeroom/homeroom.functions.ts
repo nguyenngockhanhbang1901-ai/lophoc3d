@@ -5,7 +5,7 @@
 // Tables come from docs/quan-ly-hoc-sinh/01-dot-1-co-ban.sql (applied through Lovable).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 import type { AbsenceKind, AbsenceRecord, Session, TakenSession } from "./attendance";
 import { guardianSchema, normalizeGuardians, profileSchema, emptyProfile } from "./profiles";
 import type { Guardian, Profile, StudentStatus } from "./profiles";
@@ -201,7 +201,7 @@ async function settingsRow(classId: string): Promise<SettingsRow | null> {
 
 /** Every class of the teacher, with its homeroom settings when it is a homeroom class. */
 export const listHomeroomClasses = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .handler(async ({ context }): Promise<HomeroomClass[]> => {
     const d = await db();
     const { data, error } = await d
@@ -241,7 +241,7 @@ export const listHomeroomClasses = createServerFn({ method: "POST" })
 
 /** Make a class a homeroom class (or update its settings); homeroom=false removes the mark only. */
 export const saveHomeroomSettings = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -283,7 +283,7 @@ export const saveHomeroomSettings = createServerFn({ method: "POST" })
 
 /** Full profiles (with guardians and photos) of every student in the class. */
 export const listProfiles = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid }))
   .handler(async ({ data, context }): Promise<StudentProfile[]> => {
     await owned(context.userId, data.classId);
@@ -358,7 +358,7 @@ async function checkStudent(classId: string, studentId: string) {
 
 /** Save one student's profile and the full list of their guardians. */
 export const saveProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -391,7 +391,7 @@ export const saveProfile = createServerFn({ method: "POST" })
 
 /** Profile sheet import: fills only the cells the sheet has; a guardian replaces the main contact. */
 export const importProfiles = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -457,7 +457,7 @@ export const importProfiles = createServerFn({ method: "POST" })
 
 /** Students, absences and taken sessions of a class between two days (for attendance pages). */
 export const attendanceData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, from: day, to: day }))
   .handler(async ({ data, context }): Promise<AttendanceData> => {
     await owned(context.userId, data.classId);
@@ -518,7 +518,7 @@ export const attendanceData = createServerFn({ method: "POST" })
 
 /** Save one session's roll call: the listed students were absent or late, everyone else present. */
 export const saveAttendance = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,

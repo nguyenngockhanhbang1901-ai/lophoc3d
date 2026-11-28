@@ -158,11 +158,12 @@ export function studentResult(
 }
 
 export type LearningAlert =
-  | { kind: "low"; studentId: string; subject: string; value: number }
+  | { kind: "low" | "very_low"; studentId: string; subject: string; value: number }
   | { kind: "drop"; studentId: string; subject: string; from: number; to: number };
 
 /**
- * Rule-based learning alerts for the current term: a subject average under 5.0, or a term II
+ * Rule-based learning alerts for the current term: a subject average under 5.0 (under 3.5 is
+ * "very_low": alone it keeps the learning level from Đạt), or a term II
  * average at least `drop` points below term I. Comment-graded subjects are left out.
  */
 export function learningAlerts(
@@ -180,7 +181,13 @@ export function learningAlerts(
         id,
       );
       if (now?.kind !== "score" || now.value === null) continue;
-      if (now.value < 5) out.push({ kind: "low", studentId: id, subject, value: now.value });
+      if (now.value < 5)
+        out.push({
+          kind: now.value < 3.5 ? "very_low" : "low",
+          studentId: id,
+          subject,
+          value: now.value,
+        });
       if (semester === 2) {
         const before = studentResult(
           books.find((b) => b.subject === subject && b.semester === 1),

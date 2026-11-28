@@ -177,3 +177,17 @@ export function suggestBonus(counts: Counts, rule: BonusRule): Bonus {
     minus: steps(sum(rule.minusKinds), rule.minusEvery, rule.minusStep),
   };
 }
+
+/** Colour of a score: under 5 red, under 3.5 dark red on a light red ground. */
+export function scoreTone(v: number | null | undefined): "" | "low" | "very_low" {
+  if (v === null || v === undefined || Number.isNaN(v)) return "";
+  if (v < 3.5) return "very_low";
+  if (v < 5) return "low";
+  return "";
+}
+export const SCORE_TONE_CLASS: Record<"" | "low" | "very_low", string> = {
+  "": "",
+  low: "text-red-600 font-semibold",
+  very_low: "text-red-900 font-bold bg-red-100",
+};
+export const scoreClass = (v: number | null | undefined) => SCORE_TONE_CLASS[scoreTone(v)];

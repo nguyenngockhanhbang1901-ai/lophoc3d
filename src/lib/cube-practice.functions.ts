@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { requireOwner } from '@/lib/owner-middleware';
 import { classroomCodeSchema, codeJoinKey } from './classroom-access';
 import { cubeSubmission, CUBE_LESSON_KEY, MAX_CUBE_STUDENTS, scheduledReleaseError } from './cube-practice';
 import { assignmentStarted } from './assignment';
@@ -51,14 +51,14 @@ export const submitCubeAnswers=createServerFn({method:'POST'}).inputValidator(cr
  if(error || !saved) throw new Error('Bài đã nộp · Không thể sửa');
  return saved;
 });
-export const readCubeResults=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({roomId:z.string().uuid()})).handler(async({data,context})=>{
+export const readCubeResults=createServerFn({method:'POST'}).middleware([requireOwner]).inputValidator(z.object({roomId:z.string().uuid()})).handler(async({data,context})=>{
  const {data:room}=await context.supabase.from('classrooms').select('id,lesson_key').eq('id',data.roomId).eq('owner_id',context.userId).maybeSingle();
  if(!room || room.lesson_key!==CUBE_LESSON_KEY) throw new Error('Không có quyền xem lớp');
  const {data:rows,error}=await context.supabase.from('lesson111_students').select('slot,name,answers,submitted_at').eq('classroom_id',room.id).not('name','is',null).order('slot');
  if(error) throw new Error('Không đọc được bài làm');
  return rows ?? [];
 });// A scheduled release stores the future moment as the part's start, so the server opens the work exactly then without a timer job.
-export const scheduleCubeRelease=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({roomId:z.string().uuid(),at:z.string().datetime({offset:true}).nullable()})).handler(async({data,context})=>{
+export const scheduleCubeRelease=createServerFn({method:'POST'}).middleware([requireOwner]).inputValidator(z.object({roomId:z.string().uuid(),at:z.string().datetime({offset:true}).nullable()})).handler(async({data,context})=>{
  const {data:room}=await context.supabase.from('classrooms').select('id,lesson_key,started_at').eq('id',data.roomId).eq('owner_id',context.userId).maybeSingle();
  if(!room || room.lesson_key!==CUBE_LESSON_KEY) throw new Error('Không có quyền với lớp này');
  const now=Date.now();

@@ -3,7 +3,7 @@
 // edits to the matrix never change an exam that is already given.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 import {
   assignmentSettingsSchema,
   chosenScore,
@@ -38,7 +38,7 @@ export interface AssignmentSummary {
 }
 
 export const listAssignments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .handler(
     async ({ context }): Promise<{ serverNow: string; assignments: AssignmentSummary[] }> => {
       const { examDb } = await import("./db.server");
@@ -130,7 +130,7 @@ export const listAssignments = createServerFn({ method: "POST" })
   );
 
 export const saveAssignment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       id: uuid.optional(),
@@ -234,7 +234,7 @@ export const saveAssignment = createServerFn({ method: "POST" })
   });
 
 export const deleteAssignment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { examDb } = await import("./db.server");
@@ -281,7 +281,7 @@ export interface StudentResult {
 }
 
 export const assignmentResults = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ assignmentId: uuid }))
   .handler(async ({ data, context }): Promise<{ serverNow: string; students: StudentResult[] }> => {
     const { examDb } = await import("./db.server");
@@ -406,7 +406,7 @@ export const assignmentResults = createServerFn({ method: "POST" })
   });
 
 export const grantRetake = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       assignmentId: uuid,
@@ -427,7 +427,7 @@ export const grantRetake = createServerFn({ method: "POST" })
   });
 
 export const revokeRetake = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ grantId: uuid }))
   .handler(async ({ data, context }) => {
     const { revokeGrant } = await import("./retakes.server");
@@ -435,7 +435,7 @@ export const revokeRetake = createServerFn({ method: "POST" })
   });
 
 export const attemptDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ attemptId: uuid }))
   .handler(async ({ data, context }) => {
     const { teacherAttemptDetail } = await import("./review.server");
@@ -443,7 +443,7 @@ export const attemptDetail = createServerFn({ method: "POST" })
   });
 
 export const assignmentReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ assignmentId: uuid }))
   .handler(async ({ data, context }) => {
     const { teacherAssignmentReport } = await import("./review.server");

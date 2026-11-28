@@ -4,7 +4,7 @@
 // Tables: docs/quan-ly-hoc-sinh/03-dot-2b-danh-gia-thi-dua.sql.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireOwner } from "@/lib/owner-middleware";
 import type { BehaviorKind, BookColumn } from "@/lib/gradebook/scores";
 import type { Level } from "./evaluation";
 import { DEFAULT_WEEKLY_RULE, weeklyRuleSchema, type WeeklyRule } from "./weekly";
@@ -57,7 +57,7 @@ export interface Incident {
 }
 
 export const listIncidents = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, from: day, to: day }))
   .handler(async ({ data, context }): Promise<Incident[]> => {
     await owned(context.userId, data.classId);
@@ -86,7 +86,7 @@ export const listIncidents = createServerFn({ method: "POST" })
   });
 
 export const saveIncident = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -135,7 +135,7 @@ export const saveIncident = createServerFn({ method: "POST" })
   });
 
 export const deleteIncident = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { error } = await (
@@ -160,7 +160,7 @@ export interface ClassEvent {
 }
 
 export const behaviorRange = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, from: day, to: day }))
   .handler(async ({ data, context }): Promise<ClassEvent[]> => {
     await owned(context.userId, data.classId);
@@ -202,7 +202,7 @@ export interface WeeklyResult {
 }
 
 export const weeklyData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, from: day, to: day }))
   .handler(async ({ data, context }): Promise<{ rule: WeeklyRule; results: WeeklyResult[] }> => {
     await owned(context.userId, data.classId);
@@ -243,7 +243,7 @@ export const weeklyData = createServerFn({ method: "POST" })
   });
 
 export const saveWeeklyRule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid, rule: weeklyRuleSchema }))
   .handler(async ({ data, context }) => {
     await owned(context.userId, data.classId);
@@ -260,7 +260,7 @@ export const saveWeeklyRule = createServerFn({ method: "POST" })
   });
 
 export const lockWeek = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -322,7 +322,7 @@ export interface ClassBook {
 
 /** Every score book of this class the teacher owns (her own subject + files imported from others). */
 export const classBooks = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid }))
   .handler(async ({ data, context }): Promise<ClassBook[]> => {
     await owned(context.userId, data.classId);
@@ -394,7 +394,7 @@ export interface Evaluation {
 }
 
 export const listEvaluations = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid }))
   .handler(async ({ data, context }): Promise<Evaluation[]> => {
     await owned(context.userId, data.classId);
@@ -423,7 +423,7 @@ export const listEvaluations = createServerFn({ method: "POST" })
   });
 
 export const saveEvaluation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -475,7 +475,7 @@ export interface ParentContact {
 }
 
 export const listParentContacts = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ classId: uuid }))
   .handler(async ({ data, context }): Promise<ParentContact[]> => {
     await owned(context.userId, data.classId);
@@ -514,7 +514,7 @@ export const listParentContacts = createServerFn({ method: "POST" })
   });
 
 export const saveParentContact = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(
     z.object({
       classId: uuid,
@@ -558,7 +558,7 @@ export const saveParentContact = createServerFn({ method: "POST" })
   });
 
 export const deleteParentContact = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireOwner])
   .inputValidator(z.object({ id: uuid }))
   .handler(async ({ data, context }) => {
     const { error } = await (

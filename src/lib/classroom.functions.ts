@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { requireOwner } from '@/lib/owner-middleware';
 import { canEdit, mayReadOtherAnswers, validateTeamCount } from './geometry';
 import { acceptsAnswer, canStart, endTime, normalizeTimings, timingAt, type Timing } from './timer';
 import { classroomCodeSchema, classroomJoinSchema, codeJoinKey } from './classroom-access';
@@ -40,7 +40,7 @@ export const joinClassroom = createServerFn({ method: 'POST' }).inputValidator(c
   if (!team) throw new Error('Tổ không có trong lớp');
   return { code: data.code, number: data.number, key: await codeJoinKey(room.id, team.access_hash) };
 });
-export const createClassroom = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+export const createClassroom = createServerFn({ method: 'POST' }).middleware([requireOwner])
   .inputValidator(z.object({ title: z.string().trim().min(1).max(100), teamCount: z.number().int().min(1).max(10), mode: lessonModeSchema.default('default'), lessonKey: z.string().default('12') }))
   .handler(async ({ data, context }) => {
     if (!validateTeamCount(data.teamCount)) throw new Error('Tối đa 10 tổ');
@@ -67,13 +67,13 @@ export const createClassroom = createServerFn({ method: 'POST' }).middleware([re
     if (teamError) throw new Error('Không tạo được tổ');
     return { classroom, invitations: invitations.map(({ number, key }) => ({ number, key })) };
   });
-export const beginAssignment = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+export const beginAssignment = createServerFn({ method: 'POST' }).middleware([requireOwner])
   .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(6) })).handler(async ({ data, context }) => {
     const { data: startedAt, error } = await context.supabase.rpc('begin_classroom_activity', { room_id: data.roomId, activity: data.activity });
     if (error || !startedAt) throw new Error('Không bắt đầu được bài làm');
     return { startedAt };
   });
-export const setClassroomActivity = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+export const setClassroomActivity = createServerFn({ method: 'POST' }).middleware([requireOwner])
   .inputValidator(z.object({ roomId: z.string().uuid(), activity: z.number().int().min(1).max(6) }))
   .handler(async ({ data, context }) => {
     const { data: activity, error } = await context.supabase.rpc('set_classroom_activity', { room_id: data.roomId, activity: data.activity });
@@ -257,7 +257,7 @@ export const readLecture = createServerFn({ method: 'POST' }).inputValidator(cla
   if (!room || !canReadLecture(room.lesson_mode, room.closed)) throw new Error('Lớp học đã đóng hoặc không chia sẻ bài giảng');
   return { id: room.id, code: room.code, title: room.title, lesson_key: room.lesson_key, lesson_title: room.lesson_title, lesson_content: room.lesson_content, mode: room.lesson_mode };
 });
-export const savePresentationState = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(presentationStateSchema).handler(async ({ data, context }) => {
+export const savePresentationState = createServerFn({ method: 'POST' }).middleware([requireOwner]).inputValidator(presentationStateSchema).handler(async ({ data, context }) => {
   const { data: room, error } = await context.supabase.from('classrooms').update({ current_activity: data.activity, presentation_step: data.step, presentation_review: data.review }).eq('id', data.roomId).eq('owner_id', context.userId).eq('closed', false).select('id').maybeSingle();
   if (error || !room) throw new Error('Không đồng bộ được phần trình chiếu');
   return { saved: true };

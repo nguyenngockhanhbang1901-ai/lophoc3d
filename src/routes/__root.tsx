@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from '@/integrations/supabase/client';
 import { TAB_ALIVE_KEY, TEMP_SESSION_KEY } from '@/lib/session-keys';
+import { isOwnerEmail, NOT_OWNER_FLAG } from '@/lib/site-owner';
 
 function NotFoundComponent() {
   return (
@@ -136,7 +137,15 @@ function RootComponent() {
     }
   }, []);
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange(event => {
+    // Personal website: any signed-in account that is not the owner is signed out at once.
+    const guard = (email: string | undefined) => {
+      if (!email || isOwnerEmail(email)) return;
+      try { window.sessionStorage.setItem(NOT_OWNER_FLAG, '1'); } catch { /* storage unavailable */ }
+      void supabase.auth.signOut().then(() => { if (window.location.pathname !== '/auth') window.location.assign('/auth'); });
+    };
+    void supabase.auth.getSession().then(({ data: s }) => guard(s.session?.user.email));
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') guard(session?.user.email);
       if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
       void router.invalidate();
       window.dispatchEvent(new Event('classroom-auth-changed'));

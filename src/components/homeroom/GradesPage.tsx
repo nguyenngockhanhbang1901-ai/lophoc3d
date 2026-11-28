@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { SmasImportDialog } from "@/components/gradebook/BookDialogs";
 import { listExamClasses, type ExamClassSummary } from "@/lib/exam/classes.functions";
 import { readSmasSheet, type SmasSheet } from "@/lib/gradebook/smas";
-import { formatScore } from "@/lib/gradebook/scores";
+import { formatScore, scoreClass } from "@/lib/gradebook/scores";
 import { attendanceData, type StudentBasic } from "@/lib/homeroom/homeroom.functions";
 import {
   behaviorRange,
@@ -50,17 +50,17 @@ const TERM_LABEL: Record<Term, string> = { 1: "Học kỳ I", 2: "Học kỳ II"
 
 const bookResult = studentResult;
 
-function show(r: SubjectResult | undefined): { text: string; low: boolean; partial: boolean } {
-  if (!r) return { text: "", low: false, partial: false };
+function show(r: SubjectResult | undefined): { text: string; tone: string; partial: boolean } {
+  if (!r) return { text: "", tone: "", partial: false };
   if (r.kind === "comment")
     return {
       text: r.pass === null ? "…" : r.pass ? "Đ" : "CĐ",
-      low: r.pass === false,
+      tone: r.pass === false ? "text-red-600 font-semibold" : "",
       partial: r.pass === null,
     };
   return {
     text: r.value === null ? "" : `${formatScore(r.value)}${r.complete ? "" : "*"}`,
-    low: r.value !== null && r.value < 5,
+    tone: scoreClass(r.value),
     partial: !r.complete,
   };
 }
@@ -376,7 +376,7 @@ export function GradesPage({ cls }: HomeroomContext) {
                       return (
                         <td
                           key={r.subject}
-                          className={`px-1 text-center ${v.low ? "font-semibold text-red-700" : ""} ${v.partial ? "text-muted-foreground" : ""}`}
+                          className={`px-1 text-center ${v.tone || (v.partial ? "text-muted-foreground" : "")}`}
                         >
                           {v.text}
                         </td>
