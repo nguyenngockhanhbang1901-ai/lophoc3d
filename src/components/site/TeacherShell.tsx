@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   MonitorPlay,
+  NotebookPen,
   PenLine,
   Search,
   UserRound,
@@ -47,6 +48,7 @@ export type TeacherNavKey =
   | "word"
   | "accounts"
   | "stats"
+  | "gradebook"
   | "hr-overview"
   | "hr-profiles"
   | "hr-attendance"
@@ -70,6 +72,7 @@ const GROUPS: { title?: string; items: Item[] }[] = [
       { key: "bank", label: "Ngân hàng đề", icon: Database, href: "/ngan-hang-de" },
       { key: "matrix", label: "Ma trận đề", icon: Grid2x2, href: "/ma-tran-de" },
       { key: "word", label: "Tạo đề thi Word", icon: FileText, href: "/giao-bai#de-thi-word" },
+      { key: "gradebook", label: "Sổ điểm cá nhân", icon: NotebookPen, href: "/so-diem" },
     ],
   },
   {
