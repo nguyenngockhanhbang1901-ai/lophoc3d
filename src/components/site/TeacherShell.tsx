@@ -4,7 +4,11 @@ import type { User } from "@supabase/supabase-js";
 import {
   BarChart3,
   BookOpenCheck,
+  CalendarCheck,
   ChevronDown,
+  Contact,
+  LayoutDashboard,
+  LineChart,
   ClipboardCheck,
   Database,
   FileText,
@@ -42,7 +46,11 @@ export type TeacherNavKey =
   | "matrix"
   | "word"
   | "accounts"
-  | "stats";
+  | "stats"
+  | "hr-overview"
+  | "hr-profiles"
+  | "hr-attendance"
+  | "hr-stats";
 
 type Item = { key: TeacherNavKey; label: string; icon: typeof Home; href: string };
 const GROUPS: { title?: string; items: Item[] }[] = [
@@ -62,6 +70,20 @@ const GROUPS: { title?: string; items: Item[] }[] = [
       { key: "bank", label: "Ngân hàng đề", icon: Database, href: "/ngan-hang-de" },
       { key: "matrix", label: "Ma trận đề", icon: Grid2x2, href: "/ma-tran-de" },
       { key: "word", label: "Tạo đề thi Word", icon: FileText, href: "/giao-bai#de-thi-word" },
+    ],
+  },
+  {
+    title: "Chủ nhiệm",
+    items: [
+      { key: "hr-overview", label: "Lớp chủ nhiệm", icon: LayoutDashboard, href: "/chu-nhiem" },
+      { key: "hr-profiles", label: "Hồ sơ học sinh", icon: Contact, href: "/chu-nhiem/ho-so" },
+      {
+        key: "hr-attendance",
+        label: "Điểm danh",
+        icon: CalendarCheck,
+        href: "/chu-nhiem/diem-danh",
+      },
+      { key: "hr-stats", label: "Chuyên cần", icon: LineChart, href: "/chu-nhiem/chuyen-can" },
     ],
   },
   {
