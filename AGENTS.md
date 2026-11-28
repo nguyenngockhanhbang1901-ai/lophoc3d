@@ -77,3 +77,5 @@ use the editor.
 <!-- AGENT-MEMORY:BEGIN -->
 <!-- AGENT-MEMORY:END -->
 - Site chrome (Lớp Học Số style) lives in src/components/site: the public home (HomeLanding) and the teacher dashboard (TeacherDashboard) are Classroom's not-entered views, teacher pages share TeacherShell's sidebar, sign-in for both roles is LoginScreen (/auth, and /hoc-sinh when signed out); lesson parts and their components are not restyled by it.
+
+- Homeroom module (Quản lý học sinh của GVCN, src/lib/homeroom + src/components/homeroom, routes /chu-nhiem/*): a class becomes a homeroom class by having an hr_class_settings row; students are the class's exam_students rows (shared with exam accounts) extended by hr_student_profiles/hr_guardians; roll call stores only absences/late arrivals (hr_absences) plus the taken sessions (hr_attendance_days), so "present" is the absence of a row. All hr_* tables are service-role only and reached through ownership-checked server functions; tallies, absence runs, alerts and report periods (week Mon–Sun, month, terms from settings or default 5/9 – 15/1 – 31/5) are pure functions in attendance.ts/periods.ts computed on Vietnam-time ISO days.

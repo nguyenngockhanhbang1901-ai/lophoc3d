@@ -20,6 +20,10 @@ import { Route as NganHangDeRouteImport } from './routes/ngan-hang-de'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SoanBaiRouteImport } from './routes/soan-bai'
 import { Route as XemBaiRouteImport } from './routes/xem-bai'
+import { Route as ChuNhiemIndexRouteImport } from './routes/chu-nhiem.index'
+import { Route as ChuNhiemChuyenCanRouteImport } from './routes/chu-nhiem.chuyen-can'
+import { Route as ChuNhiemDiemDanhRouteImport } from './routes/chu-nhiem.diem-danh'
+import { Route as ChuNhiemHoSoRouteImport } from './routes/chu-nhiem.ho-so'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +80,26 @@ const XemBaiRoute = XemBaiRouteImport.update({
   path: '/xem-bai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChuNhiemIndexRoute = ChuNhiemIndexRouteImport.update({
+  id: '/chu-nhiem/',
+  path: '/chu-nhiem/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemChuyenCanRoute = ChuNhiemChuyenCanRouteImport.update({
+  id: '/chu-nhiem/chuyen-can',
+  path: '/chu-nhiem/chuyen-can',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemDiemDanhRoute = ChuNhiemDiemDanhRouteImport.update({
+  id: '/chu-nhiem/diem-danh',
+  path: '/chu-nhiem/diem-danh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChuNhiemHoSoRoute = ChuNhiemHoSoRouteImport.update({
+  id: '/chu-nhiem/ho-so',
+  path: '/chu-nhiem/ho-so',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +113,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
+  '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem/': typeof ChuNhiemIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +130,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
+  '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem': typeof ChuNhiemIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +148,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/soan-bai': typeof SoanBaiRoute
   '/xem-bai': typeof XemBaiRoute
+  '/chu-nhiem/chuyen-can': typeof ChuNhiemChuyenCanRoute
+  '/chu-nhiem/diem-danh': typeof ChuNhiemDiemDanhRoute
+  '/chu-nhiem/ho-so': typeof ChuNhiemHoSoRoute
+  '/chu-nhiem/': typeof ChuNhiemIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +167,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/diem-danh'
+    | '/chu-nhiem/ho-so'
+    | '/chu-nhiem/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +184,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/diem-danh'
+    | '/chu-nhiem/ho-so'
+    | '/chu-nhiem'
   id:
     | '__root__'
     | '/'
@@ -157,6 +201,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/soan-bai'
     | '/xem-bai'
+    | '/chu-nhiem/chuyen-can'
+    | '/chu-nhiem/diem-danh'
+    | '/chu-nhiem/ho-so'
+    | '/chu-nhiem/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +219,10 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SoanBaiRoute: typeof SoanBaiRoute
   XemBaiRoute: typeof XemBaiRoute
+  ChuNhiemChuyenCanRoute: typeof ChuNhiemChuyenCanRoute
+  ChuNhiemDiemDanhRoute: typeof ChuNhiemDiemDanhRoute
+  ChuNhiemHoSoRoute: typeof ChuNhiemHoSoRoute
+  ChuNhiemIndexRoute: typeof ChuNhiemIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +304,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof XemBaiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chu-nhiem/': {
+      id: '/chu-nhiem/'
+      path: '/chu-nhiem'
+      fullPath: '/chu-nhiem/'
+      preLoaderRoute: typeof ChuNhiemIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/chuyen-can': {
+      id: '/chu-nhiem/chuyen-can'
+      path: '/chu-nhiem/chuyen-can'
+      fullPath: '/chu-nhiem/chuyen-can'
+      preLoaderRoute: typeof ChuNhiemChuyenCanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/diem-danh': {
+      id: '/chu-nhiem/diem-danh'
+      path: '/chu-nhiem/diem-danh'
+      fullPath: '/chu-nhiem/diem-danh'
+      preLoaderRoute: typeof ChuNhiemDiemDanhRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chu-nhiem/ho-so': {
+      id: '/chu-nhiem/ho-so'
+      path: '/chu-nhiem/ho-so'
+      fullPath: '/chu-nhiem/ho-so'
+      preLoaderRoute: typeof ChuNhiemHoSoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +347,10 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SoanBaiRoute: SoanBaiRoute,
   XemBaiRoute: XemBaiRoute,
+  ChuNhiemChuyenCanRoute: ChuNhiemChuyenCanRoute,
+  ChuNhiemDiemDanhRoute: ChuNhiemDiemDanhRoute,
+  ChuNhiemHoSoRoute: ChuNhiemHoSoRoute,
+  ChuNhiemIndexRoute: ChuNhiemIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
