@@ -1438,6 +1438,7 @@ export type Database = {
           term2_start: string | null
           two_sessions: boolean
           updated_at: string
+          weekly_rule: Json | null
           year_end: string | null
           year_start: string | null
         }
@@ -1450,6 +1451,7 @@ export type Database = {
           term2_start?: string | null
           two_sessions?: boolean
           updated_at?: string
+          weekly_rule?: Json | null
           year_end?: string | null
           year_start?: string | null
         }
@@ -1462,6 +1464,7 @@ export type Database = {
           term2_start?: string | null
           two_sessions?: boolean
           updated_at?: string
+          weekly_rule?: Json | null
           year_end?: string | null
           year_start?: string | null
         }
@@ -1471,6 +1474,54 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: true
             referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_evaluations: {
+        Row: {
+          class_id: string
+          comment: string
+          conduct_level: string | null
+          owner_id: string
+          student_id: string
+          study_level: string | null
+          term: number
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          comment?: string
+          conduct_level?: string | null
+          owner_id: string
+          student_id: string
+          study_level?: string | null
+          term: number
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          comment?: string
+          conduct_level?: string | null
+          owner_id?: string
+          student_id?: string
+          study_level?: string | null
+          term?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_evaluations_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_evaluations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
             referencedColumns: ["id"]
           },
         ]
@@ -1515,6 +1566,129 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hr_guardians_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_incidents: {
+        Row: {
+          action: string
+          category: string
+          class_id: string
+          content: string
+          created_at: string
+          day: string
+          id: string
+          owner_id: string
+          points: number
+          student_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          action?: string
+          category: string
+          class_id: string
+          content: string
+          created_at?: string
+          day: string
+          id?: string
+          owner_id: string
+          points?: number
+          student_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          class_id?: string
+          content?: string
+          created_at?: string
+          day?: string
+          id?: string
+          owner_id?: string
+          points?: number
+          student_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_incidents_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_incidents_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_parent_contacts: {
+        Row: {
+          channel: string
+          class_id: string
+          content: string
+          created_at: string
+          day: string
+          follow_up: string | null
+          follow_up_done: boolean
+          guardian_name: string
+          id: string
+          owner_id: string
+          result: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          class_id: string
+          content: string
+          created_at?: string
+          day: string
+          follow_up?: string | null
+          follow_up_done?: boolean
+          guardian_name?: string
+          id?: string
+          owner_id: string
+          result?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          class_id?: string
+          content?: string
+          created_at?: string
+          day?: string
+          follow_up?: string | null
+          follow_up_done?: boolean
+          guardian_name?: string
+          id?: string
+          owner_id?: string
+          result?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_parent_contacts_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_parent_contacts_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "exam_students"
@@ -1579,6 +1753,54 @@ export type Database = {
             foreignKeyName: "hr_student_profiles_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: true
+            referencedRelation: "exam_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_weekly_results: {
+        Row: {
+          class_id: string
+          level: string
+          locked_at: string
+          note: string
+          owner_id: string
+          points: number
+          student_id: string
+          week_start: string
+        }
+        Insert: {
+          class_id: string
+          level: string
+          locked_at?: string
+          note?: string
+          owner_id: string
+          points: number
+          student_id: string
+          week_start: string
+        }
+        Update: {
+          class_id?: string
+          level?: string
+          locked_at?: string
+          note?: string
+          owner_id?: string
+          points?: number
+          student_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_weekly_results_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "exam_classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_weekly_results_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
             referencedRelation: "exam_students"
             referencedColumns: ["id"]
           },
